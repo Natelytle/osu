@@ -2,17 +2,23 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using MathNet.Numerics.RootFinding;
+using static MathNet.Numerics.SpecialFunctions;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Difficulty.Skills;
+
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuStrainSkill
+    public class Aim : Skill
     {
         public Aim(Mod[] mods, bool withSliders)
             : base(mods)
@@ -29,10 +35,48 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private const double slider_multiplier = 1.5;
         private const double velocity_change_multiplier = 0.75;
 
+        private const double fc_probability = 0.02;
+
         private double currentStrain;
 
-        private double skillMultiplier => 23.25;
+        private double skillMultiplier => 11;
+
         private double strainDecayBase => 0.15;
+
+        private List<double> difficulties = new List<double>();
+
+        private static double hitProbability(double skill, double difficulty) => Erf(skill / (Math.Sqrt(2) * difficulty));
+
+        private double fcProbability(double skill)
+        {
+            double p = 1;
+            foreach (double d in difficulties)
+            {
+                p *= hitProbability(skill, d);
+            }
+            return p;
+        }
+
+        protected override void Process(DifficultyHitObject current)
+        {
+            difficulties.Add(strainValueAt(current));
+        }
+
+        public override double DifficultyValue()
+        {
+            double maxDiff = difficulties.Max();
+
+            double lowerBoundEstimate = 0.5 * maxDiff;
+            double upperBoundEstimate = 3.0 * maxDiff;
+
+            double skill =  Brent.FindRootExpand(
+                skill => fcProbability(skill) - fc_probability,
+                lowerBoundEstimate,
+                upperBoundEstimate,
+                1e-4);
+
+            return skillMultiplier * skill;
+        }
 
         private double strainValueOf(DifficultyHitObject current)
         {
@@ -152,9 +196,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
-        protected override double CalculateInitialStrain(double time) => currentStrain * strainDecay(time - Previous[0].StartTime);
-
-        protected override double StrainValueAt(DifficultyHitObject current)
+        private double strainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(current.DeltaTime);
             currentStrain += strainValueOf(current) * skillMultiplier;
