@@ -57,5 +57,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             return difficulty * DifficultyMultiplier;
         }
+
+        public double AverageStrainDifficulty()
+        {
+            List<double> strains = GetCurrentStrainPeaks().OrderByDescending(d => d).ToList();
+
+            return (double)(strains.Average());
+        }
     }
 }
