@@ -3,6 +3,8 @@
 
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
@@ -16,6 +18,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecayBase => 0.3;
         private double currentStrain;
+
+        private List<double> strains = new List<double>();
 
         protected override double DecayWeight => 1.0;
         protected override double DifficultyMultiplier => 4;
@@ -129,8 +133,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             if (current is OsuDifficultyHitObject osuCurrObj)
                 osuCurrObj.RhythmDifficulty = rhythmBonus;
+            
+            strains.Add(rhythmBonus);
 
             return currentStrain;
         }
+
+        public double AverageRhythmDifficulty() => strains.Average();
     }
 }

@@ -36,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRating = Math.Sqrt(skills[0].DifficultyValue()) * difficulty_multiplier;
             double aimRatingNoSliders = Math.Sqrt(skills[1].DifficultyValue()) * difficulty_multiplier;
             double rhythmRating = Math.Sqrt(skills[2].DifficultyValue()) * difficulty_multiplier;
-            double averageRhythmRating = (skills[2] as Speed).AverageStrainDifficulty();
+            double averageRhythmRating = ((Rhythm)skills[2]).AverageRhythmDifficulty();
             double speedRating = Math.Sqrt(skills[3].DifficultyValue()) * difficulty_multiplier;
             double flashlightRating = Math.Sqrt(skills[4].DifficultyValue()) * difficulty_multiplier;
 
