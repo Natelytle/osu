@@ -16,6 +16,7 @@ using osu.Framework.Logging;
 using osu.Game.Database;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests.Responses;
+using osu.Game.Online.Multiplayer.Countdown;
 using osu.Game.Online.Rooms;
 using osu.Game.Online.Rooms.RoomStatuses;
 using osu.Game.Rulesets;
@@ -534,7 +535,24 @@ namespace osu.Game.Online.Multiplayer
 
         public Task MatchEvent(MatchServerEvent e)
         {
-            // not used by any match types just yet.
+            if (Room == null)
+                return Task.CompletedTask;
+
+            Scheduler.Add(() =>
+            {
+                if (Room == null)
+                    return;
+
+                switch (e)
+                {
+                    case CountdownChangedEvent countdownChangedEvent:
+                        Room.Countdown = countdownChangedEvent.Countdown;
+                        break;
+                }
+
+                RoomUpdated?.Invoke();
+            }, false);
+
             return Task.CompletedTask;
         }
 
@@ -727,38 +745,17 @@ namespace osu.Game.Online.Multiplayer
             RoomUpdated?.Invoke();
         }
 
-        private PlaylistItem createPlaylistItem(MultiplayerPlaylistItem item)
+        private PlaylistItem createPlaylistItem(MultiplayerPlaylistItem item) => new PlaylistItem(new APIBeatmap { OnlineID = item.BeatmapID })
         {
-            var ruleset = Rulesets.GetRuleset(item.RulesetID);
-
-            Debug.Assert(ruleset != null);
-
-            var rulesetInstance = ruleset.CreateInstance();
-
-            var playlistItem = new PlaylistItem
-            {
-                ID = item.ID,
-                BeatmapID = item.BeatmapID,
-                OwnerID = item.OwnerID,
-                Ruleset = { Value = ruleset },
-                Expired = item.Expired,
-                PlaylistOrder = item.PlaylistOrder,
-                PlayedAt = item.PlayedAt
-            };
-
-            playlistItem.RequiredMods.AddRange(item.RequiredMods.Select(m => m.ToMod(rulesetInstance)));
-            playlistItem.AllowedMods.AddRange(item.AllowedMods.Select(m => m.ToMod(rulesetInstance)));
-
-            return playlistItem;
-        }
-
-        /// <summary>
-        /// Retrieves a <see cref="APIBeatmap"/> from an online source.
-        /// </summary>
-        /// <param name="beatmapId">The beatmap ID.</param>
-        /// <param name="cancellationToken">A token to cancel the request.</param>
-        /// <returns>The <see cref="APIBeatmap"/> retrieval task.</returns>
-        public abstract Task<APIBeatmap> GetAPIBeatmap(int beatmapId, CancellationToken cancellationToken = default);
+            ID = item.ID,
+            OwnerID = item.OwnerID,
+            RulesetID = item.RulesetID,
+            Expired = item.Expired,
+            PlaylistOrder = item.PlaylistOrder,
+            PlayedAt = item.PlayedAt,
+            RequiredMods = item.RequiredMods.ToArray(),
+            AllowedMods = item.AllowedMods.ToArray()
+        };
 
         /// <summary>
         /// For the provided user ID, update whether the user is included in <see cref="CurrentMatchPlayingUserIds"/>.

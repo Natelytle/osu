@@ -11,10 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Game.Beatmaps;
+using osu.Framework.Development;
+using osu.Framework.Extensions;
 using osu.Game.Online.API;
-using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.Countdown;
 using osu.Game.Online.Multiplayer.MatchTypes.TeamVersus;
 using osu.Game.Online.Rooms;
 using osu.Game.Rulesets.Mods;
@@ -37,9 +38,6 @@ namespace osu.Game.Tests.Visual.Multiplayer
 
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
-
-        [Resolved]
-        private BeatmapManager beatmaps { get; set; } = null!;
 
         private readonly TestMultiplayerRoomManager roomManager;
 
@@ -77,7 +75,7 @@ namespace osu.Game.Tests.Visual.Multiplayer
 
         private void addUser(MultiplayerRoomUser user)
         {
-            ((IMultiplayerClient)this).UserJoined(user).Wait();
+            ((IMultiplayerClient)this).UserJoined(user).WaitSafely();
 
             // We want the user to be immediately available for testing, so force a scheduler update to run the update-bound continuation.
             Scheduler.Update();
@@ -93,7 +91,7 @@ namespace osu.Game.Tests.Visual.Multiplayer
                                              .Select(team => (teamID: team.ID, userCount: Room.Users.Count(u => (u.MatchState as TeamVersusUserState)?.TeamID == team.ID)))
                                              .OrderBy(pair => pair.userCount)
                                              .First().teamID;
-                    ((IMultiplayerClient)this).MatchUserStateChanged(user.UserID, new TeamVersusUserState { TeamID = bestTeam }).Wait();
+                    ((IMultiplayerClient)this).MatchUserStateChanged(user.UserID, new TeamVersusUserState { TeamID = bestTeam }).WaitSafely();
                     break;
             }
         }
@@ -119,12 +117,24 @@ namespace osu.Game.Tests.Visual.Multiplayer
         public void ChangeUserState(int userId, MultiplayerUserState newState)
         {
             Debug.Assert(Room != null);
+
             ((IMultiplayerClient)this).UserStateChanged(userId, newState);
 
             Schedule(() =>
             {
                 switch (Room.State)
                 {
+                    case MultiplayerRoomState.Open:
+                        // If there are no remaining ready users or the host is not ready, stop any existing countdown.
+                        // Todo: When we have an "automatic start" mode, this should also start a new countdown if any users _are_ ready.
+                        // Todo: This doesn't yet support non-match-start countdowns.
+                        bool shouldStopCountdown = Room.Users.All(u => u.State != MultiplayerUserState.Ready);
+                        shouldStopCountdown |= Room.Host?.State != MultiplayerUserState.Ready && Room.Host?.State != MultiplayerUserState.Spectating;
+
+                        if (shouldStopCountdown)
+                            countdownStopSource?.Cancel();
+                        break;
+
                     case MultiplayerRoomState.WaitingForLoad:
                         if (Room.Users.All(u => u.State != MultiplayerUserState.WaitingForLoad))
                         {
@@ -156,7 +166,7 @@ namespace osu.Game.Tests.Visual.Multiplayer
                             ChangeRoomState(MultiplayerRoomState.Open);
                             ((IMultiplayerClient)this).ResultsReady();
 
-                            FinishCurrentItem().Wait();
+                            FinishCurrentItem().WaitSafely();
                         }
 
                         break;
@@ -216,7 +226,7 @@ namespace osu.Game.Tests.Visual.Multiplayer
             Debug.Assert(Room != null);
 
             // emulate the server sending this after the join room. scheduler required to make sure the join room event is fired first (in Join).
-            changeMatchType(Room.Settings.MatchType).Wait();
+            changeMatchType(Room.Settings.MatchType).WaitSafely();
 
             RoomJoined = true;
         }
@@ -287,6 +297,16 @@ namespace osu.Game.Tests.Visual.Multiplayer
             return Task.CompletedTask;
         }
 
+        private CancellationTokenSource? countdownSkipSource;
+        private CancellationTokenSource? countdownStopSource;
+        private Task countdownTask = Task.CompletedTask;
+
+        /// <summary>
+        /// Skips to the end of the currently-running countdown, if one is running,
+        /// and runs the callback (e.g. to start the match) as soon as possible unless the countdown has been cancelled.
+        /// </summary>
+        public void SkipToEndOfCountdown() => countdownSkipSource?.Cancel();
+
         public override async Task SendMatchRequest(MatchUserRequest request)
         {
             Debug.Assert(Room != null);
@@ -294,6 +314,67 @@ namespace osu.Game.Tests.Visual.Multiplayer
 
             switch (request)
             {
+                case StartMatchCountdownRequest matchCountdownRequest:
+                    Debug.Assert(ThreadSafety.IsUpdateThread);
+
+                    countdownStopSource?.Cancel();
+
+                    // Note that this will leak CTSs, however this is a test method and we haven't noticed foregoing disposal of non-linked CTSs to be detrimental.
+                    // If necessary, this can be moved into the final schedule below, and the class-level fields be nulled out accordingly.
+                    var stopSource = countdownStopSource = new CancellationTokenSource();
+                    var skipSource = countdownSkipSource = new CancellationTokenSource();
+                    var countdown = new MatchStartCountdown { TimeRemaining = matchCountdownRequest.Duration };
+
+                    Task lastCountdownTask = countdownTask;
+                    countdownTask = start();
+
+                    async Task start()
+                    {
+                        await lastCountdownTask;
+
+                        Schedule(() =>
+                        {
+                            if (stopSource.IsCancellationRequested)
+                                return;
+
+                            Room.Countdown = countdown;
+                            MatchEvent(new CountdownChangedEvent { Countdown = countdown });
+                        });
+
+                        try
+                        {
+                            using (var cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(stopSource.Token, skipSource.Token))
+                                await Task.Delay(matchCountdownRequest.Duration, cancellationSource.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Clients need to be notified of cancellations in the following code.
+                        }
+
+                        Schedule(() =>
+                        {
+                            if (Room.Countdown != countdown)
+                                return;
+
+                            Room.Countdown = null;
+                            MatchEvent(new CountdownChangedEvent { Countdown = null });
+
+                            if (stopSource.IsCancellationRequested)
+                                return;
+
+                            StartMatch().WaitSafely();
+                        });
+                    }
+
+                    break;
+
+                case StopCountdownRequest _:
+                    countdownStopSource?.Cancel();
+
+                    Room.Countdown = null;
+                    await MatchEvent(new CountdownChangedEvent { Countdown = Room.Countdown });
+                    break;
+
                 case ChangeTeamRequest changeTeam:
 
                     TeamVersusRoomState roomState = (TeamVersusRoomState)Room.MatchState!;
@@ -405,23 +486,6 @@ namespace osu.Game.Tests.Visual.Multiplayer
         }
 
         public override Task RemovePlaylistItem(long playlistItemId) => RemoveUserPlaylistItem(api.LocalUser.Value.OnlineID, playlistItemId);
-
-        public override Task<APIBeatmap> GetAPIBeatmap(int beatmapId, CancellationToken cancellationToken = default)
-        {
-            IBeatmapSetInfo? set = roomManager.ServerSideRooms.SelectMany(r => r.Playlist)
-                                              .FirstOrDefault(p => p.BeatmapID == beatmapId)?.Beatmap.Value.BeatmapSet
-                                   ?? beatmaps.QueryBeatmap(b => b.OnlineID == beatmapId)?.BeatmapSet;
-
-            if (set == null)
-                throw new InvalidOperationException("Beatmap not found.");
-
-            return Task.FromResult(new APIBeatmap
-            {
-                BeatmapSet = new APIBeatmapSet { OnlineID = set.OnlineID },
-                OnlineID = beatmapId,
-                Checksum = set.Beatmaps.First(b => b.OnlineID == beatmapId).MD5Hash
-            });
-        }
 
         private async Task changeMatchType(MatchType type)
         {
