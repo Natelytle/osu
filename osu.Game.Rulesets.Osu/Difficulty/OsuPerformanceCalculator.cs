@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using MathNet.Numerics;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
 {
@@ -21,6 +22,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private int countMiss;
 
         private double effectiveMissCount;
+        private double estimatedDeviation;
 
         public OsuPerformanceCalculator()
             : base(new OsuRuleset())
@@ -38,6 +40,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
             effectiveMissCount = calculateEffectiveMissCount(osuAttributes);
+            estimatedDeviation = calculateDeviation(osuAttributes) ?? double.PositiveInfinity;
 
             double multiplier = 1.12; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
 
@@ -74,7 +77,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Accuracy = accuracyValue,
                 Flashlight = flashlightValue,
                 EffectiveMissCount = effectiveMissCount,
-                Total = totalValue
+                Total = totalValue,
+                EstimatedUnstableRate = 10 * estimatedDeviation
             };
         }
 
@@ -123,9 +127,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimValue *= sliderNerfFactor;
             }
 
-            aimValue *= accuracy;
-            // It is important to consider accuracy difficulty when scaling with accuracy.
-            aimValue *= 0.98 + Math.Pow(attributes.OverallDifficulty, 2) / 2500;
+            if (attributes.HitCircleCount == 0)
+                return aimValue;
+
+            aimValue *= 4169 / 4050.0 * SpecialFunctions.Erf(50 / (Math.Sqrt(2) * estimatedDeviation));
 
             return aimValue;
         }
@@ -161,46 +166,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 speedValue *= 1.0 + 0.04 * (12.0 - attributes.ApproachRate);
             }
 
-            // Scale the speed value with accuracy and OD.
-            speedValue *= (0.95 + Math.Pow(attributes.OverallDifficulty, 2) / 750) * Math.Pow(accuracy, (14.5 - Math.Max(attributes.OverallDifficulty, 8)) / 2);
-
-            // Scale the speed value with # of 50s to punish doubletapping.
-            speedValue *= Math.Pow(0.98, countMeh < totalHits / 500.0 ? 0 : countMeh - totalHits / 500.0);
+            speedValue *= 120.289 / 108 * SpecialFunctions.Erf(20 / (Math.Sqrt(2) * estimatedDeviation));
 
             return speedValue;
         }
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModRelax))
-                return 0.0;
+            if (score.Mods.Any(m => m is OsuModRelax))
+                return 0;
 
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
+            if (attributes.HitCircleCount == 0)
+                return 0;
 
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - (totalHits - amountHitObjectsWithAccuracy)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
-
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
-
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = Math.Pow(1.52163, attributes.OverallDifficulty) * Math.Pow(betterAccuracyPercentage, 24) * 2.83;
-
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
+            double accuracyValue = 100 * Math.Pow(7.5 / estimatedDeviation, 2);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
                 accuracyValue *= 1.14;
             else if (score.Mods.Any(m => m is OsuModHidden))
                 accuracyValue *= 1.08;
-
             if (score.Mods.Any(m => m is OsuModFlashlight))
                 accuracyValue *= 1.02;
 
@@ -238,6 +223,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             flashlightValue *= 0.98 + Math.Pow(attributes.OverallDifficulty, 2) / 2500;
 
             return flashlightValue;
+        }
+
+        private double? calculateDeviation(OsuDifficultyAttributes attributes)
+        {
+            if (attributes.HitCircleCount == 0)
+                return null;
+
+            int greatCountOnCircles = Math.Max(0, countGreat - attributes.SliderCount - attributes.SpinnerCount);
+
+            if (greatCountOnCircles == 0 || attributes.HitCircleCount - countMiss == 0)
+                return null;
+
+            double greatHitWindow = 80 - 6 * attributes.OverallDifficulty;
+
+            // Add 0.5 circles so that SS scores don't break.
+            double greatProbability = greatCountOnCircles / (attributes.HitCircleCount - countMiss + 1.0);
+            double deviation = greatHitWindow / (Math.Sqrt(2) * SpecialFunctions.ErfInv(greatProbability));
+
+            return deviation;
         }
 
         private double calculateEffectiveMissCount(OsuDifficultyAttributes attributes)
