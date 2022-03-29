@@ -35,11 +35,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private const double slider_multiplier = 1.5;
         private const double velocity_change_multiplier = 0.75;
 
-        private const double fc_probability = 0.02;
+        private const double fc_probability = 0.2;
 
         private double currentStrain;
 
-        private double skillMultiplier => 11;
+        private double skillMultiplier => 10;
 
         private double strainDecayBase => 0.15;
 
