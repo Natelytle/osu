@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// </summary>
         protected virtual double DifficultyMultiplier => 1.06;
 
-        protected List<double> objectStrains = new List<double>();
+        protected List<double> CircleStrains = new List<double>();
 
         protected OsuStrainSkill(Mod[] mods)
             : base(mods)
@@ -60,12 +60,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return difficulty * DifficultyMultiplier;
         }
 
-        public double CountRelevantNotes()
+        public double CountRelevantCircles()
         {
-            List<double> strains = GetCurrentStrainPeaks().ToList();
-            double topStrain = objectStrains.Max();
+            double topStrain = CircleStrains.Max();
 
-            return objectStrains.Sum(s => s / topStrain);
+            return CircleStrains.Sum(s => s / topStrain);
         }
     }
 }

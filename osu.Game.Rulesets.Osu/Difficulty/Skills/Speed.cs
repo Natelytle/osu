@@ -171,7 +171,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double totalStrain = currentStrain * currentRhythm;
 
-            objectStrains.Add(totalStrain);
+            if(current.BaseObject is HitCircle)
+                CircleStrains.Add(totalStrain);
 
             return totalStrain;
         }

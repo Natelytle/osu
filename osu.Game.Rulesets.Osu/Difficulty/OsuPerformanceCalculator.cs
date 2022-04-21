@@ -249,21 +249,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double? calculateSpeedDeviation(OsuDifficultyAttributes attributes)
         {
-            if (attributes.HitCircleCount == 0)
+            if (attributes.SpeedRelevantCircleCount == 0)
                 return null;
 
-            // Max speed circle count as speed relevant note count can be higher than circle count
-            double speedCircleCount = Math.Min(attributes.SpeedRelevantNoteCount, attributes.HitCircleCount);
+            double greatCountOnSpeedCircles = Math.Max(0, countGreat - (attributes.HitCircleCount - attributes.SpeedRelevantCircleCount) - attributes.SliderCount - attributes.SpinnerCount);
 
-            double greatCountOnSpeedCircles = Math.Max(0, countGreat - (attributes.HitCircleCount - speedCircleCount) - attributes.SliderCount - attributes.SpinnerCount);
-
-            if (greatCountOnSpeedCircles == 0 || speedCircleCount - countMiss <= 0)
+            if (greatCountOnSpeedCircles == 0 || attributes.SpeedRelevantCircleCount - countMiss <= 0)
                 return null;
 
             double greatHitWindow = 80 - 6 * attributes.OverallDifficulty;
 
             // Add 1 circle so that SS scores don't break.
-            double greatProbability = greatCountOnSpeedCircles / (speedCircleCount - countMiss + 1.0);
+            double greatProbability = greatCountOnSpeedCircles / (attributes.SpeedRelevantCircleCount - countMiss + 1.0);
             double deviation = greatHitWindow / (Math.Sqrt(2) * SpecialFunctions.ErfInv(greatProbability));
 
             return deviation;
