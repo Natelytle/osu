@@ -3,10 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using osu.Game.Rulesets.Difficulty.Skills;
-using osu.Game.Rulesets.Mods;
 using System.Linq;
 using osu.Framework.Utils;
+using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -62,6 +62,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public double CountRelevantCircles()
         {
+            if (CircleStrains.Count == 0)
+                return 0;
+
             double topStrain = CircleStrains.Max();
 
             return CircleStrains.Sum(s => s / topStrain);
