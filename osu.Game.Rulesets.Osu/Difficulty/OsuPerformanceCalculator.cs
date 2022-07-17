@@ -255,8 +255,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double greatCountOnCircles = countGreat - countMiss - attributes.SliderCount - attributes.SpinnerCount;
 
-            if(greatCountOnCircles <= 0 || attributes.HitCircleCount - countMiss <= 0)
-                return 0;
+            if (greatCountOnCircles <= 0 || attributes.HitCircleCount == 0)
+                return Double.PositiveInfinity;
 
             double greatProb = greatCountOnCircles / (attributes.HitCircleCount - countMiss + 1);
             double estimatedDeviation = greatWindow / (Math.Sqrt(2) * SpecialFunctions.ErfInv(greatProb));
