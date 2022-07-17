@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using MathNet.Numerics;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
 {
@@ -51,10 +52,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             if (score.Mods.Any(h => h is OsuModRelax))
             {
-                // As we're adding Oks and Mehs to an approximated number of combo breaks the result can be higher than total hits in specific scenarios (which breaks some calculations) so we need to clamp it.
-                effectiveMissCount = Math.Min(effectiveMissCount + countOk + countMeh, totalHits);
+                // Penalize relax pp by the estimated deviation of the score
+                multiplier *= Math.Exp(-relaxLatenessDeviation(score, osuAttributes) / 10);
 
-                multiplier *= 0.6;
+                // Increase multiplier by 0.15 to account for very low deviation being exceptionally rare
+                multiplier *= 0.85;
             }
 
             double aimValue = computeAimValue(score, osuAttributes);
@@ -244,6 +246,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             flashlightValue *= 0.98 + Math.Pow(attributes.OverallDifficulty, 2) / 2500;
 
             return flashlightValue;
+        }
+
+        private double relaxLatenessDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
+        {
+            // add 2 to account for relax tapping leniency
+            double greatWindow = 80 - 6 * attributes.OverallDifficulty + 2;
+
+            double greatCountOnCircles = countGreat - countMiss - attributes.SliderCount - attributes.SpinnerCount;
+
+            if(greatCountOnCircles <= 0 || attributes.HitCircleCount - countMiss <= 0)
+                return 0;
+
+            double greatProb = greatCountOnCircles / (attributes.HitCircleCount - countMiss + 1);
+            double estimatedDeviation = greatWindow / (Math.Sqrt(2) * SpecialFunctions.ErfInv(greatProb));
+
+            return estimatedDeviation;
         }
 
         private double calculateEffectiveMissCount(OsuDifficultyAttributes attributes)
