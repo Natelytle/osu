@@ -258,19 +258,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             score.Mods.OfType<IApplicableToTrack>().ForEach(m => m.ApplyToTrack(track));
             double clockRate = track.Rate;
 
-            // add 2ms to the hitwindows to account for relax leniency
             double hitWindow300 = 82 - 6 * attributes.OverallDifficulty;
             double hitWindow100 = (142 - 8 * ((80 - hitWindow300 * clockRate) / 6)) / clockRate;
             double hitWindow50 = (202 - 10 * ((80 - hitWindow300 * clockRate) / 6)) / clockRate;
+
             double root2 = Math.Sqrt(2);
 
             if (totalHits == 0)
                 return double.PositiveInfinity;
 
-            double relevantTotalDiff = totalHits - attributes.SpeedNoteCount;
-            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
-            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat)) + 1;
-            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
+            int greatCountOnCircles = Math.Max(0, attributes.HitCircleCount - countOk - countMeh - countMiss);
+            int okCountOnCircles = Math.Min(countOk, attributes.HitCircleCount) + 1; // Add one 100 to process SS scores.
+            int mehCountOnCircles = Math.Min(countMeh, attributes.HitCircleCount);
+            int slidersHit = attributes.SliderCount - countMiss;
 
             // Derivative of erf(x)
             double erfPrime(double x) => 2 / Math.Sqrt(Math.PI) * Math.Exp(-x * x);
@@ -279,10 +279,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             // which is the same as finding the zero of the derivative of the log-likelihood function.
             double logLikelihoodGradient(double u)
             {
-                double t1 = -hitWindow300 * relevantCountGreat * erfPrime(hitWindow300 / (root2 * u)) / SpecialFunctions.Erf(hitWindow300 / (root2 * u));
-                double t2 = relevantCountMeh * (-hitWindow100 * erfPrime(hitWindow100 / (root2 * u)) + hitWindow50 * erfPrime(hitWindow50 / (root2 * u))) / (SpecialFunctions.Erfc(hitWindow50 / (root2 * u)) - SpecialFunctions.Erfc(hitWindow100 / (root2 * u)));
-                double t3 = relevantCountOk * (-hitWindow100 * erfPrime(hitWindow100 / (root2 * u)) + hitWindow300 * erfPrime(hitWindow300 / (root2 * u))) / (SpecialFunctions.Erfc(hitWindow300 / (root2 * u)) - SpecialFunctions.Erfc(hitWindow100 / (root2 * u)));
-                return (t1 + t2 + t3) / (root2 * u * u);
+                double t1 = -hitWindow50 * slidersHit * erfPrime(hitWindow50 / (root2 * u)) / SpecialFunctions.Erf(hitWindow50 / (root2 * u));
+                double t2 = -hitWindow300 * greatCountOnCircles * erfPrime(hitWindow300 / (root2 * u)) / SpecialFunctions.Erf(hitWindow300 / (root2 * u));
+                double t3 = mehCountOnCircles * (-hitWindow100 * erfPrime(hitWindow100 / (root2 * u)) + hitWindow50 * erfPrime(hitWindow50 / (root2 * u))) / (SpecialFunctions.Erfc(hitWindow50 / (root2 * u)) - SpecialFunctions.Erfc(hitWindow100 / (root2 * u)));
+                double t4 = okCountOnCircles * (-hitWindow100 * erfPrime(hitWindow100 / (root2 * u)) + hitWindow300 * erfPrime(hitWindow300 / (root2 * u))) / (SpecialFunctions.Erfc(hitWindow300 / (root2 * u)) - SpecialFunctions.Erfc(hitWindow100 / (root2 * u)));
+                return (t1 + t2 + t3 + t4) / (root2 * u * u);
             }
 
             return Brent.FindRootExpand(logLikelihoodGradient, 4, 20, 1e-6, expandFactor: 2);
