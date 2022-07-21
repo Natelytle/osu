@@ -11,6 +11,10 @@ using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using MathNet.Numerics;
+using MathNet.Numerics.RootFinding;
+using osu.Framework.Audio.Track;
+using osu.Game.Rulesets.Mods;
+using osu.Framework.Extensions.IEnumerableExtensions;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
 {
@@ -250,18 +254,38 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double relaxLatenessDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            // add 2 to account for relax tapping leniency
-            double greatWindow = 80 - 6 * attributes.OverallDifficulty + 2;
+            var track = new TrackVirtual(10000);
+            score.Mods.OfType<IApplicableToTrack>().ForEach(m => m.ApplyToTrack(track));
+            double clockRate = track.Rate;
 
-            double greatCountOnCircles = countGreat - countMiss - attributes.SliderCount - attributes.SpinnerCount;
+            // add 2ms to the hitwindows to account for relax leniency
+            double hitWindow300 = 82 - 6 * attributes.OverallDifficulty;
+            double hitWindow100 = (142 - 8 * ((80 - hitWindow300 * clockRate) / 6)) / clockRate;
+            double hitWindow50 = (202 - 10 * ((80 - hitWindow300 * clockRate) / 6)) / clockRate;
+            double root2 = Math.Sqrt(2);
 
-            if (greatCountOnCircles <= 0 || attributes.HitCircleCount == 0)
-                return Double.PositiveInfinity;
+            if (totalHits == 0)
+                return double.PositiveInfinity;
 
-            double greatProb = greatCountOnCircles / (attributes.HitCircleCount - countMiss + 1);
-            double estimatedDeviation = greatWindow / (Math.Sqrt(2) * SpecialFunctions.ErfInv(greatProb));
+            double relevantTotalDiff = totalHits - attributes.SpeedNoteCount;
+            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
+            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat)) + 1;
+            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
 
-            return estimatedDeviation;
+            // Derivative of erf(x)
+            double erfPrime(double x) => 2 / Math.Sqrt(Math.PI) * Math.Exp(-x * x);
+
+            // Let f(x) = erf(x). To find the deviation, we have to maximize the log-likelihood function,
+            // which is the same as finding the zero of the derivative of the log-likelihood function.
+            double logLikelihoodGradient(double u)
+            {
+                double t1 = -hitWindow300 * relevantCountGreat * erfPrime(hitWindow300 / (root2 * u)) / SpecialFunctions.Erf(hitWindow300 / (root2 * u));
+                double t2 = relevantCountMeh * (-hitWindow100 * erfPrime(hitWindow100 / (root2 * u)) + hitWindow50 * erfPrime(hitWindow50 / (root2 * u))) / (SpecialFunctions.Erfc(hitWindow50 / (root2 * u)) - SpecialFunctions.Erfc(hitWindow100 / (root2 * u)));
+                double t3 = relevantCountOk * (-hitWindow100 * erfPrime(hitWindow100 / (root2 * u)) + hitWindow300 * erfPrime(hitWindow300 / (root2 * u))) / (SpecialFunctions.Erfc(hitWindow300 / (root2 * u)) - SpecialFunctions.Erfc(hitWindow100 / (root2 * u)));
+                return (t1 + t2 + t3) / (root2 * u * u);
+            }
+
+            return Brent.FindRootExpand(logLikelihoodGradient, 4, 20, 1e-6, expandFactor: 2);
         }
 
         private double calculateEffectiveMissCount(OsuDifficultyAttributes attributes)
