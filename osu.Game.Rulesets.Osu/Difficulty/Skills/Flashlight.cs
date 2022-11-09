@@ -43,6 +43,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return currentStrain;
         }
 
-        public override double DifficultyValue() => GetCurrentStrainPeaks().Sum() * OsuStrainSkill.DEFAULT_DIFFICULTY_MULTIPLIER;
+        public override double DifficultyValue() => GetCurrentStrainPeaks().Sum() * 1.06;
     }
 }
