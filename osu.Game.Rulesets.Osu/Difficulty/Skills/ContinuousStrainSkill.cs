@@ -17,7 +17,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// <summary>
         /// The final multiplier to be applied to <see cref="DifficultyValue"/> after all other calculations.
         /// </summary>
-        protected virtual double DifficultyMultiplier => 1.2;
+        protected virtual double DifficultyMultiplier => 1.27;
 
         protected virtual double SectionLength => 400;
         protected virtual double DecayWeight => 0.9;
@@ -45,8 +45,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double frequency = 0;
             var sortedStrains = strains.OrderByDescending(x => (x.Strain, x.StrainCountChange)).ToList();
 
-            double strainDecayRate = Math.Log(StrainDecayBase) * SectionLength / 1000;
-            double sumDecayRate = Math.Log(DecayWeight);
+            double strainDecayRate = Math.Log(StrainDecayBase) / 1000;
+            double sumDecayRate = Math.Log(DecayWeight) / SectionLength;
 
             for(int i=0; i<sortedStrains.Count-1;++i)
             {
@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                     double time = Math.Log(next.Strain / current.Strain) * (frequency / strainDecayRate);
 
                     double nextWeight = currentWeight * Math.Exp(sumDecayRate * time);
-                    double combinedDecay = sumDecayRate + (strainDecayRate / frequency);
+                    double combinedDecay = SectionLength * (sumDecayRate + (strainDecayRate / frequency));
                     result += (next.Strain * nextWeight - current.Strain * currentWeight) / combinedDecay;
                     currentWeight = nextWeight;
                 }
