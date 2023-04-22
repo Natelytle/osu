@@ -11,11 +11,9 @@ using MathNet.Numerics.Distributions;
 using osu.Framework.Audio.Track;
 using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
-using Precision = osu.Framework.Utils.Precision;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
 {
@@ -51,7 +49,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countOk = score.Statistics.GetValueOrDefault(HitResult.Ok);
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
-            isLegacyScore = score.Mods.Any(m => m is ManiaModClassic) && !Precision.DefinitelyBigger(totalJudgements, maniaAttributes.NoteCount + maniaAttributes.HoldNoteCount);
+            isLegacyScore = true;
             hitWindows = isLegacyScore ? getLegacyHitWindows(score, maniaAttributes) : getLazerHitWindows(score, maniaAttributes);
             estimatedUr = computeEstimatedUr(maniaAttributes);
 
