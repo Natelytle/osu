@@ -12,6 +12,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing.Rhythm;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
@@ -40,7 +41,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRatingNoSliders = Math.Sqrt(skills[1].DifficultyValue()) * difficulty_multiplier;
             double speedRating = Math.Sqrt(skills[2].DifficultyValue()) * difficulty_multiplier;
             double speedNotes = ((Speed)skills[2]).RelevantNoteCount();
-            double flashlightRating = Math.Sqrt(skills[3].DifficultyValue()) * difficulty_multiplier;
+            double rhythmRating = Math.Sqrt(skills[3].DifficultyValue()) * difficulty_multiplier;
+            double flashlightRating = Math.Sqrt(skills[4].DifficultyValue()) * difficulty_multiplier;
 
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
 
@@ -54,11 +56,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 aimRating *= 0.9;
                 speedRating = 0.0;
+                rhythmRating = 0.0;
                 flashlightRating *= 0.7;
             }
 
             double baseAimPerformance = Math.Pow(5 * Math.Max(1, aimRating / 0.0675) - 4, 3) / 100000;
             double baseSpeedPerformance = Math.Pow(5 * Math.Max(1, speedRating / 0.0675) - 4, 3) / 100000;
+            double baseRhythmPerformance = Math.Pow(5 * Math.Max(1, rhythmRating / 0.0675) - 4, 3) / 100000;
             double baseFlashlightPerformance = 0.0;
 
             if (mods.Any(h => h is OsuModFlashlight))
@@ -68,6 +72,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Math.Pow(
                     Math.Pow(baseAimPerformance, 1.1) +
                     Math.Pow(baseSpeedPerformance, 1.1) +
+                    Math.Pow(baseRhythmPerformance, 1.1) +
                     Math.Pow(baseFlashlightPerformance, 1.1), 1.0 / 1.1
                 );
 
@@ -93,6 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficulty = aimRating,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                RhythmDifficulty = rhythmRating,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
                 ApproachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5,
@@ -108,14 +114,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
+            List<OsuDifficultyHitObject> noteObjects = new List<OsuDifficultyHitObject>();
 
             // The first jump is formed by the first two hitobjects of the map.
             // If the map has less than two OsuHitObjects, the enumerator will not return anything.
             for (int i = 1; i < beatmap.HitObjects.Count; i++)
             {
                 var lastLast = i > 1 ? beatmap.HitObjects[i - 2] : null;
-                objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], lastLast, clockRate, objects, objects.Count));
+                objects.Add(
+                    new OsuDifficultyHitObject(
+                        beatmap.HitObjects[i], beatmap.HitObjects[i - 1], lastLast, clockRate,
+                        objects, noteObjects, objects.Count));
             }
+
+            EvenPatterns.GroupPatterns(EvenHitObjects.GroupHitObjects(noteObjects));
 
             return objects;
         }
@@ -127,6 +139,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, true),
                 new Aim(mods, false),
                 new Speed(mods),
+                new Rhythm(mods),
                 new Flashlight(mods)
             };
         }

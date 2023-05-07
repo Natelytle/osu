@@ -17,6 +17,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed")]
         public double Speed { get; set; }
 
+        [JsonProperty("rhythm")]
+        public double Rhythm { get; set; }
+
         [JsonProperty("accuracy")]
         public double Accuracy { get; set; }
 

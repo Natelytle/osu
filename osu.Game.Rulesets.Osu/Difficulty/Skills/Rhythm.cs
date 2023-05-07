@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 #nullable disable
@@ -8,27 +8,23 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
     /// <summary>
     /// Represents the skill required to press keys with regards to keeping up with the speed at which objects need to be hit.
     /// </summary>
-    public class Speed : OsuStrainSkill
+    public class Rhythm : OsuStrainSkill
     {
-        private double skillMultiplier => 1375;
-        private double strainDecayBase => 0.3;
+        private double skillMultiplier => 60;
+        private double strainDecayBase => 0.5;
 
         private double currentStrain;
 
         protected override int ReducedSectionCount => 5;
         protected override double DifficultyMultiplier => 1.04;
 
-        private readonly List<double> objectStrains = new List<double>();
-
-        public Speed(Mod[] mods)
+        public Rhythm(Mod[] mods)
             : base(mods)
         {
         }
@@ -40,24 +36,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
-
-            objectStrains.Add(currentStrain);
+            currentStrain += RhythmEvaluator.EvaluateDifficultyOf(current, ((OsuDifficultyHitObject)current).HitWindowGreat) * skillMultiplier;
 
             return currentStrain;
-        }
-
-        public double RelevantNoteCount()
-        {
-            if (objectStrains.Count == 0)
-                return 0;
-
-            double maxStrain = objectStrains.Max();
-
-            if (maxStrain == 0)
-                return 0;
-
-            return objectStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
         }
     }
 }

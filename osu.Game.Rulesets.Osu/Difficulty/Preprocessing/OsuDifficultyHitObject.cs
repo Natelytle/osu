@@ -10,11 +10,12 @@ using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing.Rhythm;
 using osuTK;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 {
-    public class OsuDifficultyHitObject : DifficultyHitObject
+    public class OsuDifficultyHitObject : DifficultyHitObject, IHasInterval
     {
         /// <summary>
         /// A distance by which all distances should be scaled in order to assume a uniform circle size.
@@ -84,10 +85,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// </summary>
         public double HitWindowGreat { get; private set; }
 
+        /// <summary>
+        /// The rhythm required to hit this hit object.
+        /// </summary>
+        public OsuDifficultyHitObjectRhythm Rhythm { get; private set; }
+
+        public double Interval => DeltaTime;
+
         private readonly OsuHitObject lastLastObject;
         private readonly OsuHitObject lastObject;
 
-        public OsuDifficultyHitObject(HitObject hitObject, HitObject lastObject, HitObject lastLastObject, double clockRate, List<DifficultyHitObject> objects, int index)
+        public OsuDifficultyHitObject(HitObject hitObject, HitObject lastObject, HitObject lastLastObject, double clockRate, List<DifficultyHitObject> objects, List<OsuDifficultyHitObject> noteObjects, int index)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
             this.lastLastObject = (OsuHitObject)lastLastObject;
@@ -95,6 +103,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
             // Capped to 25ms to prevent difficulty calculation breaking from simultaneous objects.
             StrainTime = Math.Max(DeltaTime, min_delta_time);
+            Rhythm = new OsuDifficultyHitObjectRhythm(this);
 
             if (BaseObject is Slider sliderObject)
             {
@@ -104,6 +113,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             {
                 HitWindowGreat = 2 * BaseObject.HitWindows.WindowFor(HitResult.Great) / clockRate;
             }
+
+            if (BaseObject is HitCircle or Slider)
+                noteObjects.Add(this);
 
             setDistances(clockRate);
         }
