@@ -17,6 +17,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Replays;
 using osu.Game.Scoring;
+using osu.Game.Scoring.Legacy;
 
 namespace osu.Game.Rulesets.Scoring
 {
@@ -203,6 +204,7 @@ namespace osu.Game.Rulesets.Scoring
             // Always update the maximum scoring values.
             applyResult(result.Judgement.MaxResult, ref currentMaximumScoringValues);
             currentMaximumScoringValues.MaxCombo += result.Judgement.MaxResult.IncreasesCombo() ? 1 : 0;
+            currentScoringValues.TotalCombo += result.Judgement.MaxResult.IncreasesCombo() ? 1 : 0;
 
             if (!result.Type.IsScorable())
                 return;
@@ -212,8 +214,12 @@ namespace osu.Game.Rulesets.Scoring
             else if (result.Type.BreaksCombo())
                 Combo.Value = 0;
 
+            if (result.Type == HitResult.Miss)
+                currentScoringValues.MissCount += 1;
+
             applyResult(result.Type, ref currentScoringValues);
             currentScoringValues.MaxCombo = HighestCombo.Value;
+            currentScoringValues.Accuracy = Accuracy.Value;
 
             hitEvents.Add(CreateHitEvent(result));
             lastHitObject = result.HitObject;
@@ -248,6 +254,9 @@ namespace osu.Game.Rulesets.Scoring
             Combo.Value = result.ComboAtJudgement;
             HighestCombo.Value = result.HighestComboAtJudgement;
 
+            if (result.Type == HitResult.Miss)
+                currentScoringValues.MissCount -= 1;
+
             if (result.FailedAtJudgement)
                 return;
 
@@ -256,12 +265,14 @@ namespace osu.Game.Rulesets.Scoring
             // Always update the maximum scoring values.
             revertResult(result.Judgement.MaxResult, ref currentMaximumScoringValues);
             currentMaximumScoringValues.MaxCombo -= result.Judgement.MaxResult.IncreasesCombo() ? 1 : 0;
+            currentScoringValues.TotalCombo -= result.Judgement.MaxResult.IncreasesCombo() ? 1 : 0;
 
             if (!result.Type.IsScorable())
                 return;
 
             revertResult(result.Type, ref currentScoringValues);
             currentScoringValues.MaxCombo = HighestCombo.Value;
+            currentScoringValues.Accuracy = Accuracy.Value;
 
             Debug.Assert(hitEvents.Count > 0);
             lastHitObject = hitEvents[^1].LastHitObject;
@@ -341,8 +352,19 @@ namespace osu.Game.Rulesets.Scoring
         [Pure]
         private long computeScore(ScoringMode mode, ScoringValues current, ScoringValues maximum)
         {
-            double accuracyRatio = maximum.BaseScore > 0 ? (double)current.BaseScore / maximum.BaseScore : 1;
-            double comboRatio = maximum.MaxCombo > 0 ? (double)current.MaxCombo / maximum.MaxCombo : 1;
+            double comboMultiplier(double currentMaxCombo, double maxMaxCombo) => maxMaxCombo > 0 ? currentMaxCombo * (currentMaxCombo + 21) / (maxMaxCombo * (maxMaxCombo + 21)) : 1;
+
+            double accuracyProgress = (double)current.CountBasicHitObjects / maximum.CountBasicHitObjects;
+            double accuracyRatio = Math.Pow(current.Accuracy, 10) * accuracyProgress;
+
+            double maxComboRatio = comboMultiplier(current.MaxCombo, maximum.MaxCombo);
+
+            // Assume all remaining misses (inclusive of estimated slider breaks) are spread out evenly across the non max combo portion.
+            double effectiveMissCount = current.MaxCombo >= 1 ? Math.Min(maximum.CountBasicHitObjects, Math.Max(current.TotalCombo / (double)current.MaxCombo, current.MissCount)) : maximum.CountBasicHitObjects;
+            double intermediateComboRatio = effectiveMissCount < maximum.CountBasicHitObjects ? comboMultiplier((current.TotalCombo - current.MaxCombo) / effectiveMissCount, maximum.MaxCombo) * effectiveMissCount : 0;
+
+            double comboRatio = (maxComboRatio + intermediateComboRatio) * current.Accuracy;
+
             return ComputeScore(mode, accuracyRatio, comboRatio, current.BonusScore, maximum.CountBasicHitObjects);
         }
 
@@ -494,6 +516,8 @@ namespace osu.Game.Rulesets.Scoring
         {
             extractScoringValues(scoreInfo.Statistics, out current, out maximum);
             current.MaxCombo = scoreInfo.MaxCombo;
+            current.MissCount = scoreInfo.GetCountMiss() ?? 0;
+            current.Accuracy = scoreInfo.Accuracy;
 
             if (scoreInfo.MaximumStatistics.Count > 0)
                 extractScoringValues(scoreInfo.MaximumStatistics, out _, out maximum);
@@ -556,13 +580,18 @@ namespace osu.Game.Rulesets.Scoring
                 }
 
                 if (result.AffectsCombo())
+                {
                     maximum.MaxCombo += count;
+                    current.TotalCombo = maximum.MaxCombo;
+                }
 
                 if (result.IsBasic())
                 {
                     current.CountBasicHitObjects += count;
                     maximum.CountBasicHitObjects += count;
                 }
+
+                current.MissCount = statistics.GetValueOrDefault(HitResult.Miss, 0);
             }
         }
 
@@ -649,6 +678,21 @@ namespace osu.Game.Rulesets.Scoring
             /// The highest achieved combo.
             /// </summary>
             public int MaxCombo;
+
+            /// <summary>
+            /// The total combo currently played through.
+            /// </summary>
+            public int TotalCombo;
+
+            /// <summary>
+            /// The current misscount.
+            /// </summary>
+            public int MissCount;
+
+            /// <summary>
+            /// The current accuracy.
+            /// </summary>
+            public double Accuracy;
 
             /// <summary>
             /// The count of "basic" <see cref="HitObject"/>s. See: <see cref="HitResultExtensions.IsBasic"/>.
