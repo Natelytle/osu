@@ -26,8 +26,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly bool withSliders;
 
-        private const double prior_strain_multiplier = 0.5;
-        private const double current_strain_multiplier = 200;
+        private const double prior_strain_multiplier = 0.52;
+        private const double current_strain_multiplier = 208;
 
         private const double fc_probability = 0.02;
         private const int bin_count = 32;
