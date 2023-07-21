@@ -50,15 +50,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
-            double countRice = beatmap.HitObjects.Count(s => s is Note);
-            double countNoodle = beatmap.HitObjects.Count(s => s is HoldNote);
-            double countTotal = countRice + countNoodle;
-
-            double NoodlePercent = countNoodle / countTotal;
-
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = (/*skills[0].DifficultyValue() + */skills[1].DifficultyValue()) * star_scaling_factor,
+                StarRating = skills[0].DifficultyValue() * star_scaling_factor,
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.
@@ -105,8 +99,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new Strain(mods, ((ManiaBeatmap)Beatmap).TotalColumns),
-            new ReleaseStrain(mods, ((ManiaBeatmap)Beatmap).TotalColumns)
+            new Strain(mods, ((ManiaBeatmap)Beatmap).TotalColumns)
         };
 
         protected override Mod[] DifficultyAdjustmentMods
