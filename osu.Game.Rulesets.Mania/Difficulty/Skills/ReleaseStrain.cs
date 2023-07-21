@@ -13,18 +13,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class ReleaseStrain : StrainDecaySkill
     {
-        private const double individual_decay_base = 0.125;
+        private const double ln_decay_base = 0.016;
         private const double overall_decay_base = 0.30;
-        private double ln_buff = 1.0;
+        private double noodleBuff = 20.0;
 
-        private readonly double[] startTimes;
-        private readonly double[] endTimes;
-        private readonly double[] individualStrains;
-        private readonly double[] lnBuffResults;
-        private readonly ManiaDifficultyHitObject[] ln_buff_note_cache;
+        private readonly double[] lnStrains;
+
+        private readonly ManiaDifficultyHitObject[] lnBuffNoteCache;
         private readonly int keymode;
 
-        private double individualStrain;
+        private double lnStrain;
         private double overallStrain;
 
         protected override double SkillMultiplier => 1.0;
@@ -34,49 +32,35 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         public ReleaseStrain(Mod[] mods, int totalColumns)
             : base(mods)
         {
-            startTimes = new double[totalColumns];
-            endTimes = new double[totalColumns];
-            individualStrains = new double[totalColumns];
-            lnBuffResults = new double[totalColumns];
-            ln_buff_note_cache = new ManiaDifficultyHitObject[totalColumns];
+            lnStrains = new double[totalColumns];
+            lnBuffNoteCache = new ManiaDifficultyHitObject[totalColumns];
             overallStrain = 1;
             keymode = totalColumns;
         }
 
         protected override double StrainValueOf(DifficultyHitObject current)
         {
-            //if (current.BaseObject is not HoldNote) return 0;
             var maniaCurrent = (ManiaDifficultyHitObject)current;
-            double startTime = maniaCurrent.StartTime;
-            double endTime = maniaCurrent.EndTime;
             int column = maniaCurrent.BaseObject.Column;
-            double ln_buff_result = coolFunction(maniaCurrent);
 
-            lnBuffResults[column] = ln_buff_result;
-            ln_buff_note_cache[column] = maniaCurrent;
+            lnStrain = noodleBuff * coolFunction(maniaCurrent);
 
-            // Decay and increase individualStrains in own column
-            individualStrains[column] = applyDecay(individualStrains[column], endTime - endTimes[column], individual_decay_base);
-            individualStrains[column] += 2.0;
+            // Decay and increase lnStrain
+            lnStrains[column] = applyDecay(lnStrain, current.DeltaTime, ln_decay_base);
+            lnStrains[column] += lnStrain;
 
-            // For notes at the same time (in a chord), the individualStrain should be the hardest individualStrain out of those columns
-            individualStrain = maniaCurrent.DeltaTime <= 1 ? Math.Max(individualStrain, individualStrains[column]) : individualStrains[column];
+            lnBuffNoteCache[column] = maniaCurrent;
 
             // Decay and increase overallStrain
             overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base);
-            overallStrain++;
-
-            // Update startTimes and endTimes arrays
-            startTimes[column] = startTime;
-            endTimes[column] = endTime;
+            overallStrain += lnStrain + (maniaCurrent.BaseObject is HoldNote ? 1 : 0);
 
             // By subtracting CurrentStrain, this skill effectively only considers the maximum strain of any one hitobject within each strain section.
-            return ln_buff_result * (individualStrain + overallStrain) - CurrentStrain;
+            return lnStrain + overallStrain - CurrentStrain;
         }
 
         protected override double CalculateInitialStrain(double offset, DifficultyHitObject current)
-            => applyDecay(individualStrain, offset - current.Previous(0).StartTime, individual_decay_base)
-               + applyDecay(overallStrain, offset - current.Previous(0).StartTime, overall_decay_base);
+            => applyDecay(lnStrain, offset - current.Previous(0).StartTime, ln_decay_base);
 
         private double applyDecay(double value, double deltaTime, double decayBase)
             => value * Math.Pow(decayBase, deltaTime / 1000);
@@ -87,16 +71,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double bonus = 0.0;
 
             int totalDistance = 0;
+
+            // Amount of LN-Bodies that are on the same hand as this note that are being held while this note is played
             int concurrentNotesOnSameHand = 0;
+
+            // Amount of LN-Bodies that are being held while this note is played
             int concurrentNotes = 0;
 
-            double buff = ln_buff;
-
-            for (int i = 0; i < ln_buff_note_cache.Length; i++)
+            for (int i = 0; i < lnBuffNoteCache.Length; i++)
             {
-                ManiaDifficultyHitObject note = ln_buff_note_cache[i];
+                ManiaDifficultyHitObject note = lnBuffNoteCache[i];
 
-                if (note != null && note.BaseObject is HoldNote)
+                if (note == null) continue;
+
+                if (note.BaseObject is HoldNote && Precision.DefinitelyBigger(note.EndTime, obj.StartTime))
                 {
                     concurrentNotes++;
 
@@ -107,14 +95,28 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                         concurrentNotesOnSameHand++;
                         totalDistance += Math.Abs(obj.BaseObject.Column - note.BaseObject.Column);
                     }
+
                     //bonus = coolFunction(note) - lnBuffResults[i];
                 }
             }
 
-            double averageDistance = totalDistance / Math.Max(1, (double)concurrentNotesOnSameHand);
-            return buff * averageDistance * Math.Min(4, concurrentNotes) + bonus;
+            double averageDistance = totalDistance / Math.Max(1.0, concurrentNotesOnSameHand);
+            return (noodleBuff * averageDistance) / Math.Max(1, concurrentNotes) + bonus;
         }
 
+
+        /// <summary>
+        /// <para>Method that returns on what hand a column is expected to be played across all keymodes.</para>
+        /// <para></para>
+        /// <para>Examples:</para>
+        /// <para>  4k 2nd column would return 0 (left hand).</para>
+        /// <para>  4k 3rd column would return 1 (right hand).</para>
+        /// <para>  9k 5th column would return 0.5 (both hands / special).</para>
+        /// <para>  9k 2nd column would return 0 (left hand).</para>
+        /// <para>  9k 9th column would return 1 (right hand).</para>
+        /// </summary>
+        /// <param name="column"></param>
+        /// <returns>0 : left hand ; 1 : right hand ; 0.5 : both hands (aka special)</returns>
         private double getHand(int column)
             => ((column == Math.Ceiling(keymode / 2.0)) && (keymode % 2 == 1)) ? (0.5) : ((column < keymode / 2.0) ? 0 : 1);
     }

@@ -49,7 +49,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             // Decay and increase overallStrain
             overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base);
-            overallStrain++;
+            overallStrain += 1;
 
             // Update startTimes and endTimes arrays
             startTimes[column] = startTime;
