@@ -30,11 +30,6 @@ namespace osu.Game.Localisation
         public static LocalisableString ClearAll => new TranslatableString(getKey(@"clear_all"), @"Clear All");
 
         /// <summary>
-        /// "Cancel All"
-        /// </summary>
-        public static LocalisableString CancelAll => new TranslatableString(getKey(@"cancel_all"), @"Cancel All");
-
-        /// <summary>
         /// "Your battery level is low! Charge your device to prevent interruptions during gameplay."
         /// </summary>
         public static LocalisableString BatteryLow => new TranslatableString(getKey(@"battery_low"), @"Your battery level is low! Charge your device to prevent interruptions during gameplay.");
@@ -87,6 +82,31 @@ Please try changing your audio device to a working setting.");
         /// "This link type is not yet supported!"
         /// </summary>
         public static LocalisableString LinkTypeNotSupported => new TranslatableString(getKey(@"unsupported_link_type"), @"This link type is not yet supported!");
+
+        /// <summary>
+        /// "You received a private message from '{0}'. Click to read it!"
+        /// </summary>
+        public static LocalisableString PrivateMessageReceived(string username) => new TranslatableString(getKey(@"private_message_received"), @"You received a private message from '{0}'. Click to read it!", username);
+
+        /// <summary>
+        /// "Your name was mentioned in chat by '{0}'. Click to find out why!"
+        /// </summary>
+        public static LocalisableString YourNameWasMentioned(string username) => new TranslatableString(getKey(@"your_name_was_mentioned"), @"Your name was mentioned in chat by '{0}'. Click to find out why!", username);
+
+        /// <summary>
+        /// "You do not have the beatmap for this replay."
+        /// </summary>
+        public static LocalisableString MissingBeatmapForReplay => new TranslatableString(getKey(@"missing_beatmap_for_replay"), @"You do not have the beatmap for this replay.");
+
+        /// <summary>
+        /// "Downloading missing beatmap for this replay..."
+        /// </summary>
+        public static LocalisableString DownloadingBeatmapForReplay => new TranslatableString(getKey(@"downloading_beatmap_for_replay"), @"Downloading missing beatmap for this replay...");
+
+        /// <summary>
+        /// "Your local copy of the beatmap for this replay appears to be different than expected. You may need to update or re-download it."
+        /// </summary>
+        public static LocalisableString MismatchingBeatmapForReplay => new TranslatableString(getKey(@"mismatching_beatmap_for_replay"), @"Your local copy of the beatmap for this replay appears to be different than expected. You may need to update or re-download it.");
 
         private static string getKey(string key) => $@"{prefix}:{key}";
     }

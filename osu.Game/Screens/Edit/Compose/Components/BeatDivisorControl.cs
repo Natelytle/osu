@@ -33,12 +33,8 @@ namespace osu.Game.Screens.Edit.Compose.Components
     {
         private int? lastCustomDivisor;
 
-        private readonly BindableBeatDivisor beatDivisor = new BindableBeatDivisor();
-
-        public BeatDivisorControl(BindableBeatDivisor beatDivisor)
-        {
-            this.beatDivisor.BindTo(beatDivisor);
-        }
+        [Resolved]
+        private BindableBeatDivisor beatDivisor { get; set; } = null!;
 
         [BackgroundDependencyLoader]
         private void load(OverlayColourProvider colourProvider)
@@ -266,6 +262,7 @@ namespace osu.Game.Screens.Edit.Compose.Components
             private readonly OsuSpriteText divisorText;
 
             public DivisorDisplay()
+                : base(HoverSampleSet.Default)
             {
                 Anchor = Anchor.Centre;
                 Origin = Anchor.Centre;

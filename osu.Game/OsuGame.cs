@@ -289,9 +289,9 @@ namespace osu.Game
         {
             base.SetHost(host);
 
-            if (host.Window is SDL2Window sdlWindow)
+            if (host.Window != null)
             {
-                sdlWindow.DragDrop += path =>
+                host.Window.DragDrop += path =>
                 {
                     // on macOS/iOS, URL associations are handled via SDL_DROPFILE events.
                     if (path.StartsWith(OSU_PROTOCOL, StringComparison.Ordinal))
@@ -950,9 +950,9 @@ namespace osu.Game
             if (!args?.Any(a => a == @"--no-version-overlay") ?? true)
                 loadComponentSingleFile(versionManager = new VersionManager { Depth = int.MinValue }, ScreenContainer.Add);
 
-            loadComponentSingleFile(osuLogo, logo =>
+            loadComponentSingleFile(osuLogo, _ =>
             {
-                logoContainer.Add(logo);
+                osuLogo.SetupDefaultContainer(logoContainer);
 
                 // Loader has to be created after the logo has finished loading as Loader performs logo transformations on entering.
                 ScreenStack.Push(CreateLoader().With(l => l.RelativeSizeAxes = Axes.Both));
@@ -1025,7 +1025,7 @@ namespace osu.Game
 
             loadComponentSingleFile(CreateHighPerformanceSession(), Add);
 
-            loadComponentSingleFile(new BackgroundBeatmapProcessor(), Add);
+            loadComponentSingleFile(new BackgroundDataStoreProcessor(), Add);
 
             Add(difficultyRecommender);
             Add(externalLinkOpener = new ExternalLinkOpener());
@@ -1164,7 +1164,9 @@ namespace osu.Game
         private void forwardTabletLogsToNotifications()
         {
             const string tablet_prefix = @"[Tablet] ";
+
             bool notifyOnWarning = true;
+            bool notifyOnError = true;
 
             Logger.NewEntry += entry =>
             {
@@ -1175,6 +1177,11 @@ namespace osu.Game
 
                 if (entry.Level == LogLevel.Error)
                 {
+                    if (!notifyOnError)
+                        return;
+
+                    notifyOnError = false;
+
                     Schedule(() =>
                     {
                         Notifications.Post(new SimpleNotification
@@ -1213,7 +1220,11 @@ namespace osu.Game
             Schedule(() =>
             {
                 ITabletHandler tablet = Host.AvailableInputHandlers.OfType<ITabletHandler>().SingleOrDefault();
-                tablet?.Tablet.BindValueChanged(_ => notifyOnWarning = true, true);
+                tablet?.Tablet.BindValueChanged(_ =>
+                {
+                    notifyOnWarning = true;
+                    notifyOnError = true;
+                }, true);
             });
         }
 

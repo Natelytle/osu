@@ -84,7 +84,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty
             HitWindows hitWindows = new TaikoHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
-            return new TaikoDifficultyAttributes
+            TaikoDifficultyAttributes attributes = new TaikoDifficultyAttributes
             {
                 StarRating = starRating,
                 Mods = mods,
@@ -95,6 +95,8 @@ namespace osu.Game.Rulesets.Taiko.Difficulty
                 GreatHitWindow = hitWindows.WindowFor(HitResult.Great) / clockRate,
                 MaxCombo = beatmap.HitObjects.Count(h => h is Hit),
             };
+
+            return attributes;
         }
 
         /// <summary>

@@ -12,6 +12,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Extensions.EnumExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Primitives;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Configuration;
@@ -69,7 +70,9 @@ namespace osu.Game.Screens.Play
 
         public Bindable<bool> ShowHealthBar = new Bindable<bool>(true);
 
+        [CanBeNull]
         private readonly DrawableRuleset drawableRuleset;
+
         private readonly IReadOnlyList<Mod> mods;
 
         /// <summary>
@@ -78,6 +81,8 @@ namespace osu.Game.Screens.Play
         public Bindable<bool> ShowHud { get; } = new BindableBool();
 
         private Bindable<HUDVisibilityMode> configVisibilityMode;
+        private Bindable<bool> configLeaderboardVisibility;
+        private Bindable<bool> configSettingsOverlay;
 
         private readonly BindableBool replayLoaded = new BindableBool();
 
@@ -102,10 +107,11 @@ namespace osu.Game.Screens.Play
 
         private readonly List<Drawable> hideTargets;
 
-        public HUDOverlay(DrawableRuleset drawableRuleset, IReadOnlyList<Mod> mods, bool alwaysShowLeaderboard = true)
+        private readonly Drawable playfieldComponents;
+
+        public HUDOverlay([CanBeNull] DrawableRuleset drawableRuleset, IReadOnlyList<Mod> mods, bool alwaysShowLeaderboard = true)
         {
             Drawable rulesetComponents;
-
             this.drawableRuleset = drawableRuleset;
             this.mods = mods;
 
@@ -121,6 +127,9 @@ namespace osu.Game.Screens.Play
                 mainComponents = new HUDComponentsContainer { AlwaysPresent = true, },
                 rulesetComponents = drawableRuleset != null
                     ? new HUDComponentsContainer(drawableRuleset.Ruleset.RulesetInfo) { AlwaysPresent = true, }
+                    : Empty(),
+                playfieldComponents = drawableRuleset != null
+                    ? new SkinComponentsContainer(new SkinComponentsContainerLookup(SkinComponentsContainerLookup.TargetArea.Playfield, drawableRuleset.Ruleset.RulesetInfo)) { AlwaysPresent = true, }
                     : Empty(),
                 topRightElements = new FillFlowContainer
                 {
@@ -161,7 +170,7 @@ namespace osu.Game.Screens.Play
                 },
             };
 
-            hideTargets = new List<Drawable> { mainComponents, rulesetComponents, topRightElements };
+            hideTargets = new List<Drawable> { mainComponents, rulesetComponents, playfieldComponents, topRightElements };
 
             if (!alwaysShowLeaderboard)
                 hideTargets.Add(LeaderboardFlow);
@@ -178,6 +187,8 @@ namespace osu.Game.Screens.Play
             ModDisplay.Current.Value = mods;
 
             configVisibilityMode = config.GetBindable<HUDVisibilityMode>(OsuSetting.HUDVisibilityMode);
+            configLeaderboardVisibility = config.GetBindable<bool>(OsuSetting.GameplayLeaderboard);
+            configSettingsOverlay = config.GetBindable<bool>(OsuSetting.ReplaySettingsOverlay);
 
             if (configVisibilityMode.Value == HUDVisibilityMode.Never && !hasShownNotificationOnce)
             {
@@ -204,14 +215,39 @@ namespace osu.Game.Screens.Play
 
             holdingForHUD.BindValueChanged(_ => updateVisibility());
             IsPlaying.BindValueChanged(_ => updateVisibility());
-            configVisibilityMode.BindValueChanged(_ => updateVisibility(), true);
+            configVisibilityMode.BindValueChanged(_ => updateVisibility());
+            configSettingsOverlay.BindValueChanged(_ => updateVisibility());
 
-            replayLoaded.BindValueChanged(replayLoadedValueChanged, true);
+            replayLoaded.BindValueChanged(e =>
+            {
+                if (e.NewValue)
+                {
+                    ModDisplay.FadeIn(200);
+                    InputCountController.Margin = new MarginPadding(10) { Bottom = 30 };
+                }
+                else
+                {
+                    ModDisplay.Delay(2000).FadeOut(200);
+                    InputCountController.Margin = new MarginPadding(10);
+                }
+
+                updateVisibility();
+            }, true);
         }
 
         protected override void Update()
         {
             base.Update();
+
+            if (drawableRuleset != null)
+            {
+                Quad playfieldScreenSpaceDrawQuad = drawableRuleset.Playfield.SkinnableComponentScreenSpaceDrawQuad;
+
+                playfieldComponents.Position = ToLocalSpace(playfieldScreenSpaceDrawQuad.TopLeft);
+                playfieldComponents.Width = (ToLocalSpace(playfieldScreenSpaceDrawQuad.TopRight) - ToLocalSpace(playfieldScreenSpaceDrawQuad.TopLeft)).Length;
+                playfieldComponents.Height = (ToLocalSpace(playfieldScreenSpaceDrawQuad.BottomLeft) - ToLocalSpace(playfieldScreenSpaceDrawQuad.TopLeft)).Length;
+                playfieldComponents.Rotation = drawableRuleset.Playfield.Rotation;
+            }
 
             float? lowestTopScreenSpaceLeft = null;
             float? lowestTopScreenSpaceRight = null;
@@ -280,6 +316,11 @@ namespace osu.Game.Screens.Play
                 return;
             }
 
+            if (configSettingsOverlay.Value && replayLoaded.Value)
+                PlayerSettingsOverlay.Show();
+            else
+                PlayerSettingsOverlay.Hide();
+
             switch (configVisibilityMode.Value)
             {
                 case HUDVisibilityMode.Never:
@@ -295,26 +336,6 @@ namespace osu.Game.Screens.Play
                     ShowHud.Value = true;
                     break;
             }
-        }
-
-        private void replayLoadedValueChanged(ValueChangedEvent<bool> e)
-        {
-            PlayerSettingsOverlay.ReplayLoaded = e.NewValue;
-
-            if (e.NewValue)
-            {
-                PlayerSettingsOverlay.Show();
-                ModDisplay.FadeIn(200);
-                InputCountController.Margin = new MarginPadding(10) { Bottom = 30 };
-            }
-            else
-            {
-                PlayerSettingsOverlay.Hide();
-                ModDisplay.Delay(2000).FadeOut(200);
-                InputCountController.Margin = new MarginPadding(10);
-            }
-
-            updateVisibility();
         }
 
         protected virtual void BindDrawableRuleset(DrawableRuleset drawableRuleset)
@@ -354,6 +375,10 @@ namespace osu.Game.Screens.Play
 
             switch (e.Action)
             {
+                case GlobalAction.ToggleReplaySettings:
+                    configSettingsOverlay.Value = !configSettingsOverlay.Value;
+                    return true;
+
                 case GlobalAction.HoldForHUD:
                     holdingForHUD.Value = true;
                     return true;
@@ -374,6 +399,10 @@ namespace osu.Game.Screens.Play
                             break;
                     }
 
+                    return true;
+
+                case GlobalAction.ToggleInGameLeaderboard:
+                    configLeaderboardVisibility.Value = !configLeaderboardVisibility.Value;
                     return true;
             }
 

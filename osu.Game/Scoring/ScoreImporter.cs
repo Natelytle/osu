@@ -42,7 +42,7 @@ namespace osu.Game.Scoring
             this.api = api;
         }
 
-        protected override ScoreInfo? CreateModel(ArchiveReader archive)
+        protected override ScoreInfo? CreateModel(ArchiveReader archive, ImportParameters parameters)
         {
             string name = archive.Filenames.First(f => f.EndsWith(".osr", StringComparison.OrdinalIgnoreCase));
 
@@ -52,9 +52,23 @@ namespace osu.Game.Scoring
                 {
                     return new DatabasedLegacyScoreDecoder(rulesets, beatmaps()).Parse(stream).ScoreInfo;
                 }
-                catch (LegacyScoreDecoder.BeatmapNotFoundException e)
+                catch (LegacyScoreDecoder.BeatmapNotFoundException notFound)
                 {
-                    Logger.Log($@"Score '{name}' failed to import: no corresponding beatmap with the hash '{e.Hash}' could be found.", LoggingTarget.Database);
+                    Logger.Log($@"Score '{archive.Name}' failed to import: no corresponding beatmap with the hash '{notFound.Hash}' could be found.", LoggingTarget.Database);
+
+                    if (!parameters.Batch)
+                    {
+                        // In the case of a missing beatmap, let's attempt to resolve it and show a prompt to the user to download the required beatmap.
+                        var req = new GetBeatmapRequest(new BeatmapInfo { MD5Hash = notFound.Hash });
+                        req.Success += res => PostNotification?.Invoke(new MissingBeatmapNotification(res, archive, notFound.Hash));
+                        api.Queue(req);
+                    }
+
+                    return null;
+                }
+                catch (Exception e)
+                {
+                    Logger.Log($@"Failed to parse headers of score '{archive.Name}': {e}.", LoggingTarget.Database);
                     return null;
                 }
             }
@@ -64,12 +78,14 @@ namespace osu.Game.Scoring
 
         protected override void Populate(ScoreInfo model, ArchiveReader? archive, Realm realm, CancellationToken cancellationToken = default)
         {
+            Debug.Assert(model.BeatmapInfo != null);
+
             // Ensure the beatmap is not detached.
             if (!model.BeatmapInfo.IsManaged)
-                model.BeatmapInfo = realm.Find<BeatmapInfo>(model.BeatmapInfo.ID);
+                model.BeatmapInfo = realm.Find<BeatmapInfo>(model.BeatmapInfo.ID)!;
 
             if (!model.Ruleset.IsManaged)
-                model.Ruleset = realm.Find<RulesetInfo>(model.Ruleset.ShortName);
+                model.Ruleset = realm.Find<RulesetInfo>(model.Ruleset.ShortName)!;
 
             // These properties are known to be non-null, but these final checks ensure a null hasn't come from somewhere (or the refetch has failed).
             // Under no circumstance do we want these to be written to realm as null.
@@ -88,6 +104,11 @@ namespace osu.Game.Scoring
             // this requires: max combo, statistics, max statistics (where available), and mods to already be populated on the score.
             if (StandardisedScoreMigrationTools.ShouldMigrateToNewStandardised(model))
                 model.TotalScore = StandardisedScoreMigrationTools.GetNewStandardised(model);
+            else if (model.IsLegacyScore)
+            {
+                model.LegacyTotalScore = model.TotalScore;
+                model.TotalScore = StandardisedScoreMigrationTools.ConvertFromLegacyTotalScore(model, beatmaps());
+            }
         }
 
         /// <summary>
@@ -96,10 +117,12 @@ namespace osu.Game.Scoring
         /// <param name="score">The score to populate the statistics of.</param>
         public void PopulateMaximumStatistics(ScoreInfo score)
         {
+            Debug.Assert(score.BeatmapInfo != null);
+
             if (score.MaximumStatistics.Select(kvp => kvp.Value).Sum() > 0)
                 return;
 
-            var beatmap = score.BeatmapInfo.Detach();
+            var beatmap = score.BeatmapInfo!.Detach();
             var ruleset = score.Ruleset.Detach();
             var rulesetInstance = ruleset.CreateInstance();
 
