@@ -18,6 +18,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// </summary>
         public const double DEFAULT_DIFFICULTY_MULTIPLIER = 1.06;
 
+        private const double a = 10.0;
+        private const double b = 1.3675;
+
         /// <summary>
         /// The number of sections with the highest strains, which the peak strain reductions will apply to.
         /// This is done in order to decrease their impact on the overall difficulty of the map for this skill.
@@ -42,7 +45,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public override double DifficultyValue()
         {
             double difficulty = 0;
-            double weight = 1;
 
             // Sections with 0 strain are excluded to avoid worst-case time complexity of the following sort (e.g. /b/2351871).
             // These sections will not contribute to the difficulty.
@@ -57,12 +59,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 strains[i] *= Interpolation.Lerp(ReducedStrainBaseline, 1.0, scale);
             }
 
+            int index = 0;
+
             // Difficulty is the weighted sum of the highest strains from every section.
             // We're sorting from highest to lowest strain.
             foreach (double strain in strains.OrderByDescending(d => d))
             {
+                // Below uses harmonic sum scaling which makes the resulting summation logarithmic rather than geometric.
+                // Good for properly weighting difficulty across full map instead of using object count for LengthBonus.
+                // a and b are arbitrary constants that worked well.
+                double weight = b * ((1 + a / (1 + index)) / (index + 1 + a / (1 + index)));
+
                 difficulty += strain * weight;
-                weight *= DecayWeight;
+                index += 1;
             }
 
             return difficulty * DifficultyMultiplier;
