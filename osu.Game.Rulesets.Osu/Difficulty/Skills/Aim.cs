@@ -26,13 +26,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly bool withSliders;
 
-        private const double prior_strain_multiplier = 0.52;
-        private const double current_strain_multiplier = 208;
+        private double skillMultiplier => 128;
 
         private const double fc_probability = 0.02;
         private const int bin_count = 32;
 
-        private double priorStrain;
+        private double currentStrain;
 
         private double strainDecayBase => 0.15;
 
@@ -158,14 +157,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainValueAt(DifficultyHitObject current)
         {
-            priorStrain *= strainDecay(current.DeltaTime);
+            currentStrain *= strainDecay(current.DeltaTime);
+            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, withSliders) * skillMultiplier;
 
-            double currentObjectDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * current_strain_multiplier;
-            double totalDifficulty = priorStrain * prior_strain_multiplier + currentObjectDifficulty;
-
-            priorStrain += currentObjectDifficulty;
-
-            return totalDifficulty;
+            return currentStrain;
         }
     }
 }
