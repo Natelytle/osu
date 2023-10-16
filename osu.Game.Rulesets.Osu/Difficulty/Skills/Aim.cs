@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly bool withSliders;
 
-        private double skillMultiplier => 128;
+        private double skillMultiplier => 130;
 
         private const double fc_probability = 0.02;
         private const int bin_count = 32;
