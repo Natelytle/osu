@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
@@ -14,23 +15,96 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyAttributes : DifficultyAttributes
     {
         /// <summary>
+        /// The star rating corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("aim_star_rating")]
+        public double AimStarRating { get; set; }
+
+        /// <summary>
         /// The difficulty corresponding to the aim skill.
         /// </summary>
         [JsonProperty("aim_difficulty")]
         public double AimDifficulty { get; set; }
 
         /// <summary>
-        /// The difficulty corresponding to the speed skill.
+        /// Something to do with hidden and aim.
         /// </summary>
-        [JsonProperty("speed_difficulty")]
-        public double SpeedDifficulty { get; set; }
+        [JsonProperty("aim_hidden_factor")]
+        public double AimHiddenFactor { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("combo_throughputs")]
+        public double[] ComboThroughputs { get; set; } = Array.Empty<double>();
+
+        /// <summary>
+        /// The difficulty corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("miss_throughputs")]
+        public double[] MissThroughputs { get; set; } = Array.Empty<double>();
+
+        /// <summary>
+        /// The difficulty corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("miss_counts")]
+        public double[] MissCounts { get; set; } = Array.Empty<double>();
+
+        /// <summary>
+        /// The difficulty corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("cheese_note_count")]
+        public double CheeseNoteCount { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("cheese_levels")]
+        public double[] CheeseLevels { get; set; } = Array.Empty<double>();
+
+        /// <summary>
+        /// The difficulty corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("cheese_factors")]
+        public double[] CheeseFactors { get; set; } = Array.Empty<double>();
+
+        /// <summary>
+        /// The star rating corresponding to the tap skill.
+        /// </summary>
+        [JsonProperty("tap_star_rating")]
+        public double TapStarRating { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the tap skill.
+        /// </summary>
+        [JsonProperty("tap_difficulty")]
+        public double TapDifficulty { get; set; }
 
         /// <summary>
         /// The number of clickable objects weighted by difficulty.
-        /// Related to <see cref="SpeedDifficulty"/>
+        /// Related to <see cref="TapDifficulty"/>
         /// </summary>
-        [JsonProperty("speed_note_count")]
-        public double SpeedNoteCount { get; set; }
+        [JsonProperty("stream_note_count")]
+        public double StreamNoteCount { get; set; }
+
+        /// <summary>
+        /// The number of clickable objects weighted by difficulty.
+        /// Related to <see cref="TapDifficulty"/>
+        /// </summary>
+        [JsonProperty("mash_tap_difficulty")]
+        public double MashTapDifficulty { get; set; }
+
+        /// <summary>
+        /// The star rating corresponding to the tap skill.
+        /// </summary>
+        [JsonProperty("finger_control_star_rating")]
+        public double FingerControlStarRating { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the tap skill.
+        /// </summary>
+        [JsonProperty("finger_control_difficulty")]
+        public double FingerControlDifficulty { get; set; }
 
         /// <summary>
         /// The difficulty corresponding to the flashlight skill.
@@ -39,12 +113,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double FlashlightDifficulty { get; set; }
 
         /// <summary>
-        /// Describes how much of <see cref="AimDifficulty"/> is contributed to by hitcircles or sliders.
-        /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is contributed by hitcircles.
-        /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is contributed by sliders.
+        /// The length of the map, in seconds.
         /// </summary>
-        [JsonProperty("slider_factor")]
-        public double SliderFactor { get; set; }
+        [JsonProperty("length")]
+        public double Length { get; set; }
 
         /// <summary>
         /// The perceived approach rate inclusive of rate-adjusting mods (DT/HT/etc).
@@ -90,7 +162,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 yield return v;
 
             yield return (ATTRIB_ID_AIM, AimDifficulty);
-            yield return (ATTRIB_ID_SPEED, SpeedDifficulty);
+            yield return (ATTRIB_ID_SPEED, TapDifficulty);
             yield return (ATTRIB_ID_OVERALL_DIFFICULTY, OverallDifficulty);
             yield return (ATTRIB_ID_APPROACH_RATE, ApproachRate);
             yield return (ATTRIB_ID_DIFFICULTY, StarRating);
@@ -98,8 +170,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (ShouldSerializeFlashlightRating())
                 yield return (ATTRIB_ID_FLASHLIGHT, FlashlightDifficulty);
 
-            yield return (ATTRIB_ID_SLIDER_FACTOR, SliderFactor);
-            yield return (ATTRIB_ID_SPEED_NOTE_COUNT, SpeedNoteCount);
+            yield return (ATTRIB_ID_SPEED_NOTE_COUNT, StreamNoteCount);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)
@@ -107,13 +178,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             base.FromDatabaseAttributes(values, onlineInfo);
 
             AimDifficulty = values[ATTRIB_ID_AIM];
-            SpeedDifficulty = values[ATTRIB_ID_SPEED];
+            TapDifficulty = values[ATTRIB_ID_SPEED];
             OverallDifficulty = values[ATTRIB_ID_OVERALL_DIFFICULTY];
             ApproachRate = values[ATTRIB_ID_APPROACH_RATE];
             StarRating = values[ATTRIB_ID_DIFFICULTY];
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
-            SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
-            SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];
+            StreamNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];
 
             DrainRate = onlineInfo.DrainRate;
             HitCircleCount = onlineInfo.CircleCount;

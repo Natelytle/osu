@@ -13,6 +13,7 @@ using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.Scoring;
@@ -22,7 +23,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 0.0675;
+        private const double aim_multiplier = 0.641;
+        private const double tap_multiplier = 0.641;
+        private const double finger_control_multiplier = 1.245;
+
+        private const double star_rating_exponent = 0.83;
 
         public override int Version => 20220902;
 
@@ -36,47 +41,36 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
 
-            double aimRating = Math.Sqrt(skills[0].DifficultyValue()) * difficulty_multiplier;
-            double aimRatingNoSliders = Math.Sqrt(skills[1].DifficultyValue()) * difficulty_multiplier;
-            double speedRating = Math.Sqrt(skills[2].DifficultyValue()) * difficulty_multiplier;
-            double speedNotes = ((Speed)skills[2]).RelevantNoteCount();
-            double flashlightRating = Math.Sqrt(skills[3].DifficultyValue()) * difficulty_multiplier;
+            List<OsuHitObject> hitObjects = beatmap.HitObjects as List<OsuHitObject>;
 
-            double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
+            if (hitObjects is null)
+                return new OsuDifficultyAttributes { Mods = mods };
 
-            if (mods.Any(m => m is OsuModTouchDevice))
-            {
-                aimRating = Math.Pow(aimRating, 0.8);
-                flashlightRating = Math.Pow(flashlightRating, 0.8);
-            }
+            double mapLength = beatmap.CalculatePlayableLength() / 1000.0 / clockRate;
 
-            if (mods.Any(h => h is OsuModRelax))
-            {
-                aimRating *= 0.9;
-                speedRating = 0.0;
-                flashlightRating *= 0.7;
-            }
+            double preemptNoClockRate;
+            if (beatmap.BeatmapInfo.Difficulty.ApproachRate > 5)
+                preemptNoClockRate = 1200 - 150 * (beatmap.BeatmapInfo.Difficulty.ApproachRate - 5);
+            else
+                preemptNoClockRate = 1800 - 100 * beatmap.BeatmapInfo.Difficulty.ApproachRate;
 
-            double baseAimPerformance = Math.Pow(5 * Math.Max(1, aimRating / 0.0675) - 4, 3) / 100000;
-            double baseSpeedPerformance = Math.Pow(5 * Math.Max(1, speedRating / 0.0675) - 4, 3) / 100000;
-            double baseFlashlightPerformance = 0.0;
+            double[] noteDensities = NoteDensity.Calculate(hitObjects, preemptNoClockRate);
 
-            if (mods.Any(h => h is OsuModFlashlight))
-                baseFlashlightPerformance = Math.Pow(flashlightRating, 2.0) * 25.0;
+            // Tap
+            var tapAttributes = Tap.CalculateTapAttributes(hitObjects, clockRate);
 
-            double basePerformance =
-                Math.Pow(
-                    Math.Pow(baseAimPerformance, 1.1) +
-                    Math.Pow(baseSpeedPerformance, 1.1) +
-                    Math.Pow(baseFlashlightPerformance, 1.1), 1.0 / 1.1
-                );
+            // Finger Control
+            double fingerControlDiff = FingerControl.CalculateFingerControlDiff(hitObjects, clockRate);
 
-            double starRating = basePerformance > 0.00001
-                ? Math.Cbrt(OsuPerformanceCalculator.PERFORMANCE_BASE_MULTIPLIER) * 0.027 * (Math.Cbrt(100000 / Math.Pow(2, 1 / 1.1) * basePerformance) + 4)
-                : 0;
+            // Aim
+            var aimAttributes = Aim.CalculateAimAttributes(hitObjects, clockRate, tapAttributes.StrainHistory, noteDensities);
+
+            double tapStarRating = tap_multiplier * Math.Pow(tapAttributes.TapDifficulty, star_rating_exponent);
+            double aimStarRating = aim_multiplier * Math.Pow(aimAttributes.FcProbabilityThroughput, star_rating_exponent);
+            double fingerControlStarRating = finger_control_multiplier * Math.Pow(fingerControlDiff, star_rating_exponent);
+            double combinedStarRating = PowerMean.Of(new[] { tapStarRating, aimStarRating, fingerControlStarRating }, 7) * 1.131;
 
             double preempt = IBeatmapDifficultyInfo.DifficultyRange(beatmap.Difficulty.ApproachRate, 1800, 1200, 450) / clockRate;
-            double drainRate = beatmap.Difficulty.DrainRate;
             int maxCombo = beatmap.GetMaxCombo();
 
             int hitCirclesCount = beatmap.HitObjects.Count(h => h is HitCircle);
@@ -90,20 +84,34 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             OsuDifficultyAttributes attributes = new OsuDifficultyAttributes
             {
-                StarRating = starRating,
+                StarRating = combinedStarRating,
                 Mods = mods,
-                AimDifficulty = aimRating,
-                SpeedDifficulty = speedRating,
-                SpeedNoteCount = speedNotes,
-                FlashlightDifficulty = flashlightRating,
-                SliderFactor = sliderFactor,
+                Length = mapLength,
+
+                TapStarRating = tapStarRating,
+                TapDifficulty = tapAttributes.TapDifficulty,
+                StreamNoteCount = tapAttributes.StreamNoteCount,
+                MashTapDifficulty = tapAttributes.MashedTapDifficulty,
+
+                FingerControlStarRating = fingerControlStarRating,
+                FingerControlDifficulty = fingerControlDiff,
+
+                AimStarRating = aimStarRating,
+                AimDifficulty = aimAttributes.FcProbabilityThroughput,
+                AimHiddenFactor = aimAttributes.HiddenFactor,
+                ComboThroughputs = aimAttributes.ComboThroughputs,
+                MissThroughputs = aimAttributes.MissThroughputs,
+                MissCounts = aimAttributes.MissCounts,
+                CheeseNoteCount = aimAttributes.CheeseNoteCount,
+                CheeseLevels = aimAttributes.CheeseLevels,
+                CheeseFactors = aimAttributes.CheeseFactors,
+
                 ApproachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5,
                 OverallDifficulty = (80 - hitWindowGreat) / 6,
-                DrainRate = drainRate,
                 MaxCombo = maxCombo,
                 HitCircleCount = hitCirclesCount,
                 SliderCount = sliderCount,
-                SpinnerCount = spinnerCount,
+                SpinnerCount = spinnerCount
             };
 
             return attributes;
@@ -128,10 +136,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             return new Skill[]
             {
-                new Aim(mods, true),
-                new Aim(mods, false),
-                new Speed(mods),
-                new Flashlight(mods)
             };
         }
 
