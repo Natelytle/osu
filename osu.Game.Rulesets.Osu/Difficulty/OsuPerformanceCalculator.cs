@@ -116,7 +116,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             int comboTpCount = attributes.ComboThroughputs.Length;
             double[]? comboPercentages = Generate.LinearSpaced(comboTpCount, 1.0 / comboTpCount, 1);
 
-            double scoreComboPercentage = (double)scoreMaxCombo / attributes.MaxCombo;
+            double scoreComboPercentage = Math.Min((double)scoreMaxCombo / attributes.MaxCombo, 1);
             double comboTp = LinearSpline.InterpolateSorted(comboPercentages, attributes.ComboThroughputs)
                                          .Interpolate(scoreComboPercentage);
 
