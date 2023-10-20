@@ -41,10 +41,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
 
-            List<OsuHitObject> hitObjects = beatmap.HitObjects as List<OsuHitObject>;
-
-            if (hitObjects is null)
-                return new OsuDifficultyAttributes { Mods = mods };
+            List<OsuHitObject> hitObjects = beatmap.HitObjects.Cast<OsuHitObject>().ToList();
 
             double mapLength = beatmap.CalculatePlayableLength() / 1000.0 / clockRate;
 
@@ -57,13 +54,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double[] noteDensities = NoteDensity.Calculate(hitObjects, preemptNoClockRate);
 
             // Tap
-            var tapAttributes = Tap.CalculateTapAttributes(hitObjects, clockRate);
-
-            // Finger Control
-            double fingerControlDiff = FingerControl.CalculateFingerControlDiff(hitObjects, clockRate);
+            var tapAttributes = ((Tap)skills[0]).CalculateTapAttributes();
 
             // Aim
-            var aimAttributes = Aim.CalculateAimAttributes(hitObjects, clockRate, tapAttributes.StrainHistory, noteDensities);
+            var aimAttributes = ((Aim)skills[1]).CalculateAimAttributes(tapAttributes.StrainHistory, noteDensities);
+
+            // Finger Control
+            double fingerControlDiff = skills[2].DifficultyValue();
 
             double tapStarRating = tap_multiplier * Math.Pow(tapAttributes.TapDifficulty, star_rating_exponent);
             double aimStarRating = aim_multiplier * Math.Pow(aimAttributes.FcProbabilityThroughput, star_rating_exponent);
@@ -125,8 +122,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             // If the map has less than two OsuHitObjects, the enumerator will not return anything.
             for (int i = 1; i < beatmap.HitObjects.Count; i++)
             {
-                var lastLast = i > 1 ? beatmap.HitObjects[i - 2] : null;
-                objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], lastLast, clockRate, objects, objects.Count));
+                objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count));
             }
 
             return objects;
@@ -136,6 +132,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             return new Skill[]
             {
+                new Tap(mods, clockRate),
+                new Aim(mods, clockRate),
+                new FingerControl(mods, clockRate),
             };
         }
 

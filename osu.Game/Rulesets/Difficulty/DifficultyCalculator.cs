@@ -118,7 +118,11 @@ namespace osu.Game.Rulesets.Difficulty
                     skill.Process(hitObject);
                 }
 
-                attribs.Add(new TimedDifficultyAttributes(hitObject.EndTime * clockRate, CreateDifficultyAttributes(progressiveBeatmap, playableMods, skills, clockRate)));
+                var difficultyAttributes = CreateDifficultyAttributes(progressiveBeatmap, playableMods, skills, clockRate);
+
+                var timedDifficultyAttributes = new TimedDifficultyAttributes(hitObject.EndTime * clockRate, difficultyAttributes);
+
+                attribs.Add(timedDifficultyAttributes);
             }
 
             return attribs;

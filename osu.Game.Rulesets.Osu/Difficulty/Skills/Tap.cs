@@ -6,13 +6,24 @@ using System.Collections.Generic;
 using System.Linq;
 using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
-    public static class Tap
+    public class Tap : Skill
     {
+        private readonly double tapClockRate;
+
+        public Tap(Mod[] mods, double clockRate)
+            : base(mods)
+        {
+            tapClockRate = clockRate;
+        }
+
         private const double spaced_buff_factor = 0.10;
         private const int timescale_count = 4;
 
@@ -27,18 +38,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// </summary>
         private static readonly double[] timescale_factors = { 1.02, 1.02, 1.05, 1.15 };
 
+        private readonly List<OsuHitObject> hitObjects = new List<OsuHitObject>();
+
         /// <summary>
         /// Calculates attributes related to tapping difficulty.
         /// </summary>
-        public static TapAttributes CalculateTapAttributes(List<OsuHitObject> hitObjects, double clockRate)
+        public TapAttributes CalculateTapAttributes()
         {
-            var (strainHistory, tapDiff) = calculateTapStrain(hitObjects, 0, clockRate);
+            var (strainHistory, tapDiff) = calculateTapStrain(hitObjects, 0, tapClockRate);
             double burstStrain = strainHistory.Max(v => v[0]);
 
-            var streamnessMask = CalculateStreamnessMask(hitObjects, burstStrain, clockRate);
+            var streamnessMask = CalculateStreamnessMask(hitObjects, burstStrain, tapClockRate);
             double streamNoteCount = streamnessMask.Sum();
 
-            var (_, mashTapDiff) = calculateTapStrain(hitObjects, 1, clockRate);
+            var (_, mashTapDiff) = calculateTapStrain(hitObjects, 1, tapClockRate);
 
             return new TapAttributes
             {
@@ -158,6 +171,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private static double calculateSpacedness(double d)
         {
             return SpecialFunctions.Logistic((d - 0.533) / 0.13) - SpecialFunctions.Logistic(-4.1);
+        }
+
+        public override void Process(DifficultyHitObject current)
+        {
+            hitObjects.Add((OsuHitObject)current.BaseObject);
+        }
+
+        public override double DifficultyValue()
+        {
+            throw new NotImplementedException();
         }
     }
 }

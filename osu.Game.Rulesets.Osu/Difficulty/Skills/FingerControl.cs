@@ -3,16 +3,29 @@
 
 using System;
 using System.Collections.Generic;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
-    public static class FingerControl
+    public class FingerControl : Skill
     {
+        private readonly double fingerControlClockRate;
+
+        public FingerControl(Mod[] mods, double clockRate)
+            : base(mods)
+        {
+            fingerControlClockRate = clockRate;
+        }
+
+        private readonly List<OsuHitObject> hitObjects = new List<OsuHitObject>();
+
         /// <summary>
         /// Calculates finger control difficulty of the map
         /// </summary>
-        public static double CalculateFingerControlDiff(List<OsuHitObject> hitObjects, double clockRate)
+        public override double DifficultyValue()
         {
             if (hitObjects.Count == 0)
             {
@@ -29,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             for (int i = 1; i < hitObjects.Count; i++)
             {
                 double currTime = hitObjects[i].StartTime / 1000.0;
-                double deltaTime = (currTime - prevTime) / clockRate;
+                double deltaTime = (currTime - prevTime) / fingerControlClockRate;
 
                 double strainTime = Math.Max(deltaTime, 0.046875);
                 double strainDecayBase = Math.Pow(0.9, 1 / Math.Min(strainTime, 0.2));
@@ -75,6 +88,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             }
 
             return diff * (1 - k) * 1.1;
+        }
+
+        public override void Process(DifficultyHitObject current)
+        {
+            hitObjects.Add((OsuHitObject)current.BaseObject);
         }
     }
 }

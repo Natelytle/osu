@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using MathNet.Numerics;
 using MathNet.Numerics.RootFinding;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
@@ -15,8 +18,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public static class Aim
+    public class Aim : Skill
     {
+        private readonly double aimClockRate;
+
+        public Aim(Mod[] mods, double clockRate)
+            : base(mods)
+        {
+            aimClockRate = clockRate;
+        }
+
         /// <summary>
         /// We want to find a throughput level at which the probability of FC = prob_threshold
         /// </summary>
@@ -58,13 +69,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private const int miss_tp_count = 20;
         private const int combo_tp_count = 50;
 
-        public static AimAttributes CalculateAimAttributes(List<OsuHitObject> hitObjects,
-                                                           double clockRate,
-                                                           double[] tapStrains,
-                                                           double[] noteDensities)
+        private readonly List<OsuHitObject> hitObjects = new List<OsuHitObject>();
+
+        public AimAttributes CalculateAimAttributes(
+            double[] tapStrains,
+            double[] noteDensities)
         {
-            List<OsuMovement> movements = createMovements(hitObjects, clockRate, tapStrains, noteDensities);
-            List<OsuMovement> movementsHidden = createMovements(hitObjects, clockRate, tapStrains, noteDensities, true);
+            List<OsuMovement> movements = createMovements(hitObjects, aimClockRate, tapStrains, noteDensities);
+            List<OsuMovement> movementsHidden = createMovements(hitObjects, aimClockRate, tapStrains, noteDensities, true);
 
             int comboSectionAmount = combo_tp_count;
             if (movements.Count < comboSectionAmount)
@@ -317,6 +329,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             }
 
             return fcProb;
+        }
+
+        public override void Process(DifficultyHitObject current)
+        {
+            hitObjects.Add((OsuHitObject)current.BaseObject);
+        }
+
+        public override double DifficultyValue()
+        {
+            throw new NotImplementedException();
         }
     }
 }

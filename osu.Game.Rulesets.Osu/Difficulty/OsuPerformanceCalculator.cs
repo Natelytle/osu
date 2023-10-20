@@ -100,7 +100,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return new OsuPerformanceAttributes
             {
                 Aim = aimValue,
-                Speed = tapValue,
+                Tap = tapValue,
                 Accuracy = accuracyValue,
                 EffectiveMissCount = effectiveMissCount,
                 Total = totalValue
@@ -273,24 +273,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 accuracyValue *= 1.02;
 
             return accuracyValue;
-        }
-
-        private double calculateEffectiveMissCount(OsuDifficultyAttributes attributes)
-        {
-            // Guess the number of misses + slider breaks from combo
-            double comboBasedMissCount = 0.0;
-
-            if (attributes.SliderCount > 0)
-            {
-                double fullComboThreshold = attributes.MaxCombo - 0.1 * attributes.SliderCount;
-                if (scoreMaxCombo < fullComboThreshold)
-                    comboBasedMissCount = fullComboThreshold / Math.Max(1.0, scoreMaxCombo);
-            }
-
-            // Clamp miss count to maximum amount of possible breaks
-            comboBasedMissCount = Math.Min(comboBasedMissCount, countOk + countMeh + countMiss);
-
-            return Math.Max(countMiss, comboBasedMissCount);
         }
 
         private double getModifiedAcc(OsuDifficultyAttributes attributes)
