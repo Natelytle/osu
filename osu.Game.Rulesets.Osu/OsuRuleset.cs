@@ -312,6 +312,11 @@ namespace osu.Game.Rulesets.Osu
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 }),
+                new StatisticItem("Performance Chart", () => new OsuPerformanceChart(score, playableBeatmap)
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = 250
+                }, true),
                 new StatisticItem("Timing Distribution", () => new HitEventTimingDistributionGraph(timedHitEvents)
                 {
                     RelativeSizeAxes = Axes.X,
