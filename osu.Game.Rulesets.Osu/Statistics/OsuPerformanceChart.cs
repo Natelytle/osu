@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using JetBrains.Annotations;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
@@ -27,12 +28,12 @@ namespace osu.Game.Rulesets.Osu.Statistics
         {
             this.score = score;
             this.playableBeatmap = playableBeatmap;
-
-            setTimedPPValues();
         }
 
+        [BackgroundDependencyLoader]
         private void load()
         {
+            setTimedPPValues();
         }
 
         private void setTimedPPValues()
