@@ -16,11 +16,13 @@ using osu.Game.Graphics;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.UnstableRateEstimator;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Filter;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Configuration;
 using osu.Game.Rulesets.Mania.Difficulty;
+using osu.Game.Rulesets.Mania.Difficulty.UnstableRateEstimation;
 using osu.Game.Rulesets.Mania.Edit;
 using osu.Game.Rulesets.Mania.Edit.Setup;
 using osu.Game.Rulesets.Mania.Mods;
@@ -312,6 +314,8 @@ namespace osu.Game.Rulesets.Mania
 
         public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new ManiaDifficultyCalculator(RulesetInfo, beatmap);
 
+        public override UnstableRateEstimator CreateUnstableRateEstimator(DifficultyAttributes attributes) => new ManiaUnstableRateEstimator(RulesetInfo, attributes);
+
         public int LegacyID => 3;
 
         public ILegacyScoreSimulator CreateLegacyScoreSimulator() => new ManiaLegacyScoreSimulator();
@@ -409,7 +413,11 @@ namespace osu.Game.Rulesets.Mania
             {
                 new AverageHitError(score.HitEvents),
                 new UnstableRate(score.HitEvents)
-            }), true)
+            }), true),
+            new StatisticItem("Estimated Statistics", () => new SimpleStatisticTable(1, new SimpleStatisticItem[]
+            {
+                new EstimatedUnstableRate(score, playableBeatmap)
+            }))
         };
 
         public override IRulesetFilterCriteria CreateRulesetFilterCriteria()

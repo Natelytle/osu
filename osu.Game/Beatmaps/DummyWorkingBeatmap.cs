@@ -14,6 +14,7 @@ using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Framework.Graphics.Textures;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.UnstableRateEstimator;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.UI;
@@ -73,6 +74,8 @@ namespace osu.Game.Beatmaps
             public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new DummyBeatmapConverter(beatmap);
 
             public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => throw new NotImplementedException();
+
+            public override UnstableRateEstimator CreateUnstableRateEstimator(DifficultyAttributes attributes) => throw new NotImplementedException();
 
             public override string Description => "dummy";
 

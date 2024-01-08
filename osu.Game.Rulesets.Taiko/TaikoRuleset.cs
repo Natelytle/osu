@@ -34,8 +34,10 @@ using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Skinning;
 using osu.Game.Rulesets.Configuration;
 using osu.Game.Configuration;
+using osu.Game.Rulesets.Difficulty.UnstableRateEstimator;
 using osu.Game.Rulesets.Scoring.Legacy;
 using osu.Game.Rulesets.Taiko.Configuration;
+using osu.Game.Rulesets.Taiko.Difficulty.UnstableRateEstimation;
 
 namespace osu.Game.Rulesets.Taiko
 {
@@ -190,6 +192,8 @@ namespace osu.Game.Rulesets.Taiko
 
         public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new TaikoDifficultyCalculator(RulesetInfo, beatmap);
 
+        public override UnstableRateEstimator CreateUnstableRateEstimator(DifficultyAttributes attributes) => new TaikoUnstableRateEstimator(RulesetInfo, attributes);
+
         public override PerformanceCalculator CreatePerformanceCalculator() => new TaikoPerformanceCalculator();
 
         public int LegacyID => 1;
@@ -248,7 +252,11 @@ namespace osu.Game.Rulesets.Taiko
                 {
                     new AverageHitError(timedHitEvents),
                     new UnstableRate(timedHitEvents)
-                }), true)
+                }), true),
+                new StatisticItem("Estimated Statistics", () => new SimpleStatisticTable(1, new SimpleStatisticItem[]
+                {
+                    new EstimatedUnstableRate(score, playableBeatmap)
+                }))
             };
         }
 

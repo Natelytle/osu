@@ -16,11 +16,13 @@ using osu.Game.Graphics;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.UnstableRateEstimator;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Beatmaps;
 using osu.Game.Rulesets.Osu.Configuration;
 using osu.Game.Rulesets.Osu.Difficulty;
+using osu.Game.Rulesets.Osu.Difficulty.UnstableRateEstimation;
 using osu.Game.Rulesets.Osu.Edit;
 using osu.Game.Rulesets.Osu.Edit.Setup;
 using osu.Game.Rulesets.Osu.Mods;
@@ -231,6 +233,8 @@ namespace osu.Game.Rulesets.Osu
 
         public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new OsuDifficultyCalculator(RulesetInfo, beatmap);
 
+        public override UnstableRateEstimator CreateUnstableRateEstimator(DifficultyAttributes attributes) => new OsuUnstableRateEstimator(RulesetInfo, attributes);
+
         public override PerformanceCalculator CreatePerformanceCalculator() => new OsuPerformanceCalculator();
 
         public override HitObjectComposer CreateHitObjectComposer() => new OsuHitObjectComposer(this);
@@ -329,7 +333,11 @@ namespace osu.Game.Rulesets.Osu
                 {
                     new AverageHitError(timedHitEvents),
                     new UnstableRate(timedHitEvents)
-                }), true)
+                }), true),
+                new StatisticItem("Estimated Statistics", () => new SimpleStatisticTable(1, new SimpleStatisticItem[]
+                {
+                    new EstimatedUnstableRate(score, playableBeatmap)
+                }))
             };
         }
 

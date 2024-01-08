@@ -22,6 +22,7 @@ using osu.Game.Rulesets.Catch.Skinning.Argon;
 using osu.Game.Rulesets.Catch.Skinning.Legacy;
 using osu.Game.Rulesets.Catch.UI;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.UnstableRateEstimator;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Replays.Types;
@@ -198,6 +199,8 @@ namespace osu.Game.Rulesets.Catch
         }
 
         public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new CatchDifficultyCalculator(RulesetInfo, beatmap);
+
+        public override UnstableRateEstimator CreateUnstableRateEstimator(DifficultyAttributes attributes) => throw new NotImplementedException();
 
         public override ISkin? CreateSkinTransformer(ISkin skin, IBeatmap beatmap)
         {
