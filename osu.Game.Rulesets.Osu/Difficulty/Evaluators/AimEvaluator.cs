@@ -122,8 +122,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
 
             // Add in additional slider velocity bonus.
-            if (withSliderTravelDistance)
-                aimStrain += sliderBonus * slider_multiplier;
+            // if (withSliderTravelDistance)
+            //     aimStrain += sliderBonus * slider_multiplier;
 
             return aimStrain;
         }
