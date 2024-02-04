@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplier => 100;
+        private double skillMultiplier => 45;
         private double strainDecayBase => 0.10;
 
         private double timeStrainDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 900, 7));
@@ -35,30 +35,29 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double priorStrain = highestPreviousStrain(current, previousStrains);
+            double strainDecayPrior = highestPreviousStrain(current, previousStrains);
+            double currentDifficulty = Math.Pow(AimEvaluator.EvaluateDifficultyOf(current, withSliders), 1.5) * skillMultiplier;
 
-            currentStrain = (priorStrain * 3 + AimEvaluator.EvaluateDifficultyOf(current, withSliders)) / 4;
-
+            currentStrain = (strainDecayPrior * 3 + currentDifficulty) / 4;
             previousStrains.Add(currentStrain);
 
-            return currentStrain * skillMultiplier;
+            return currentStrain;
         }
 
         private double highestPreviousStrain(DifficultyHitObject current, List<double> previousDifficulties)
         {
-            List<double> reversedDifficulties = new List<double>(previousDifficulties);
-
-            reversedDifficulties.Reverse();
-
             double hardestPreviousDifficulty = 0;
             double cumulativeDeltatime = current.DeltaTime;
 
             for (int i = 0; i < previousDifficulties.Count; i++)
             {
                 if (cumulativeDeltatime > 1500)
+                {
+                    previousStrains.RemoveRange(0, i);
                     break;
+                }
 
-                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, reversedDifficulties[i] * timeStrainDecay(cumulativeDeltatime));
+                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousDifficulties[^(i + 1)] * timeStrainDecay(cumulativeDeltatime));
 
                 cumulativeDeltatime += current.Previous(i).DeltaTime;
             }
