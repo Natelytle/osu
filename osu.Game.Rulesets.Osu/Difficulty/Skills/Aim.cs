@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double strainDecayPrior = highestPreviousStrain(current, previousStrains);
+            double strainDecayPrior = highestPreviousStrain(current);
             double currentDifficulty = Math.Pow(AimEvaluator.EvaluateDifficultyOf(current, withSliders), 1.5) * skillMultiplier;
 
             currentStrain = (strainDecayPrior * 3 + currentDifficulty) / 4;
@@ -44,12 +44,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return currentStrain;
         }
 
-        private double highestPreviousStrain(DifficultyHitObject current, List<double> previousDifficulties)
+        private double highestPreviousStrain(DifficultyHitObject current)
         {
             double hardestPreviousDifficulty = 0;
             double cumulativeDeltatime = current.DeltaTime;
 
-            for (int i = 0; i < previousDifficulties.Count; i++)
+            for (int i = 0; i < previousStrains.Count; i++)
             {
                 if (cumulativeDeltatime > 1500)
                 {
@@ -57,7 +57,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                     break;
                 }
 
-                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousDifficulties[^(i + 1)] * timeStrainDecay(cumulativeDeltatime));
+                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousStrains[^(i + 1)] * timeStrainDecay(cumulativeDeltatime));
 
                 cumulativeDeltatime += current.Previous(i).DeltaTime;
             }
