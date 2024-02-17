@@ -31,6 +31,8 @@ namespace osu.Game.Rulesets.Osu.Objects.Drawables
         // Must be set to update IsHovered as it's used in relax mod to detect osu hit objects.
         public override bool HandlePositionalInput => true;
 
+        public bool IsQueued { get; private set; }
+
         protected override float SamplePlaybackPosition => CalculateDrawableRelativePosition(this);
 
         /// <summary>
@@ -106,6 +108,8 @@ namespace osu.Game.Rulesets.Osu.Objects.Drawables
         /// Causes this <see cref="DrawableOsuHitObject"/> to get missed, disregarding all conditions in implementations of <see cref="DrawableHitObject.CheckForResult"/>.
         /// </summary>
         public void MissForcefully() => ApplyMinResult();
+
+        public void Queue() => IsQueued = true;
 
         private RectangleF parentScreenSpaceRectangle => ((DrawableOsuHitObject)ParentHitObject)?.parentScreenSpaceRectangle ?? Parent!.ScreenSpaceDrawQuad.AABBFloat;
 

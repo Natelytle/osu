@@ -161,11 +161,17 @@ namespace osu.Game.Rulesets.Osu.Objects.Drawables
                     return;
             }
 
-            if (!slider.HeadCircle.Judged)
-                return;
+            if (Tracking || nestedObject.IsQueued)
+            {
+                if (!slider.HeadCircle.Judged)
+                {
+                    nestedObject.Queue();
+                    return;
+                }
 
-            if (Tracking)
                 nestedObject.HitForcefully();
+            }
+
             else if (timeOffset >= 0)
                 nestedObject.MissForcefully();
         }
