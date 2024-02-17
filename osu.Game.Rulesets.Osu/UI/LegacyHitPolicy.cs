@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
@@ -29,21 +30,37 @@ namespace osu.Game.Rulesets.Osu.UI
             this.hittableRange = hittableRange;
         }
 
-        public void HandleHit(DrawableHitObject hitObject)
-        {
-        }
-
         public virtual ClickAction CheckHittable(DrawableHitObject hitObject, double time, HitResult result)
         {
             if (HitObjectContainer == null)
                 throw new InvalidOperationException($"{nameof(HitObjectContainer)} should be set before {nameof(CheckHittable)} is called.");
 
-            var aliveObjects = HitObjectContainer.AliveObjects.ToList();
-            int index = aliveObjects.IndexOf(hitObject);
+            List<DrawableHitObject> aliveObjectsWithNested = new List<DrawableHitObject>();
+
+            foreach (var o in HitObjectContainer.AliveObjects)
+            {
+                if (o is not DrawableSlider)
+                {
+                    aliveObjectsWithNested.Add(o);
+                }
+
+                aliveObjectsWithNested.AddRange(o.NestedHitObjects);
+            }
+
+            int index = aliveObjectsWithNested.IndexOf(hitObject);
 
             if (index > 0)
             {
-                var previousHitObject = (DrawableOsuHitObject)aliveObjects[index - 1];
+                var previousHitObjects = aliveObjectsWithNested.GetRange(0, index).ConvertAll(o => (DrawableOsuHitObject)o);
+
+                var previousHitObject = previousHitObjects.Last();
+
+                // If the click happens after the slider end would be finished
+                if (previousHitObjects.Where(o => !o.AllJudged).All(hitObjectIsSliderObject) && previousHitObject.HitObject.GetEndTime() < time)
+                {
+                    return ClickAction.Hit;
+                }
+
                 if (previousHitObject.HitObject.StackHeight > 0 && !previousHitObject.AllJudged)
                     return ClickAction.Ignore;
             }
@@ -51,7 +68,7 @@ namespace osu.Game.Rulesets.Osu.UI
             if (result == HitResult.None)
                 return ClickAction.Shake;
 
-            foreach (DrawableHitObject testObject in aliveObjects)
+            foreach (DrawableHitObject testObject in aliveObjectsWithNested)
             {
                 if (testObject.AllJudged)
                     continue;
@@ -67,6 +84,58 @@ namespace osu.Game.Rulesets.Osu.UI
             }
 
             return Math.Abs(hitObject.HitObject.StartTime - time) < hittableRange ? ClickAction.Hit : ClickAction.Shake;
+        }
+
+        public void HandleHit(DrawableHitObject hitObject)
+        {
+            if (HitObjectContainer == null)
+                throw new InvalidOperationException($"{nameof(HitObjectContainer)} should be set before {nameof(HandleHit)} is called.");
+
+            // Hitobjects which themselves don't block future hitobjects don't cause misses (e.g. slider ticks, spinners).
+            if (!hitObjectCanBlockFutureHits(hitObject))
+                return;
+
+            if (CheckHittable(hitObject, hitObject.HitObject.StartTime + hitObject.Result.TimeOffset, hitObject.Result.Type) != ClickAction.Hit)
+                throw new InvalidOperationException($"A {hitObject} was hit before it became hittable!");
+
+            // Miss all hitobjects prior to the hit one.
+            foreach (var obj in enumerateHitObjectsUpTo(hitObject.HitObject.StartTime))
+            {
+                if (obj.Judged)
+                    continue;
+
+                if (hitObjectCanBlockFutureHits(obj))
+                    ((DrawableOsuHitObject)obj).MissForcefully();
+            }
+        }
+
+        /// <summary>
+        /// Whether a <see cref="HitObject"/> blocks hits on future <see cref="HitObject"/>s until its start time is reached.
+        /// </summary>
+        /// <param name="hitObject">The <see cref="HitObject"/> to test.</param>
+        private static bool hitObjectCanBlockFutureHits(DrawableHitObject hitObject)
+            => hitObject is DrawableHitCircle;
+
+        private static bool hitObjectIsSliderObject(DrawableHitObject hitObject)
+            => hitObject is DrawableSlider or DrawableSliderHead or DrawableSliderTick or DrawableSliderTail;
+
+        private IEnumerable<DrawableHitObject> enumerateHitObjectsUpTo(double targetTime)
+        {
+            foreach (var obj in HitObjectContainer!.AliveObjects)
+            {
+                if (obj.HitObject.StartTime >= targetTime)
+                    yield break;
+
+                yield return obj;
+
+                foreach (var nestedObj in obj.NestedHitObjects)
+                {
+                    if (nestedObj.HitObject.StartTime >= targetTime)
+                        break;
+
+                    yield return nestedObj;
+                }
+            }
         }
     }
 }
