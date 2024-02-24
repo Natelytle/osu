@@ -61,7 +61,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 flashlightRating *= 0.7;
             }
 
-            double starRating = Math.Cbrt(Math.Pow(aimRating, 3) + Math.Pow(speedRating, 3));
+            double starRating = Math.Cbrt((Math.Pow(aimRating, 3) + Math.Pow(speedRating, 3)) * OsuPerformanceCalculator.PERFORMANCE_BASE_MULTIPLIER);
 
             double preempt = IBeatmapDifficultyInfo.DifficultyRange(beatmap.Difficulty.ApproachRate, 1800, 1200, 450) / clockRate;
             double drainRate = beatmap.Difficulty.DrainRate;
