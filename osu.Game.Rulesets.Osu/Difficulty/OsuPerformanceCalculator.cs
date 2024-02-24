@@ -72,13 +72,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedValue = computeSpeedValue(score, osuAttributes);
             double accuracyValue = computeAccuracyValue(score);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
-            double totalValue =
-                Math.Pow(
-                    Math.Pow(aimValue, 1.1) +
-                    Math.Pow(speedValue, 1.1) +
-                    Math.Pow(accuracyValue, 1.1) +
-                    Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
-                ) * multiplier;
+            double totalValue = (aimValue + speedValue + accuracyValue + flashlightValue) * multiplier;
 
             return new OsuPerformanceAttributes
             {
@@ -137,7 +131,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax) || deviation == null)
                 return 0.0;
 
-            double speedValue = Math.Pow(5.0 * Math.Max(1.0, attributes.SpeedDifficulty / 0.0675) - 4.0, 3.0) / 100000.0;
+            double speedValue = Math.Pow(attributes.SpeedDifficulty, 3.0);
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
@@ -325,7 +319,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 // Proportion of circles hit.
                 double p = (n - m) / n;
 
-                // We can be 99% confident that p is at least this value.
+                // We can be 98% confident that p is at least this value.
                 double pLowerBound = (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4);
 
                 return SpecialFunctions.ErfInv(pLowerBound);
