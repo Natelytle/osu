@@ -14,13 +14,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Aim : OsuProbSkill
     {
-        public Aim(Mod[] mods, bool withSliders)
+        public Aim(Mod[] mods)
             : base(mods)
         {
-            this.withSliders = withSliders;
         }
-
-        private readonly bool withSliders;
 
         private readonly List<double> previousStrains = new List<double>();
 
@@ -29,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * skillMultiplier;
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
             double priorDifficulty = highestPreviousStrain(previousStrains, current, current.DeltaTime);
 
             double currentStrain = getStrainWithPrior(currentDifficulty, priorDifficulty, 3);
