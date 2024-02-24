@@ -23,7 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
         private const double aim_scaling = 0.0675;
-        private const double aim_exp = 0.5;
+        public const double AIM_EXP = 0.5;
         private const double tap_scaling = 0.0675;
         private const double tap_exp = 0.5;
 
@@ -39,7 +39,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
 
-            double aimRating = Math.Pow(skills[0].DifficultyValue(), aim_exp) * aim_scaling;
+            double aimRating = Math.Pow(skills[0].DifficultyValue(), AIM_EXP) * aim_scaling;
             double speedRating = Math.Pow(skills[1].DifficultyValue(), tap_exp) * tap_scaling;
             double speedNotes = ((Speed)skills[1]).RelevantNoteCount();
 

@@ -93,18 +93,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeAimValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (deviation == null)
+            double aimDifficulty = attributes.AimDifficulty;
+
+            if (totalSuccessfulHits == 0 || deviation == null)
                 return 0;
-
-            double aimValue = Math.Pow(5.0 * Math.Max(1.0, attributes.AimDifficulty / 0.0675) - 4.0, 3.0) / 100000.0;
-
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
 
             // Penalize misses by assessing # of misses relative to the total # of objects. Default a 3% reduction for any # of misses.
             if (effectiveMissCount > 0)
-                aimValue *= 0.97 * Math.Pow(1 - Math.Pow(effectiveMissCount / totalHits, 0.775), effectiveMissCount);
+            {
+                // Since star rating is difficulty^AIM_EXP, we should raise the miss penalty to this power as well.
+                aimDifficulty *= Math.Pow(calculateMissPenalty(), OsuDifficultyCalculator.AIM_EXP);
+            }
+
+            double aimValue = Math.Pow(aimDifficulty, 3);
 
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
@@ -141,10 +142,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
             speedValue *= lengthBonus;
-
-            // Penalize misses by assessing # of misses relative to the total # of objects. Default a 3% reduction for any # of misses.
-            if (effectiveMissCount > 0)
-                speedValue *= 0.97 * Math.Pow(1 - Math.Pow(effectiveMissCount / totalHits, 0.775), Math.Pow(effectiveMissCount, .875));
 
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
@@ -302,6 +299,37 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             comboBasedMissCount = Math.Min(comboBasedMissCount, countOk + countMeh + countMiss);
 
             return Math.Max(countMiss, comboBasedMissCount);
+        }
+
+        /// <summary>
+        /// Imagine a map with n objects, where all objects have equal difficulty d.
+        /// d * sqrt(2) * s(n,0) will return the FC difficulty of that map.
+        /// d * sqrt(2) * s(n,m) will return the m-miss difficulty of that map.
+        /// Since we are given FC difficulty, for a score with m misses, we can obtain
+        /// the difficulty for m misses by multiplying the difficulty by s(n,m) / s(n,0).
+        /// Note that the term d * sqrt(2) gets canceled when taking the ratio.
+        /// </summary>
+        private double calculateMissPenalty()
+        {
+            int n = totalHits;
+
+            if (n == 0)
+                return 0;
+
+            return s(effectiveMissCount) / s(0);
+
+            double s(double m)
+            {
+                const double z = 2.0537; // 98% critical value for the normal distribution (one-tailed).
+
+                // Proportion of circles hit.
+                double p = (n - m) / n;
+
+                // We can be 99% confident that p is at least this value.
+                double pLowerBound = (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4);
+
+                return SpecialFunctions.ErfInv(pLowerBound);
+            }
         }
 
         private int totalHits => countGreat + countOk + countMeh + countMiss;
