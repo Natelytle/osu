@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuStrainSkill
+    public class Aim : OsuProbSkill
     {
         public Aim(Mod[] mods, bool withSliders)
             : base(mods)
@@ -26,13 +26,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double skillMultiplier => 23.55;
         private double strainDecayBase => 0.15;
-
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current)
-        {
-            double priorDifficulty = highestPreviousStrain(previousStrains, current, time - current.Previous(0).StartTime);
-
-            return getStrainWithPrior(0, priorDifficulty, 3);
-        }
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
