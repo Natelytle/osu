@@ -39,14 +39,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double FlashlightDifficulty { get; set; }
 
         /// <summary>
-        /// Describes how much of <see cref="AimDifficulty"/> is contributed to by hitcircles or sliders.
-        /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is contributed by hitcircles.
-        /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is contributed by sliders.
-        /// </summary>
-        [JsonProperty("slider_factor")]
-        public double SliderFactor { get; set; }
-
-        /// <summary>
         /// The perceived approach rate inclusive of rate-adjusting mods (DT/HT/etc).
         /// </summary>
         /// <remarks>
@@ -98,7 +90,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (ShouldSerializeFlashlightDifficulty())
                 yield return (ATTRIB_ID_FLASHLIGHT, FlashlightDifficulty);
 
-            yield return (ATTRIB_ID_SLIDER_FACTOR, SliderFactor);
             yield return (ATTRIB_ID_SPEED_NOTE_COUNT, SpeedNoteCount);
         }
 
@@ -112,7 +103,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             ApproachRate = values[ATTRIB_ID_APPROACH_RATE];
             StarRating = values[ATTRIB_ID_DIFFICULTY];
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
-            SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
             SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];
 
             DrainRate = onlineInfo.DrainRate;
