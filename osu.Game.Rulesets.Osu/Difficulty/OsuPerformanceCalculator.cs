@@ -301,21 +301,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double[] misscounts = attributes.AimMisscounts;
             const double penalty_per_misscount = 1.0 / 20;
 
-            int index = 0;
+            int? index = null;
 
             for (int i = 0; i < 20; i++)
             {
-                if (!(misscounts[i] > effectiveMissCount)) continue;
+                if (!(misscounts[i] >= effectiveMissCount)) continue;
 
                 index = i;
                 break;
             }
 
-            double lowestMisscount = misscounts[index - 1];
-            double lowestPenalty = penalty_per_misscount * (index - 1);
+            // If no misscount past 0 misses is a greater value than effectiveMissCount,
+            // return 0. This is an edge case that can occur in the case of a single note.
+            if (index is null)
+                return 0;
 
-            double highestMisscount = misscounts[index];
-            double highestPenalty = penalty_per_misscount * index;
+            double lowestMisscount = misscounts[index.Value - 1];
+            double lowestPenalty = penalty_per_misscount * (index.Value - 1);
+
+            double highestMisscount = misscounts[index.Value];
+            double highestPenalty = penalty_per_misscount * index.Value;
 
             double penalty = Interpolation.Lerp(lowestPenalty, highestPenalty, (effectiveMissCount - lowestMisscount) / (highestMisscount - lowestMisscount));
 

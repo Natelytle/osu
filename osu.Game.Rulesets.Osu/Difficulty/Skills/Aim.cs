@@ -78,7 +78,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double[] misscounts = new double[count];
 
-            for (int i = 0; i < count; i++)
+            // The lowest misscount should always be an FC.
+            misscounts[0] = 0;
+
+            for (int i = 1; i < count; i++)
             {
                 double penalizedSkill = fcSkill - fcSkill * penalty_per_misscount * i;
 
