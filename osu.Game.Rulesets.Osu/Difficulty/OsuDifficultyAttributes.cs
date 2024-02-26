@@ -20,6 +20,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double AimDifficulty { get; set; }
 
         /// <summary>
+        /// The Poisson Binomial estimation of the hit probabilities of every note.
+        /// </summary>
+        [JsonProperty("aim_misscounts")]
+        public double[] AimMisscounts { get; set; } = null!;
+
+        /// <summary>
         /// The difficulty corresponding to the speed skill.
         /// </summary>
         [JsonProperty("speed_difficulty")]

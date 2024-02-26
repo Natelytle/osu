@@ -9,6 +9,7 @@ using MathNet.Numerics.RootFinding;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -24,6 +25,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> difficulties = new List<double>();
 
+        private double fcSkill;
+
         /// <summary>
         /// Returns the strain value at <see cref="DifficultyHitObject"/>. This value is calculated with or without respect to previous objects.
         /// </summary>
@@ -34,16 +37,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             difficulties.Add(StrainValueAt(current));
         }
 
-        private static double hitProbability(double skill, double difficulty) => SpecialFunctions.Erf(skill / (Math.Sqrt(2) * difficulty));
+        private static double hitProbability(double skill, double difficulty)
+        {
+            if (skill == 0) return 0;
+            if (difficulty == 0) return 1;
 
-        private static double fcProbability(double skill, IEnumerable<Bin> bins)
+            return SpecialFunctions.Erf(skill / (Math.Sqrt(2) * difficulty));
+        }
+
+        private static double fcProbabilityAtSkill(double skill, IEnumerable<Bin> bins)
         {
             if (skill <= 0) return 0;
 
             return bins.Aggregate(1.0, (current, bin) => current * bin.FcProbability(skill));
         }
 
-        private double fcProbability(double skill)
+        private double fcProbabilityAtSkill(double skill)
         {
             if (skill <= 0) return 0;
 
@@ -101,7 +110,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double upperBoundEstimate = 3.0 * maxDiff;
 
             double skill = Brent.FindRootExpand(
-                skill => fcProbability(skill, bins) - fc_probability,
+                skill => fcProbabilityAtSkill(skill, bins) - fc_probability,
                 lowerBoundEstimate,
                 upperBoundEstimate,
                 1e-4);
@@ -118,7 +127,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double upperBoundEstimate = 3.0 * maxDiff;
 
             double skill = Brent.FindRootExpand(
-                skill => fcProbability(skill) - fc_probability,
+                skill => fcProbabilityAtSkill(skill) - fc_probability,
                 lowerBoundEstimate,
                 upperBoundEstimate,
                 1e-4);
@@ -131,7 +140,28 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulties.Count == 0)
                 return 0;
 
-            return difficulties.Count < 2 * bin_count ? difficultyValueExact() : difficultyValueBinned();
+            fcSkill = difficulties.Count < 2 * bin_count ? difficultyValueExact() : difficultyValueBinned();
+
+            return fcSkill;
         }
+
+        /// <summary>
+        /// Find first miss count achievable with at least probability p
+        /// </summary>
+        public double GetMissCountAtSkill(double skill)
+        {
+            List<double> missProbabilities = difficulties.Select(difficulty => 1 - hitProbability(skill, difficulty)).ToList();
+
+            if (missProbabilities.Sum() == 0)
+                return 0;
+            if (missProbabilities.Min() == 1)
+                return missProbabilities.Count;
+
+            PoissonBinomial poiBin = new PoissonBinomial(missProbabilities);
+
+            return Brent.FindRootExpand(x => poiBin.CDF(x) - fc_probability, 0, 1000);
+        }
+
+        public double GetFcSkill() => fcSkill;
     }
 }

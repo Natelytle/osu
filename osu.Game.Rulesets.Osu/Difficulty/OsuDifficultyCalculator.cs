@@ -40,6 +40,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 return new OsuDifficultyAttributes { Mods = mods };
 
             double aimRating = Math.Pow(skills[0].DifficultyValue(), AIM_EXP) * aim_scaling;
+            double[] aimMisscounts = ((Aim)skills[0]).GetMissCountsForPenalty();
             double speedRating = Math.Pow(skills[1].DifficultyValue(), tap_exp) * tap_scaling;
             double speedNotes = ((Speed)skills[1]).RelevantNoteCount();
 
@@ -81,6 +82,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 StarRating = starRating,
                 Mods = mods,
                 AimDifficulty = aimRating,
+                AimMisscounts = aimMisscounts,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,

@@ -7,6 +7,7 @@ using System.Linq;
 using MathNet.Numerics;
 using osu.Framework.Audio.Track;
 using osu.Framework.Extensions.IEnumerableExtensions;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Mods;
@@ -96,7 +97,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
             {
                 // Since star rating is difficulty^AIM_EXP, we should raise the miss penalty to this power as well.
-                aimDifficulty *= Math.Pow(calculateMissPenalty(), OsuDifficultyCalculator.AIM_EXP);
+                aimDifficulty *= Math.Pow(linearInterpolatedMissPenalty(attributes), OsuDifficultyCalculator.AIM_EXP);
             }
 
             double aimValue = Math.Pow(aimDifficulty, 3);
@@ -293,6 +294,32 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             comboBasedMissCount = Math.Min(comboBasedMissCount, countOk + countMeh + countMiss);
 
             return Math.Max(countMiss, comboBasedMissCount);
+        }
+
+        private double linearInterpolatedMissPenalty(OsuDifficultyAttributes attributes)
+        {
+            double[] misscounts = attributes.AimMisscounts;
+            const double penalty_per_misscount = 1.0 / 20;
+
+            int index = 0;
+
+            for (int i = 0; i < 20; i++)
+            {
+                if (!(misscounts[i] > effectiveMissCount)) continue;
+
+                index = i;
+                break;
+            }
+
+            double lowestMisscount = misscounts[index - 1];
+            double lowestPenalty = penalty_per_misscount * (index - 1);
+
+            double highestMisscount = misscounts[index];
+            double highestPenalty = penalty_per_misscount * index;
+
+            double penalty = Interpolation.Lerp(lowestPenalty, highestPenalty, (effectiveMissCount - lowestMisscount) / (highestMisscount - lowestMisscount));
+
+            return 1 - penalty;
         }
 
         /// <summary>
