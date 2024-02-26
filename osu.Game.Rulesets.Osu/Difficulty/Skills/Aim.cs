@@ -21,12 +21,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> previousStrains = new List<double>();
 
-        private double skillMultiplier => 23.55;
+        private double flowMultiplier => 65;
+        private double snapMultiplier => 33;
         private double strainDecayBase => 0.15;
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            var aimResult = AimEvaluator.EvaluateDifficultyOf(current);
+
+            double currentDifficulty = Math.Min(aimResult.Item1 * flowMultiplier, aimResult.Item2 * snapMultiplier);
             double priorDifficulty = highestPreviousStrain(previousStrains, current, current.DeltaTime);
 
             double currentStrain = getStrainWithPrior(currentDifficulty, priorDifficulty, 3);
