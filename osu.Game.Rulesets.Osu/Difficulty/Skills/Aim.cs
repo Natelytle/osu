@@ -21,8 +21,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> previousStrains = new List<double>();
 
-        private double flowMultiplier => 65;
-        private double snapMultiplier => 32;
+        private double flowMultiplier => 77;
+        private double snapMultiplier => 33;
         private double strainDecayBase => 0.15;
 
         protected override double StrainValueAt(DifficultyHitObject current)

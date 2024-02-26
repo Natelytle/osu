@@ -52,7 +52,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double flowDifficulty = linearDifficulty * currMovement.Length / currTime;
 
             // Nerf flow aim where circles overlap. Aim requirement is significantly lower in these cases.
-            flowDifficulty *= currMovement.Length / (osuCurrObj.Radius * 2);
+            // flowDifficulty *= currMovement.Length / (osuCurrObj.Radius * 2);
 
             flowDifficulty *= (55.0 / 75.0) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 20));
 
