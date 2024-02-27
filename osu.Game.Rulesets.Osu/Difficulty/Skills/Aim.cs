@@ -27,19 +27,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            var aimResult = AimEvaluator.EvaluateDifficultyOf(current);
+            double snapDifficulty = AimEvaluator.EvaluateSnapDifficultyOf(current) * snapMultiplier;
+            double flowDifficulty = AimEvaluator.EvaluateFlowDifficultyOf(current) * flowMultiplier;
 
-            double currentDifficulty = Math.Min(aimResult.Item1 * flowMultiplier, aimResult.Item2 * snapMultiplier);
+            double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
             double priorDifficulty = highestPreviousStrain(previousStrains, current, current.DeltaTime);
 
-            double currentStrain = getStrainWithPrior(currentDifficulty, priorDifficulty, 3);
+            double currentStrain = getStrainWithPrior(currentDifficulty, priorDifficulty, 3, 3);
             previousStrains.Add(currentStrain);
 
             return currentStrain;
         }
 
-        private double getStrainWithPrior(double currentDifficulty, double priorDifficulty, double priorDiffInfluence)
-            => (priorDifficulty * priorDiffInfluence + currentDifficulty) / (priorDiffInfluence + 1);
+        private double getStrainWithPrior(double currentDifficulty, double priorDifficulty, double diffIncreaseDampFactor, double diffDecreaseDampFactor)
+            => currentDifficulty > priorDifficulty
+                ? (priorDifficulty * diffIncreaseDampFactor + currentDifficulty) / (diffIncreaseDampFactor + 1)
+                : (priorDifficulty * diffDecreaseDampFactor + currentDifficulty) / (diffDecreaseDampFactor + 1);
 
         private double highestPreviousStrain(List<double> previousStrains, DifficultyHitObject current, double time)
         {
