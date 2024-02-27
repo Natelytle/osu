@@ -49,12 +49,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             // Flow Stuff
-            double flowDifficulty = linearDifficulty * currMovement.Length / currTime;
+            double flowDifficulty = linearDifficulty * currMovement.Length / (currTime - 12.5);
 
             // Nerf flow aim where circles overlap. Aim requirement is significantly lower in these cases.
             // flowDifficulty *= currMovement.Length / (osuCurrObj.Radius * 2);
 
-            flowDifficulty *= (55.0 / 75.0) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 20));
+            // flowDifficulty *= (55.0 / 75.0) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 15));
 
             // Snap Stuff
             // Reduce strain time by 25ms to account for stopping time.
@@ -86,7 +86,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double snapVelChange = linearDifficulty * Math.Max(0, Math.Min(Math.Abs(prevVelocity - currVelocity) - Math.Min(currVelocity, prevVelocity), Math.Max(osuCurrObj.Radius / Math.Max(osuCurrObj.StrainTime, osuLastObj0.StrainTime), Math.Min(currVelocity, prevVelocity))));
 
             snapDifficulty += snapVelChange + snapAngle;
-            flowDifficulty += flowVelChange + flowAngle;
+            flowDifficulty += 0.65 * (flowVelChange + flowAngle);
 
             double flowSnapDifficulty =
                 Math.Min(linearDifficulty * Math.Max((125 / Math.Max(25, Math.Max(osuCurrObj.StrainTime, osuLastObj0.StrainTime) - 50))
