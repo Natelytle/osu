@@ -155,8 +155,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 speedValue *= 1.0 + 0.04 * (12.0 - attributes.ApproachRate);
             }
 
-            speedValue *= 0.95 + Math.Pow(100.0 / 9, 2) / 750; // OD 11 SS stays the same.
-            speedValue *= 1 / (1 + Math.Pow(deviation.Value / 20, 4)); // Scale the speed value with speed deviation.
+            speedValue *= 1 / (1 + Math.Pow(deviation.Value / 16, 5)); // Scale the speed value with speed deviation.
+
+            speedValue *= 1 - Math.Min(effectiveMissCount / attributes.SpeedNoteCount, 1); // Scale the speed value with misses /slightly/.
 
             return speedValue;
         }
@@ -305,7 +306,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             for (int i = 0; i < 20; i++)
             {
-                if (!(misscounts[i] >= effectiveMissCount)) continue;
+                if (misscounts[i] < effectiveMissCount) continue;
 
                 index = i;
                 break;
@@ -316,11 +317,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (index is null)
                 return 0;
 
-            double lowestMisscount = misscounts[index.Value - 1];
-            double lowestPenalty = penalty_per_misscount * (index.Value - 1);
+            // We don't save a misscount value for FCs, so only get the misscount from the previous bin if it exists.
+            double lowestMisscount = index > 0 ? misscounts[index.Value - 1] : 0;
+            double lowestPenalty = penalty_per_misscount * index.Value;
 
             double highestMisscount = misscounts[index.Value];
-            double highestPenalty = penalty_per_misscount * index.Value;
+            double highestPenalty = penalty_per_misscount * (index.Value + 1);
 
             double penalty = Interpolation.Lerp(lowestPenalty, highestPenalty, (effectiveMissCount - lowestMisscount) / (highestMisscount - lowestMisscount));
 

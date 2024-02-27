@@ -39,8 +39,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private static double hitProbability(double skill, double difficulty)
         {
-            if (skill == 0) return 0;
-            if (difficulty == 0) return 1;
+            if (skill <= 0) return 0;
+            if (difficulty <= 0) return 1;
 
             return SpecialFunctions.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
@@ -152,7 +152,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             List<double> missProbabilities = difficulties.Select(difficulty => 1 - hitProbability(skill, difficulty)).ToList();
 
-            if (missProbabilities.Sum() == 0)
+            if (missProbabilities.Max() == 0)
                 return 0;
             if (missProbabilities.Min() == 1)
                 return missProbabilities.Count;

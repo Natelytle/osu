@@ -66,7 +66,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         /// <summary>
         /// The penalty at each misscount value in the returned list is 5% higher than the last.
-        /// For example, the penalty at the 3rd returned misscount would be 10%.
+        /// For example, the penalty at the 3rd returned misscount would be 15%.
         /// </summary>
         /// <returns>An array of misscounts, separated by a 5% reduction to aim difficulty per index.</returns>
         public double[] GetMissCountsForPenalty()
@@ -78,12 +78,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double[] misscounts = new double[count];
 
-            // The lowest misscount should always be an FC.
-            misscounts[0] = 0;
-
-            for (int i = 1; i < count; i++)
+            for (int i = 0; i < count; i++)
             {
-                double penalizedSkill = fcSkill - fcSkill * penalty_per_misscount * i;
+                double penalizedSkill = fcSkill - fcSkill * penalty_per_misscount * (i + 1);
 
                 misscounts[i] = GetMissCountAtSkill(penalizedSkill);
             }
