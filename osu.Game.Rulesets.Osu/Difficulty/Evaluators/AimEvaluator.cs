@@ -31,6 +31,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLastObj0 = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastObj1 = (OsuDifficultyHitObject)current.Previous(1);
 
             //////////////////////// CIRCLE SIZE /////////////////////////
             double linearDifficulty = 32.0 / osuCurrObj.Radius;
@@ -58,12 +59,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double snapAngle = 0;
 
-            if (osuCurrObj.Angle != null)
+            if (osuCurrObj.Angle != null && osuLastObj0.Angle != null && osuLastObj1.Angle != null)
             {
                 double currAngle = osuCurrObj.Angle.Value;
+                double lastAngle = osuLastObj0.Angle.Value;
+                double lastLastAngle = osuLastObj1.Angle.Value;
 
                 // We give a bonus to the width of the angle.
                 snapAngle = linearDifficulty * calculateAngleSpline(Math.Abs(currAngle), false) * Math.Min(Math.Min(currVelocity, prevVelocity), (currMovement + prevMovement).Length / Math.Max(osuCurrObj.StrainTime, osuLastObj0.StrainTime));
+
+                // Slightly nerf the wide angle buff if there is a sharp angle in between 2 wide angles.
+                snapAngle *= 1 - 0.25 * calculateAngleSpline(Math.Abs(lastAngle), true) * calculateAngleSpline(Math.Abs(lastLastAngle), false);
             }
 
             double snapVelChange = linearDifficulty * Math.Max(0, Math.Min(Math.Abs(prevVelocity - currVelocity) - Math.Min(currVelocity, prevVelocity), Math.Max(osuCurrObj.Radius / Math.Max(osuCurrObj.StrainTime, osuLastObj0.StrainTime), Math.Min(currVelocity, prevVelocity))));
