@@ -159,7 +159,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             PoissonBinomial poiBin = new PoissonBinomial(missProbabilities);
 
-            return Brent.FindRootExpand(x => poiBin.CDF(x) - fc_probability, 0, 1000);
+            return Brent.FindRootExpand(x => poiBin.CDF(x) - fc_probability, 0, 1000, 1e-3);
         }
 
         public double GetFcSkill() => fcSkill;
