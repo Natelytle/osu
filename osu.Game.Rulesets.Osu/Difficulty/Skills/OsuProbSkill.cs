@@ -146,20 +146,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         }
 
         /// <summary>
-        /// Find first miss count achievable with at least probability p
+        /// Find the lowest misscount that a player with the provided <paramref name="skill"/> would have a 2% chance of achieving.
         /// </summary>
         public double GetMissCountAtSkill(double skill)
         {
-            List<double> missProbabilities = difficulties.Select(difficulty => 1 - hitProbability(skill, difficulty)).ToList();
+            double maxDiff = difficulties.Max();
 
-            if (missProbabilities.Max() == 0)
+            if (maxDiff == 0)
                 return 0;
-            if (missProbabilities.Min() == 1)
-                return missProbabilities.Count;
+            if (skill <= 0)
+                return difficulties.Count;
 
-            PoissonBinomial poiBin = new PoissonBinomial(missProbabilities);
+            PoissonBinomial poiBin;
 
-            return Brent.FindRootExpand(x => poiBin.CDF(x) - fc_probability, 0, 1000, 1e-3);
+            if (difficulties.Count > 2 * bin_count)
+            {
+                var bins = createBins(maxDiff);
+                poiBin = new PoissonBinomial(bins, skill);
+            }
+            else
+            {
+                List<double> missProbabilities = difficulties.Select(difficulty => 1 - hitProbability(skill, difficulty)).ToList();
+                poiBin = new PoissonBinomial(missProbabilities);
+            }
+
+            return Chandrupatla.FindRootExpand(x => poiBin.CDF(x) - fc_probability, 0, 1000, accuracy: 1e-4);
         }
 
         public double GetFcSkill() => fcSkill;

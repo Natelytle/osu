@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MathNet.Numerics.Distributions;
+using osu.Game.Rulesets.Osu.Difficulty.Skills;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 {
@@ -56,6 +57,30 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             {
                 variance += p * (1 - p);
                 gamma += p * (1 - p) * (1 - 2 * p);
+            }
+
+            sigma = Math.Sqrt(variance);
+
+            v = gamma / (6 * Math.Pow(sigma, 3));
+        }
+
+        /// <summary>
+        /// Creates a Poisson binomial distribution based on N trials with the provided <paramref name="bins"/>.
+        /// </summary>
+        /// <param name="bins">The bins of difficulties in the map.</param>
+        /// <param name="skill">The skill level to get the miss probabilities with.</param>
+        public PoissonBinomial(Bin[] bins, double skill)
+        {
+            double variance = 0;
+            double gamma = 0;
+
+            foreach (Bin bin in bins)
+            {
+                double p = 1 - bin.HitProbability(skill);
+
+                mu += bin.Count * p;
+                variance += bin.Count * p * (1 - p);
+                gamma += bin.Count * (p * (1 - p) * (1 - 2 * p));
             }
 
             sigma = Math.Sqrt(variance);

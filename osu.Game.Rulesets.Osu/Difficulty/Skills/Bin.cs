@@ -11,8 +11,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public double Difficulty;
         public double Count;
 
-        private double hitProbability(double skill, double difficulty) => SpecialFunctions.Erf(skill / (Math.Sqrt(2) * difficulty));
+        public double HitProbability(double skill) => SpecialFunctions.Erf(skill / (Math.Sqrt(2) * Difficulty));
 
-        public double FcProbability(double skill) => Math.Pow(hitProbability(skill, Difficulty), Count);
+        public double FcProbability(double skill) => Math.Pow(HitProbability(skill), Count);
     }
 }
