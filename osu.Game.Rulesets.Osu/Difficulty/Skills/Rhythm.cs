@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
@@ -18,7 +19,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecayBase => 0.3;
 
-        private double skillMultiplier => 150;
+        private double currentStrain;
+
+        private double skillMultiplier => 2.5;
 
         private readonly List<double> rhythmDifficulties = new List<double>();
 
@@ -36,14 +39,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double occurences = 0;
 
             const double difficulty_exp = 2;
-            const double scale_factor = 0.97;
 
             foreach (double difficulty in rhythmDifficulties)
             {
-                double scaledDifficulty = difficulty - scale_factor;
-
                 // An arbitrary formula to gauge rhythm scaling
-                occurences += 1 - Math.Pow(0.9, Math.Pow(scaledDifficulty, difficulty_exp) / skill);
+                occurences += 1 - Math.Pow(0.9, Math.Pow(difficulty, difficulty_exp) / skill);
             }
 
             return occurences;
@@ -51,7 +51,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public override void Process(DifficultyHitObject current)
         {
-            rhythmDifficulties.Add(RhythmEvaluator.EvaluateDifficultyOf(current));
+            rhythmDifficulties.Add(strainValueAt(current));
         }
 
         public override double DifficultyValue()
@@ -69,7 +69,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 upperBoundEstimate,
                 accuracy: 1e-4);
 
-            return skill * skillMultiplier;
+            return skill;
+        }
+
+        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+
+        private double strainValueAt(DifficultyHitObject current)
+        {
+            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
+            currentStrain += (RhythmEvaluator.EvaluateDifficultyOf(current) - 1) * skillMultiplier;
+
+            return currentStrain;
         }
     }
 }
