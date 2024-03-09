@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
@@ -57,6 +56,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Skills
         /// </remarks>
         public override double DifficultyValue()
         {
+            /*
             List<double> peaks = new List<double>();
 
             var colourPeaks = colour.GetCurrentStrainPeaks().ToList();
@@ -88,6 +88,14 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Skills
             }
 
             return difficulty;
+            */
+
+            double totalDifficultyValue = norm(1.5, ColourDifficultyValue, StaminaDifficultyValue);
+
+            totalDifficultyValue = norm(2, totalDifficultyValue, RhythmDifficultyValue);
+
+            return totalDifficultyValue;
         }
     }
 }
+

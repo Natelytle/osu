@@ -3,7 +3,6 @@
 
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Taiko.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Taiko.Objects;
@@ -14,17 +13,13 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Skills
     /// <summary>
     /// Calculates the rhythm coefficient of taiko difficulty.
     /// </summary>
-    public class Rhythm : StrainDecaySkill
+    public class Rhythm : TaikoProbSkill
     {
-        protected override double SkillMultiplier => 10;
-        protected override double StrainDecayBase => 0;
+        protected override double SkillMultiplier => 70;
 
         /// <summary>
         /// The note-based decay for rhythm strain.
         /// </summary>
-        /// <remarks>
-        /// <see cref="StrainDecayBase"/> is not used here, as it's time- and not note-based.
-        /// </remarks>
         private const double strain_decay = 0.96;
 
         /// <summary>
@@ -53,7 +48,17 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Skills
         {
         }
 
-        protected override double StrainValueOf(DifficultyHitObject current)
+        protected override double HitProbability(double skill, double difficulty)
+        {
+            if (skill == 0) return 0;
+            if (difficulty == 0) return 1;
+
+            // A note has a 90% chance of being hit when the skill level and difficulty are equal.
+            // Each doubling of difficulty relative to skill level raises the probability of being hit to the power of 4.
+            return Math.Pow(0.9, Math.Pow(difficulty / skill, 2));
+        }
+
+        protected override double StrainValueAt(DifficultyHitObject current)
         {
             // drum rolls and swells are exempt.
             if (!(current.BaseObject is Hit))
