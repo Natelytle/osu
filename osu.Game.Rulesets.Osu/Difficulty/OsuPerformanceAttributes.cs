@@ -15,6 +15,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed")]
         public double Speed { get; set; }
 
+        [JsonProperty("rhythm")]
+        public double Rhythm { get; set; }
+
         [JsonProperty("accuracy")]
         public double Accuracy { get; set; }
 
@@ -31,6 +34,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             yield return new PerformanceDisplayAttribute(nameof(Aim), "Aim", Aim);
             yield return new PerformanceDisplayAttribute(nameof(Speed), "Speed", Speed);
+            yield return new PerformanceDisplayAttribute(nameof(Rhythm), "Rhythm", Rhythm);
             yield return new PerformanceDisplayAttribute(nameof(Accuracy), "Accuracy", Accuracy);
             yield return new PerformanceDisplayAttribute(nameof(Flashlight), "Flashlight Bonus", Flashlight);
         }
