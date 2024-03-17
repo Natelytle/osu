@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MathNet.Numerics;
-using MathNet.Numerics.Distributions;
 using osu.Framework.Audio.Track;
 using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Framework.Utils;
@@ -47,7 +46,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             countOk = score.Statistics.GetValueOrDefault(HitResult.Ok);
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
-            deviation = calculateDeviationUpperBound(score, osuAttributes);
+            deviation = calculateDeviation(score, osuAttributes);
             effectiveMissCount = calculateEffectiveMissCount(osuAttributes);
 
             double multiplier = PERFORMANCE_BASE_MULTIPLIER;
@@ -212,104 +211,72 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// will always return the same deviation. Sliders are treated as circles with a 50 hit window. Misses are ignored because they are usually due to misaiming.
         /// 300s and 100s are assumed to follow a normal distribution, whereas 50s are assumed to follow a uniform distribution.
         /// </summary>
-        private double? calculateDeviationUpperBound(ScoreInfo score, OsuDifficultyAttributes attributes)
+        private double? calculateDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
             if (totalSuccessfulHits == 0)
                 return null;
-
-            const double threshold = 1e-4;
-            const double alpha = 0.01;
-
-            int circleCount = attributes.HitCircleCount;
-            int sliderCount = attributes.SliderCount;
-            int n = circleCount + sliderCount;
-
-            int inaccuracies = countMeh + countOk + countMiss;
-
-            // Could be less than 0 since n doesn't contain spinners.
-            if (n - inaccuracies <= 0)
-                return double.PositiveInfinity;
 
             // Create a new track to properly calculate the hit windows of 100s and 50s.
             var track = new TrackVirtual(1);
             score.Mods.OfType<IApplicableToTrack>().ForEach(m => m.ApplyToTrack(track));
             double clockRate = track.Rate;
 
-            double root2 = Math.Sqrt(2);
-
             double hitWindow300 = 80 - 6 * attributes.OverallDifficulty;
+            double hitWindow100 = (140 - 8 * ((80 - hitWindow300 * clockRate) / 6)) / clockRate;
             double hitWindow50 = (200 - 10 * ((80 - hitWindow300 * clockRate) / 6)) / clockRate;
 
-            if (circleCount == 0)
+            int circleCount = attributes.HitCircleCount;
+            int missCountCircles = Math.Min(countMiss, circleCount);
+            int mehCountCircles = Math.Min(countMeh, circleCount - missCountCircles);
+            int okCountCircles = Math.Min(countOk, circleCount - missCountCircles - mehCountCircles);
+            int greatCountCircles = Math.Max(0, circleCount - missCountCircles - mehCountCircles - okCountCircles);
+
+            // Assume 100s, 50s, and misses happen on circles. If there are less non-300s on circles than 300s,
+            // compute the deviation on circles.
+            if (greatCountCircles > 0)
             {
-                double binomialCdfMinusThreshold(double sigma)
-                {
-                    if (sigma < 0)
-                        return -alpha;
+                double n = circleCount - missCountCircles - mehCountCircles;
+                const double z = 2.32634787404; // 99% critical value for the normal distribution (one-tailed).
 
-                    return Binomial.CDF(SpecialFunctions.Erfc(hitWindow50 / (root2 * sigma)), sliderCount, inaccuracies) - alpha;
-                }
+                // Proportion of greats hit on circles, ignoring misses and 50s.
+                double p = greatCountCircles / n;
 
-                return Utils.Chandrupatla.FindRootExpand(binomialCdfMinusThreshold, 0, 10, accuracy: threshold);
+                // We can be 99% confident that p is at least this value.
+                double pLowerBound = (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4);
+
+                // Compute the deviation assuming 300s and 100s are normally distributed, and 50s are uniformly distributed.
+                // Begin with 300s and 100s first. Ignoring 50s, we can be 99% confident that the deviation is not higher than:
+                double deviationOnCircles = hitWindow300 / (Math.Sqrt(2) * SpecialFunctions.ErfInv(pLowerBound));
+                deviationOnCircles *= Math.Sqrt(1 - Math.Sqrt(2 / Math.PI) * hitWindow100 * Math.Exp(-0.5 * Math.Pow(hitWindow100 / deviationOnCircles, 2))
+                    / (deviationOnCircles * SpecialFunctions.Erf(hitWindow100 / (Math.Sqrt(2) * deviationOnCircles))));
+
+                // Then compute the variance for 50s.
+                double mehVariance = (hitWindow50 * hitWindow50 + hitWindow100 * hitWindow50 + hitWindow100 * hitWindow100) / 3;
+
+                // Find the total deviation.
+                deviationOnCircles = Math.Sqrt(((greatCountCircles + okCountCircles) * Math.Pow(deviationOnCircles, 2) + mehCountCircles * mehVariance) / (greatCountCircles + okCountCircles + mehCountCircles));
+
+                return deviationOnCircles;
             }
 
-            if (sliderCount == 0)
+            // If there are more non-300s than there are circles, compute the deviation on sliders instead.
+            // Here, all that matters is whether or not the slider was missed, since it is impossible
+            // to get a 100 or 50 on a slider by mis-tapping it.
+            int sliderCount = attributes.SliderCount;
+            int missCountSliders = Math.Min(sliderCount, countMiss - missCountCircles);
+            int greatCountSliders = sliderCount - missCountSliders;
+
+            // We only get here if nothing was hit. In this case, there is no estimate for deviation.
+            // Note that this is never negative, so checking if this is only equal to 0 makes sense.
+            if (greatCountSliders == 0)
             {
-                double binomialCdfMinusThreshold(double sigma)
-                {
-                    if (sigma < 0)
-                        return -alpha;
-
-                    return Binomial.CDF(SpecialFunctions.Erfc(hitWindow300 / (root2 * sigma)), circleCount, inaccuracies) - alpha;
-                }
-
-                return Utils.Chandrupatla.FindRootExpand(binomialCdfMinusThreshold, 0, 10, accuracy: threshold);
+                return null;
             }
 
-            double twoBinomialPmf(int x, double sigma)
-            {
-                if (sigma < 0)
-                    return 1;
+            double greatProbabilitySlider = greatCountSliders / (sliderCount + 1.0);
+            double deviationOnSliders = hitWindow50 / (Math.Sqrt(2) * SpecialFunctions.ErfInv(greatProbabilitySlider));
 
-                double circleGreatProbability = SpecialFunctions.Erf(hitWindow300 / (root2 * sigma));
-                double sliderGreatProbability = SpecialFunctions.Erf(hitWindow50 / (root2 * sigma));
-                double sum = 0;
-
-                if (circleCount < sliderCount)
-                {
-                    for (int k = 0; k <= circleCount; k++)
-                    {
-                        sum += Binomial.PMF(circleGreatProbability, circleCount, k)
-                               * Binomial.PMF(sliderGreatProbability, sliderCount, n - x - k);
-                    }
-                }
-                else
-                {
-                    for (int k = 0; k <= sliderCount; k++)
-                    {
-                        sum += Binomial.PMF(sliderGreatProbability, sliderCount, k)
-                               * Binomial.PMF(circleGreatProbability, circleCount, n - x - k);
-                    }
-                }
-
-                return sum;
-            }
-
-            double twoBinomialCdf(double sigma)
-            {
-                double sum = 0;
-
-                for (int i = 0; i <= inaccuracies; i++)
-                {
-                    sum += twoBinomialPmf(i, sigma);
-                }
-
-                return sum;
-            }
-
-            double twoBinomialCdfMinusThreshold(double sigma) => twoBinomialCdf(sigma) - alpha;
-
-            return Utils.Chandrupatla.FindRootExpand(twoBinomialCdfMinusThreshold, 0, 10, accuracy: threshold);
+            return deviationOnSliders;
         }
 
         private double calculateEffectiveMissCount(OsuDifficultyAttributes attributes)
