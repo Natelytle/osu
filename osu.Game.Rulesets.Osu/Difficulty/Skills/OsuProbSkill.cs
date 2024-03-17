@@ -123,14 +123,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double maxDiff = difficulties.Max();
             if (maxDiff <= 1e-10) return 0;
 
-            double lowerBoundEstimate = 0.5 * maxDiff;
             double upperBoundEstimate = 3.0 * maxDiff;
 
-            double skill = Brent.FindRootExpand(
+            double skill = Chandrupatla.FindRootExpand(
                 skill => fcProbabilityAtSkill(skill) - fc_probability,
-                lowerBoundEstimate,
+                0,
                 upperBoundEstimate,
-                1e-4);
+                accuracy: 1e-4);
 
             return skill;
         }
@@ -170,7 +169,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 poiBin = new PoissonBinomial(missProbabilities);
             }
 
-            return Chandrupatla.FindRootExpand(x => poiBin.CDF(x) - fc_probability, 0, 1000, accuracy: 1e-4);
+            return Math.Max(0, Chandrupatla.FindRootExpand(x => poiBin.CDF(x) - fc_probability, -30, 1000, accuracy: 1e-4));
         }
 
         public double GetFcSkill() => fcSkill;

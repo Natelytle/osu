@@ -76,6 +76,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             snapDifficulty += snapVelChange + snapAngle;
 
+            // CS buff
+            double csBuff = osuCurrObj.Radius < 30 ? Math.Pow((osuCurrObj.Radius - 30) / 30, 2) : 0;
+
+            snapDifficulty *= 1 + csBuff;
+
             // Slider stuff.
             // double sustainedSliderStrain = 0.0;
 
@@ -145,6 +150,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double flowVelChange = linearDifficulty * Math.Abs(prevVelocity - currVelocity);
 
             flowDifficulty += 0.65 * (flowVelChange + flowAngle);
+
+            // CS buff
+            double csBuff = osuCurrObj.Radius < 30 ? Math.Pow((osuCurrObj.Radius - 30) / 30, 2) : 0;
+
+            flowDifficulty *= 1 + csBuff;
 
             // Slider stuff.
             // double sustainedSliderStrain = 0.0;
