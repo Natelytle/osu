@@ -50,7 +50,6 @@ using osu.Game.Online.API;
 using osu.Game.Online.Chat;
 using osu.Game.Online.Metadata;
 using osu.Game.Online.Multiplayer;
-using osu.Game.Online.Solo;
 using osu.Game.Online.Spectator;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
@@ -102,7 +101,7 @@ namespace osu.Game
         public virtual bool UseDevelopmentServer => DebugUtils.IsDebugBuild;
 
         public virtual EndpointConfiguration CreateEndpoints() =>
-            UseDevelopmentServer ? new DevelopmentEndpointConfiguration() : new ExperimentalEndpointConfiguration();
+            UseDevelopmentServer ? new DevelopmentEndpointConfiguration() : new ProductionEndpointConfiguration();
 
         public virtual Version AssemblyVersion => Assembly.GetEntryAssembly()?.GetName().Version ?? new Version();
 
@@ -200,12 +199,13 @@ namespace osu.Game
 
         private RulesetConfigCache rulesetConfigCache;
 
+        private SessionAverageHitErrorTracker hitErrorTracker;
+
         protected SpectatorClient SpectatorClient { get; private set; }
 
         protected MultiplayerClient MultiplayerClient { get; private set; }
 
         private MetadataClient metadataClient;
-        private SoloStatisticsWatcher soloStatisticsWatcher;
 
         private RealmAccess realm;
 
@@ -326,7 +326,6 @@ namespace osu.Game
             dependencies.CacheAs(SpectatorClient = new OnlineSpectatorClient(endpoints));
             dependencies.CacheAs(MultiplayerClient = new OnlineMultiplayerClient(endpoints));
             dependencies.CacheAs(metadataClient = new OnlineMetadataClient(endpoints));
-            dependencies.CacheAs(soloStatisticsWatcher = new SoloStatisticsWatcher());
 
             base.Content.Add(new BeatmapOnlineChangeIngest(beatmapUpdater, realm, metadataClient));
 
@@ -338,10 +337,6 @@ namespace osu.Game
             dependencies.Cache(beatmapCache = new BeatmapLookupCache());
             base.Content.Add(beatmapCache);
 
-            var scorePerformanceManager = new ScorePerformanceCache();
-            dependencies.Cache(scorePerformanceManager);
-            base.Content.Add(scorePerformanceManager);
-
             dependencies.CacheAs<IRulesetConfigCache>(rulesetConfigCache = new RulesetConfigCache(realm, RulesetStore));
 
             var powerStatus = CreateBatteryInfo();
@@ -349,6 +344,7 @@ namespace osu.Game
                 dependencies.CacheAs(powerStatus);
 
             dependencies.Cache(SessionStatics = new SessionStatics());
+            dependencies.Cache(hitErrorTracker = new SessionAverageHitErrorTracker());
             dependencies.Cache(Colours = new OsuColour());
 
             RegisterImportHandler(BeatmapManager);
@@ -372,7 +368,6 @@ namespace osu.Game
             base.Content.Add(SpectatorClient);
             base.Content.Add(MultiplayerClient);
             base.Content.Add(metadataClient);
-            base.Content.Add(soloStatisticsWatcher);
 
             base.Content.Add(rulesetConfigCache);
 
@@ -408,6 +403,7 @@ namespace osu.Game
             });
 
             base.Content.Add(new TouchInputInterceptor());
+            base.Content.Add(hitErrorTracker);
 
             KeyBindingStore = new RealmKeyBindingStore(realm, keyCombinationProvider);
             KeyBindingStore.Register(globalBindings, RulesetStore.AvailableRulesets);
@@ -478,7 +474,7 @@ namespace osu.Game
             AddFont(Resources, @"Fonts/Venera/Venera-Bold");
             AddFont(Resources, @"Fonts/Venera/Venera-Black");
 
-            Fonts.AddStore(new HexaconsIcons.HexaconsStore(Textures));
+            Fonts.AddStore(new OsuIcon.OsuIconStore(Textures));
         }
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent) =>
@@ -527,14 +523,21 @@ namespace osu.Game
             {
                 ManualResetEventSlim readyToRun = new ManualResetEventSlim();
 
+                bool success = false;
+
                 Scheduler.Add(() =>
                 {
-                    realmBlocker = realm.BlockAllOperations("migration");
+                    try
+                    {
+                        realmBlocker = realm.BlockAllOperations("migration");
+                        success = true;
+                    }
+                    catch { }
 
                     readyToRun.Set();
                 }, false);
 
-                if (!readyToRun.Wait(30000))
+                if (!readyToRun.Wait(30000) || !success)
                     throw new TimeoutException("Attempting to block for migration took too long.");
 
                 bool? cleanupSucceded = (Storage as OsuStorage)?.Migrate(Host.GetStorage(path));

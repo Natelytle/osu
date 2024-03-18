@@ -91,7 +91,7 @@ namespace osu.Game.Screens.Select.Carousel
 
             if (songSelect != null)
             {
-                mainMenuItems = songSelect.CreateForwardNavigationMenuItemsForBeatmap(beatmapInfo);
+                mainMenuItems = songSelect.CreateForwardNavigationMenuItemsForBeatmap(() => beatmapInfo);
                 selectRequested = b => songSelect.FinaliseSelection(b);
             }
 
@@ -122,7 +122,7 @@ namespace osu.Game.Screens.Select.Carousel
                     {
                         difficultyIcon = new DifficultyIcon(beatmapInfo)
                         {
-                            ShowTooltip = false,
+                            TooltipType = DifficultyIconTooltipType.None,
                             Scale = new Vector2(1.8f),
                         },
                         new FillFlowContainer
@@ -245,6 +245,9 @@ namespace osu.Game.Screens.Select.Carousel
 
         private void updateKeyCount()
         {
+            if (Item?.State.Value == CarouselItemState.Collapsed)
+                return;
+
             if (ruleset.Value.OnlineID == 3)
             {
                 // Account for mania differences locally for now.

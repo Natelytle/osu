@@ -54,7 +54,6 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.SkinEditor;
 using osu.Game.Overlays.Toolbar;
 using osu.Game.Overlays.Volume;
-using osu.Game.Performance;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens;
@@ -80,6 +79,13 @@ namespace osu.Game
     [Cached(typeof(OsuGame))]
     public partial class OsuGame : OsuGameBase, IKeyBindingHandler<GlobalAction>, ILocalUserPlayInfo, IPerformFromScreenRunner, IOverlayManager, ILinkHandler
     {
+#if DEBUG
+        // Different port allows runnning release and debug builds alongside each other.
+        public const int IPC_PORT = 44824;
+#else
+        public const int IPC_PORT = 44823;
+#endif
+
         /// <summary>
         /// The amount of global offset to apply when a left/right anchored overlay is displayed (ie. settings or notifications).
         /// </summary>
@@ -623,6 +629,12 @@ namespace osu.Game
 
             var detachedSet = databasedSet.PerformRead(s => s.Detach());
 
+            if (detachedSet.DeletePending)
+            {
+                Logger.Log("The requested beatmap has since been deleted.", LoggingTarget.Information);
+                return;
+            }
+
             PerformFromScreen(screen =>
             {
                 // Find beatmaps that match our predicate.
@@ -754,7 +766,7 @@ namespace osu.Game
                         break;
 
                     case ScorePresentType.Results:
-                        screen.Push(new SoloResultsScreen(databasedScore.ScoreInfo, false));
+                        screen.Push(new SoloResultsScreen(databasedScore.ScoreInfo));
                         break;
                 }
             }, validScreens: validScreens);
@@ -777,8 +789,6 @@ namespace osu.Game
         protected virtual Loader CreateLoader() => new Loader();
 
         protected virtual UpdateManager CreateUpdateManager() => new UpdateManager();
-
-        protected virtual HighPerformanceSession CreateHighPerformanceSession() => new HighPerformanceSession();
 
         protected override Container CreateScalingContainer() => new ScalingContainer(ScalingMode.Everything);
 
@@ -994,8 +1004,11 @@ namespace osu.Game
                 Margin = new MarginPadding(5),
             }, topMostOverlayContent.Add);
 
-            if (!args?.Any(a => a == @"--no-version-overlay") ?? true)
-                loadComponentSingleFile(versionManager = new VersionManager { Depth = int.MinValue }, ScreenContainer.Add);
+            if (!IsDeployedBuild)
+            {
+                dependencies.Cache(versionManager = new VersionManager { Depth = int.MinValue });
+                loadComponentSingleFile(versionManager, ScreenContainer.Add);
+            }
 
             loadComponentSingleFile(osuLogo, _ =>
             {
@@ -1005,6 +1018,7 @@ namespace osu.Game
                 ScreenStack.Push(CreateLoader().With(l => l.RelativeSizeAxes = Axes.Both));
             });
 
+            loadComponentSingleFile(new UserStatisticsWatcher(), Add, true);
             loadComponentSingleFile(Toolbar = new Toolbar
             {
                 OnHome = delegate
@@ -1069,8 +1083,7 @@ namespace osu.Game
 
             loadComponentSingleFile(new AccountCreationOverlay(), topMostOverlayContent.Add, true);
             loadComponentSingleFile<IDialogOverlay>(new DialogOverlay(), topMostOverlayContent.Add, true);
-
-            loadComponentSingleFile(CreateHighPerformanceSession(), Add);
+            loadComponentSingleFile(new MedalOverlay(), topMostOverlayContent.Add);
 
             loadComponentSingleFile(new BackgroundDataStoreProcessor(), Add);
 
@@ -1178,6 +1191,9 @@ namespace osu.Game
             {
                 if (entry.Level < LogLevel.Important || entry.Target > LoggingTarget.Database || entry.Target == null) return;
 
+                if (entry.Exception is SentryOnlyDiagnosticsException)
+                    return;
+
                 const int short_term_display_limit = 3;
 
                 if (recentLogCount < short_term_display_limit)
@@ -1190,7 +1206,7 @@ namespace osu.Game
                 }
                 else if (recentLogCount == short_term_display_limit)
                 {
-                    string logFile = $@"{entry.Target.Value.ToString().ToLowerInvariant()}.log";
+                    string logFile = Logger.GetLogger(entry.Target.Value).Filename;
 
                     Schedule(() => Notifications.Post(new SimpleNotification
                     {
@@ -1198,7 +1214,7 @@ namespace osu.Game
                         Text = NotificationsStrings.SubsequentMessagesLogged,
                         Activated = () =>
                         {
-                            Storage.GetStorageForDirectory(@"logs").PresentFileExternally(logFile);
+                            Logger.Storage.PresentFileExternally(logFile);
                             return true;
                         }
                     }));
