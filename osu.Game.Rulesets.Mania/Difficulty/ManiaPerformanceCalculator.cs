@@ -255,14 +255,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             // Lazer mechanics treat the heads of LNs like notes.
             double noteProbCount = isLegacyScore ? noteCount : noteCount + lnCount;
 
-            LogProb pMax = (noteProbabilities.PMax * Math.Log(noteProbCount) + lnProbabilities.PMax * Math.Log(lnCount)) / Math.Log(totalJudgements);
-            LogProb p300 = (noteProbabilities.P300 * Math.Log(noteProbCount) + lnProbabilities.P300 * Math.Log(lnCount)) / Math.Log(totalJudgements);
-            LogProb p200 = (noteProbabilities.P200 * Math.Log(noteProbCount) + lnProbabilities.P200 * Math.Log(lnCount)) / Math.Log(totalJudgements);
-            LogProb p100 = (noteProbabilities.P100 * Math.Log(noteProbCount) + lnProbabilities.P100 * Math.Log(lnCount)) / Math.Log(totalJudgements);
-            LogProb p50 = (noteProbabilities.P50 * Math.Log(noteProbCount) + lnProbabilities.P50 * Math.Log(lnCount)) / Math.Log(totalJudgements);
-            LogProb p0 = (noteProbabilities.P0 * Math.Log(noteProbCount) + lnProbabilities.P0 * Math.Log(lnCount)) / Math.Log(totalJudgements);
+            LogProb pMax = LogProb.Combine(noteProbabilities.PMax, lnProbabilities.PMax, noteProbCount, lnCount);
+            LogProb p300 = LogProb.Combine(noteProbabilities.P300, lnProbabilities.P300, noteProbCount, lnCount);
+            LogProb p200 = LogProb.Combine(noteProbabilities.P200, lnProbabilities.P200, noteProbCount, lnCount);
+            LogProb p100 = LogProb.Combine(noteProbabilities.P100, lnProbabilities.P100, noteProbCount, lnCount);
+            LogProb p50 = LogProb.Combine(noteProbabilities.P50, lnProbabilities.P50, noteProbCount, lnCount);
+            LogProb p0 = LogProb.Combine(noteProbabilities.P0, lnProbabilities.P0, noteProbCount, lnCount);
 
-            // Multinomial likelihood formula. 0.5 is added to countGreat since the most likely deviation for an SS is 0.
+            // Multinomial likelihood formula. 0.5 is added to countGreat since the most likely deviation for an SS would otherwise be 0.
             LogProb totalProb = LogProb.Pow(pMax, countPerfect / totalJudgements)
                                 * LogProb.Pow(p300, (countGreat + 0.5) / totalJudgements)
                                 * LogProb.Pow(p200, countGood / totalJudgements)

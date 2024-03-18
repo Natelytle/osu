@@ -30,9 +30,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
         public static LogProb Pow(LogProb val1, double exponent) => val1.value * exponent;
 
-        public static LogProb operator *(LogProb val1, LogProb val2) => val1.value + val2.value;
+        public static LogProb Combine(LogProb prob1, LogProb prob2, double count1, double count2) =>
+            logSum(prob1.value + Math.Log(count1), prob2.value + Math.Log(count2)) - Math.Log(count1 + count2);
 
-        public static LogProb operator /(LogProb val1, LogProb val2) => val1.value - val2.value;
+        public static LogProb operator *(LogProb val1, LogProb val2) => val1.value + val2.value;
 
         public static LogProb operator +(LogProb val1, LogProb val2) => logSum(val1.value, val2.value);
 
