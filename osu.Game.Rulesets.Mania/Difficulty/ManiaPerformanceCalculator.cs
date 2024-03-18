@@ -218,7 +218,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             JudgementProbs probabilities = new JudgementProbs
             {
-                PMax = 0 - compProbHitWindow(hitWindows[0] * multiplier, d),
+                PMax = new LogProb(1) - compProbHitWindow(hitWindows[0] * multiplier, d),
                 P300 = compProbHitWindow(hitWindows[0] * multiplier, d) - compProbHitWindow(hitWindows[1] * multiplier, d),
                 P200 = compProbHitWindow(hitWindows[1] * multiplier, d) - compProbHitWindow(hitWindows[2] * multiplier, d),
                 P100 = compProbHitWindow(hitWindows[2] * multiplier, d) - compProbHitWindow(hitWindows[3] * multiplier, d),
@@ -235,7 +235,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             JudgementProbs probabilities = new JudgementProbs
             {
-                PMax = 0 - compProbHitLegacyHold(hitWindows[0] * legacy_max_multiplier, dHead, dTail),
+                PMax = new LogProb(1) - compProbHitLegacyHold(hitWindows[0] * legacy_max_multiplier, dHead, dTail),
                 P300 = compProbHitLegacyHold(hitWindows[0] * legacy_max_multiplier, dHead, dTail) - compProbHitLegacyHold(hitWindows[1] * legacy_300_multiplier, dHead, dTail),
                 P200 = compProbHitLegacyHold(hitWindows[1] * legacy_300_multiplier, dHead, dTail) - compProbHitLegacyHold(hitWindows[2], dHead, dTail),
                 P100 = compProbHitLegacyHold(hitWindows[2], dHead, dTail) - compProbHitLegacyHold(hitWindows[3], dHead, dTail),
