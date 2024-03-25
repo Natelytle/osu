@@ -38,64 +38,65 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected abstract double HitProbability(double skill, double difficulty);
 
-        private double fcProbabilityAtSkillBinned(double skill, IEnumerable<Bin> bins)
+        private double fcDifficultyValue()
         {
-            if (skill <= 0) return 0;
-
-            double totalHitProbability(Bin bin) => Math.Pow(HitProbability(skill, bin.Difficulty), bin.Count);
-
-            return bins.Aggregate(1.0, (current, bin) => current * totalHitProbability(bin));
-        }
-
-        private double fcProbabilityAtSkillExact(double skill)
-        {
-            if (skill <= 0) return 0;
-
-            return difficulties.Aggregate<double, double>(1, (current, d) => current * HitProbability(skill, d));
-        }
-
-        private double difficultyValueBinned()
-        {
-            double maxDiff = difficulties.Max();
-            if (maxDiff <= 1e-10) return 0;
-
             var bins = Bin.CreateBins(difficulties, bin_count);
 
             const double lower_bound = 0;
-            double upperBoundEstimate = 3.0 * maxDiff;
+            double upperBoundEstimate = 3.0 * difficulties.Max();
 
             double skill = Chandrupatla.FindRootExpand(
-                skill => fcProbabilityAtSkillBinned(skill, bins) - FcProbability,
+                skill => fcProbability(skill) - FcProbability,
                 lower_bound,
                 upperBoundEstimate,
                 accuracy: 1e-4);
 
             return skill;
+
+            double fcProbability(double s)
+            {
+                if (s <= 0) return 0;
+
+                return difficulties.Count < 2 * bin_count
+                    ? difficulties.Aggregate<double, double>(1, (current, d) => current * HitProbability(s, d))
+                    : bins.Aggregate(1.0, (current, bin) => current * Math.Pow(HitProbability(s, bin.Difficulty), bin.Count));
+            }
         }
 
-        private double difficultyValueExact()
+        private double missDifficultyValue(double missCount)
         {
-            double maxDiff = difficulties.Max();
-            if (maxDiff <= 1e-10) return 0;
+            var bins = Bin.CreateBins(difficulties, bin_count);
 
             const double lower_bound = 0;
-            double upperBoundEstimate = 3.0 * maxDiff;
+            double upperBoundEstimate = 3.0 * difficulties.Max();
 
             double skill = Chandrupatla.FindRootExpand(
-                skill => fcProbabilityAtSkillExact(skill) - FcProbability,
+                skill => missProbabilityAtSkillExact(skill) - FcProbability,
                 lower_bound,
                 upperBoundEstimate,
                 accuracy: 1e-4);
 
             return skill;
+
+            double missProbabilityAtSkillExact(double s)
+            {
+                if (s <= 0) return 0;
+
+                return difficulties.Count < 2 * bin_count
+                    ? new PoissonBinomial(difficulties, s, HitProbability).CDF(missCount)
+                    : new PoissonBinomial(bins, s, HitProbability).CDF(missCount);
+            }
         }
 
-        public override double DifficultyValue()
+        // Assume full combo
+        public override double DifficultyValue() => DifficultyValue(0);
+
+        public double DifficultyValue(double missCount)
         {
-            if (difficulties.Count == 0)
+            if (difficulties.Count == 0 || difficulties.Max() <= 1e-10 || missCount == difficulties.Count)
                 return 0;
 
-            return difficulties.Count < 2 * bin_count ? difficultyValueExact() : difficultyValueBinned();
+            return missCount == 0 ? fcDifficultyValue() : missDifficultyValue(missCount);
         }
     }
 }
