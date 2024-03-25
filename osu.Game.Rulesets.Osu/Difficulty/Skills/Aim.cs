@@ -14,18 +14,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Aim : OsuProbSkill
     {
-        public Aim(Mod[] mods, bool withSliders)
+        public Aim(Mod[] mods)
             : base(mods)
         {
-            this.withSliders = withSliders;
         }
-
-        private readonly bool withSliders;
-
-        private double currentStrain;
-
-        private double skillMultiplier => 125;
-        private double strainDecayBase => 0.15;
 
         protected override double FcProbability => 0.02;
 
@@ -37,14 +29,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return SpecialFunctions.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
-
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, withSliders) * skillMultiplier;
-
-            return currentStrain;
+            return AimEvaluator.EvaluateDifficultyOf(current);
         }
     }
 }
