@@ -7,12 +7,15 @@ using JetBrains.Annotations;
 using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuDifficultyAttributes : DifficultyAttributes
     {
+        public IEnumerable<DifficultyHitObject> HitObjects { get; set; } = null!;
+
         /// <summary>
         /// The difficulty corresponding to the aim skill.
         /// </summary>

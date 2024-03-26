@@ -15,8 +15,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuPerformanceCalculator : PerformanceCalculator
     {
-        public const double PERFORMANCE_BASE_MULTIPLIER = 1.14; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
-
         private double accuracy;
         private int scoreMaxCombo;
         private int countGreat;
@@ -43,14 +41,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
             effectiveMissCount = calculateEffectiveMissCount(osuAttributes);
 
-            double multiplier = PERFORMANCE_BASE_MULTIPLIER;
-
-            if (score.Mods.Any(m => m is OsuModNoFail))
-                multiplier *= Math.Max(0.90, 1.0 - 0.02 * effectiveMissCount);
-
-            if (score.Mods.Any(m => m is OsuModSpunOut) && totalHits > 0)
-                multiplier *= 1.0 - Math.Pow((double)osuAttributes.SpinnerCount / totalHits, 0.85);
-
             if (score.Mods.Any(h => h is OsuModRelax))
             {
                 // https://www.desmos.com/calculator/bc9eybdthb
@@ -64,8 +54,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
 
             double aimValue = computeAimValue(score, osuAttributes);
+            double speedValue = computeSpeedValue(score, osuAttributes);
             double accuracyValue = computeAccuracyValue(score, osuAttributes);
-            double totalValue = aimValue + accuracyValue * multiplier;
+            double totalValue = speedValue + accuracyValue;
 
             return new OsuPerformanceAttributes
             {
@@ -80,7 +71,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             var aim = new Aim(score.Mods);
 
+            foreach (var hitObject in attributes.HitObjects)
+            {
+                aim.Process(hitObject);
+            }
+
             double aimDifficulty = aim.DifficultyValue(effectiveMissCount);
+
+            return aimDifficulty * 100;
+        }
+
+        private double computeSpeedValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        {
+            var speed = new Speed(score.Mods);
+
+            foreach (var hitObject in attributes.HitObjects)
+            {
+                speed.Process(hitObject);
+            }
+
+            double aimDifficulty = speed.DifficultyValue();
 
             return aimDifficulty * 100;
         }

@@ -25,6 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public override int Version => 20220902;
 
         private const double aim_multiplier = 0.75;
+        private const double speed_multiplier = 1;
 
         public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)
@@ -37,6 +38,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 return new OsuDifficultyAttributes { Mods = mods };
 
             double aimRating = skills[0].DifficultyValue() * aim_multiplier;
+            double speedRating = skills[1].DifficultyValue() * speed_multiplier;
 
             if (mods.Any(m => m is OsuModTouchDevice))
             {
@@ -48,7 +50,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimRating *= 0.9;
             }
 
-            double starRating = aimRating;
+            double starRating = speedRating;
 
             double preempt = IBeatmapDifficultyInfo.DifficultyRange(beatmap.Difficulty.ApproachRate, 1800, 1200, 450) / clockRate;
             double drainRate = beatmap.Difficulty.DrainRate;
@@ -67,6 +69,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 StarRating = starRating,
                 Mods = mods,
+                HitObjects = CreateDifficultyHitObjects(beatmap, clockRate),
                 AimDifficulty = aimRating,
                 ApproachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5,
                 OverallDifficulty = (80 - hitWindowGreat) / 6,
@@ -99,7 +102,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             var skills = new List<Skill>
             {
-                new Aim(mods)
+                new Aim(mods),
+                new Speed(mods)
             };
 
             return skills.ToArray();
