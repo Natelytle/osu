@@ -16,11 +16,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private readonly List<double> difficulties = new List<double>();
         private readonly List<double> deltaTimes = new List<double>();
 
-        // The percentage of the active muscle capacity that should become fatigued per note.
-        private const double stamina_decay_per_note = 0.008;
+        // Percentage values for the decay and recovery of stamina due to fatigue.
+        // Current values - Lose 0.1% of stamina capacity per note, and recover 0.4% of accumulated stamina fatigue per second.
+        private const double stamina_decay_per_note = 0.8;
+        private const double stamina_recovery_per_second = 15.0;
 
-        // The percentage of fatigued muscle capacity that should recover and become resting muscle capacity per second.
-        private const double stamina_recovery_per_second = 0.025;
+        // And the same for burst speed.
+        private const double burst_decay_per_note = 100.0;
+        private const double burst_recovery_per_second = 30.0;
 
         protected OsuStaminaSkill(Mod[] mods)
             : base(mods)
@@ -53,10 +56,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private List<double> getSpeedValuesAtSkill(double skill)
         {
-            // The player's total skill is their speed - a player with 40 skill cannot hit a note of difficulty 60 or higher on time.
-            double restingStaminaCompartment = skill * 1.5;
-            double activeStaminaCompartment = 0;
-            double fatiguedStaminaCompartment = 0;
+            // Stamina skill is slower, but decays slower.
+            Compartments stamina = new Compartments(skill, stamina_decay_per_note, stamina_recovery_per_second);
+
+            // Burst skill is much faster, but decays faster.
+            Compartments burst = new Compartments(skill * 1.5, burst_decay_per_note, burst_recovery_per_second);
 
             List<double> speedValues = new List<double>();
 
@@ -65,18 +69,46 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 double difficulty = difficulties[i];
                 double deltaTime = deltaTimes[i];
 
-                double fatiguedCompartmentDecrease = Math.Pow(1 - stamina_recovery_per_second, deltaTime / 1000);
-                double fatiguedCompartmentIncrease = activeStaminaCompartment * (1 - Math.Pow(1 - stamina_decay_per_note, deltaTime / 1000));
+                double burstCapacity = burst.GetActiveCapacityAt(difficulty, deltaTime);
+                double staminaCapacity = stamina.GetActiveCapacityAt(difficulty, deltaTime);
 
-                activeStaminaCompartment = Math.Min(difficulty, activeStaminaCompartment - fatiguedCompartmentIncrease + restingStaminaCompartment);
-                fatiguedStaminaCompartment *= fatiguedCompartmentDecrease;
-                fatiguedStaminaCompartment += fatiguedCompartmentIncrease;
-                restingStaminaCompartment = skill - activeStaminaCompartment - fatiguedStaminaCompartment;
-
-                speedValues.Add(activeStaminaCompartment);
+                speedValues.Add(Math.Max(burstCapacity, staminaCapacity));
             }
 
             return speedValues;
+        }
+
+        private struct Compartments
+        {
+            public Compartments(double skill, double decayPerNote, double recoveryPerSecond)
+            {
+                this.skill = skill;
+                this.decayPerNote = decayPerNote / 100;
+                this.recoveryPerSecond = recoveryPerSecond / 100;
+                active = 0;
+                fatigued = 0;
+            }
+
+            // Skill is the "maximum speed" these compartments can reach.
+            private readonly double skill;
+            private readonly double decayPerNote;
+            private readonly double recoveryPerSecond;
+
+            private double resting => skill - active + fatigued;
+            private double active;
+            private double fatigued;
+
+            public double GetActiveCapacityAt(double difficulty, double deltaTime)
+            {
+                double fatiguedIncrease = active * decayPerNote;
+                double fatiguedDecrease = fatigued * (1 - Math.Pow(1 - recoveryPerSecond, deltaTime / 1000));
+
+                // We check to see if we have enough resting capacity after fatigue to hit the current note.
+                active = Math.Min(difficulty, active - fatiguedIncrease + resting);
+                fatigued += fatiguedIncrease - fatiguedDecrease;
+
+                return active;
+            }
         }
     }
 }
