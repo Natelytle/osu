@@ -18,12 +18,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         // Percentage values for the decay and recovery of stamina due to fatigue.
         // Current values - Lose 0.1% of stamina capacity per note, and recover 0.4% of accumulated stamina fatigue per second.
-        private const double stamina_decay_per_note = 0.8;
-        private const double stamina_recovery_per_second = 15.0;
+        private const double stamina_decay_per_note = 0.15;
+        private const double stamina_recovery_per_second = 9.0;
 
         // And the same for burst speed.
-        private const double burst_decay_per_note = 100.0;
-        private const double burst_recovery_per_second = 30.0;
+        private const double burst_decay_per_note = 2.5;
+        private const double burst_recovery_per_second = 40.0;
 
         protected OsuStaminaSkill(Mod[] mods)
             : base(mods)
@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             Compartments stamina = new Compartments(skill, stamina_decay_per_note, stamina_recovery_per_second);
 
             // Burst skill is much faster, but decays faster.
-            Compartments burst = new Compartments(skill * 1.5, burst_decay_per_note, burst_recovery_per_second);
+            Compartments burst = new Compartments(skill * 1.3, burst_decay_per_note, burst_recovery_per_second);
 
             List<double> speedValues = new List<double>();
 
@@ -83,6 +83,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             public Compartments(double skill, double decayPerNote, double recoveryPerSecond)
             {
                 this.skill = skill;
+                resting = skill;
                 this.decayPerNote = decayPerNote / 100;
                 this.recoveryPerSecond = recoveryPerSecond / 100;
                 active = 0;
@@ -94,7 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             private readonly double decayPerNote;
             private readonly double recoveryPerSecond;
 
-            private double resting => skill - active + fatigued;
+            private double resting;
             private double active;
             private double fatigued;
 
@@ -106,6 +107,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 // We check to see if we have enough resting capacity after fatigue to hit the current note.
                 active = Math.Min(difficulty, active - fatiguedIncrease + resting);
                 fatigued += fatiguedIncrease - fatiguedDecrease;
+                resting = skill - active - fatigued;
 
                 return active;
             }

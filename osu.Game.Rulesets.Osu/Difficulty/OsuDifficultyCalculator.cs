@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public override int Version => 20220902;
 
         private const double aim_multiplier = 0.75;
-        private const double speed_multiplier = 1;
+        private const double speed_multiplier = 0.01;
 
         public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)

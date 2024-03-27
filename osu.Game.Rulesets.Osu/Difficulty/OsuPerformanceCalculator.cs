@@ -90,9 +90,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 speed.Process(hitObject);
             }
 
-            double aimDifficulty = speed.DifficultyValue();
+            double speedDifficulty = speed.DifficultyValue();
 
-            return aimDifficulty * 100;
+            return speedDifficulty;
         }
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
