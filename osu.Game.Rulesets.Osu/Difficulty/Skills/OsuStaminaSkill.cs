@@ -18,11 +18,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         // Percentage values for the decay and recovery of stamina due to fatigue.
         // Current values - Lose 0.1% of stamina capacity per note, and recover 0.4% of accumulated stamina fatigue per second.
-        private const double stamina_decay_per_note = 0.15;
+        private const double stamina_decay_per_second = 1.5;
         private const double stamina_recovery_per_second = 9.0;
 
         // And the same for burst speed.
-        private const double burst_decay_per_note = 2.5;
+        private const double burst_decay_per_second = 25.0;
         private const double burst_recovery_per_second = 40.0;
 
         protected OsuStaminaSkill(Mod[] mods)
@@ -45,8 +45,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double upperBoundEstimate = 3.0 * difficulties.Max();
 
+            if (getMaximumDeficitAtSkill(0) <= 40)
+                return 0;
+
             double skill = Chandrupatla.FindRootExpand(
-                skill => Convert.ToInt32(getSpeedValuesAtSkill(skill).SequenceEqual(difficulties)) - 0.5,
+                skill => getMaximumDeficitAtSkill(skill) - 40,
                 0,
                 upperBoundEstimate,
                 accuracy: 1e-4);
@@ -54,37 +57,45 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return skill;
         }
 
-        private List<double> getSpeedValuesAtSkill(double skill)
+        private double getMaximumDeficitAtSkill(double skill)
         {
+            if (skill == 0)
+                return deltaTimes.Sum();
+
             // Stamina skill is slower, but decays slower.
-            Compartments stamina = new Compartments(skill, stamina_decay_per_note, stamina_recovery_per_second);
+            Compartments stamina = new Compartments(skill, stamina_decay_per_second, stamina_recovery_per_second);
 
             // Burst skill is much faster, but decays faster.
-            Compartments burst = new Compartments(skill * 1.3, burst_decay_per_note, burst_recovery_per_second);
+            Compartments burst = new Compartments(skill * 1.4, burst_decay_per_second, burst_recovery_per_second);
 
-            List<double> speedValues = new List<double>();
+            // How many milliseconds late the player is tapping.
+            double currentDeficit = 0;
+            double maximumDeficit = 0;
 
             for (int i = 0; i < difficulties.Count; i++)
             {
                 double difficulty = difficulties[i];
-                double deltaTime = deltaTimes[i];
+                double deltaTime = Math.Max(deltaTimes[i] - currentDeficit, 0);
 
                 double burstCapacity = burst.GetActiveCapacityAt(difficulty, deltaTime);
                 double staminaCapacity = stamina.GetActiveCapacityAt(difficulty, deltaTime);
 
-                speedValues.Add(Math.Max(burstCapacity, staminaCapacity));
+                double playerDeltatime = 15000 / Math.Max(burstCapacity, staminaCapacity);
+
+                currentDeficit = playerDeltatime - deltaTime;
+                maximumDeficit = Math.Max(maximumDeficit, currentDeficit);
             }
 
-            return speedValues;
+            return maximumDeficit;
         }
 
         private struct Compartments
         {
-            public Compartments(double skill, double decayPerNote, double recoveryPerSecond)
+            public Compartments(double skill, double decayPerSecond, double recoveryPerSecond)
             {
                 this.skill = skill;
                 resting = skill;
-                this.decayPerNote = decayPerNote / 100;
+                this.decayPerSecond = decayPerSecond / 100;
                 this.recoveryPerSecond = recoveryPerSecond / 100;
                 active = 0;
                 fatigued = 0;
@@ -92,7 +103,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             // Skill is the "maximum speed" these compartments can reach.
             private readonly double skill;
-            private readonly double decayPerNote;
+            private readonly double decayPerSecond;
             private readonly double recoveryPerSecond;
 
             private double resting;
@@ -101,7 +112,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             public double GetActiveCapacityAt(double difficulty, double deltaTime)
             {
-                double fatiguedIncrease = active * decayPerNote;
+                double fatiguedIncrease = active * (1 - Math.Pow(1 - decayPerSecond, deltaTime / 1000));
                 double fatiguedDecrease = fatigued * (1 - Math.Pow(1 - recoveryPerSecond, deltaTime / 1000));
 
                 // We check to see if we have enough resting capacity after fatigue to hit the current note.
