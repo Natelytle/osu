@@ -8,16 +8,17 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
+using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
     public abstract class OsuStaminaSkill : Skill
     {
-        private readonly List<double> difficulties = new List<double>();
+        private readonly List<double> bpms = new List<double>();
         private readonly List<double> deltaTimes = new List<double>();
 
         // Percentage values for the decay and recovery of stamina due to fatigue.
-        // Current values - Lose 0.1% of stamina capacity per note, and recover 0.4% of accumulated stamina fatigue per second.
+        // Current values - Lose 1.5% of stamina capacity, and recover 9.0% of accumulated stamina fatigue per second.
         private const double stamina_decay_per_second = 1.5;
         private const double stamina_recovery_per_second = 9.0;
 
@@ -32,18 +33,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public override void Process(DifficultyHitObject current)
         {
-            difficulties.Add(StrainValueAt(current));
-            deltaTimes.Add(current.DeltaTime);
+            if (current.BaseObject is Spinner) return;
+
+            bpms.Add(StrainValueAt(current));
+            deltaTimes.Add(15000 / StrainValueAt(current));
         }
 
         protected abstract double StrainValueAt(DifficultyHitObject current);
 
         public override double DifficultyValue()
         {
-            if (difficulties.Count == 0 || difficulties.Max() <= 1e-10)
+            if (bpms.Count == 0 || bpms.Max() <= 1e-10)
                 return 0;
 
-            double upperBoundEstimate = 3.0 * difficulties.Max();
+            double upperBoundEstimate = 1.3 * bpms.Max();
 
             if (getMaximumDeficitAtSkill(0) <= 40)
                 return 0;
@@ -72,9 +75,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double currentDeficit = 0;
             double maximumDeficit = 0;
 
-            for (int i = 0; i < difficulties.Count; i++)
+            for (int i = 0; i < bpms.Count; i++)
             {
-                double difficulty = difficulties[i];
+                double difficulty = bpms[i];
                 double deltaTime = Math.Max(deltaTimes[i] - currentDeficit, 0);
 
                 double burstCapacity = burst.GetActiveCapacityAt(difficulty, deltaTime);

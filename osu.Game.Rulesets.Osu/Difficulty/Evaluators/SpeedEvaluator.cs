@@ -12,8 +12,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
 
-            // Just return the BPM for now.
-            return 15000 / osuCurrObj.StrainTime;
+            // Just return the BPM.
+            return 15000 / osuCurrObj.TapStrainTime ?? 0;
         }
     }
 }

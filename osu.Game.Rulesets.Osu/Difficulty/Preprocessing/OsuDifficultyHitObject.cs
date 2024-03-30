@@ -30,6 +30,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public readonly double StrainTime;
 
         /// <summary>
+        /// Milliseconds elapsed since the start time of the previous tappable <see cref="OsuDifficultyHitObject"/>, with a minimum of 25ms.
+        /// </summary>
+        public readonly double? TapStrainTime;
+
+        /// <summary>
         /// Normalised distance from the position of the previous <see cref="OsuDifficultyHitObject"/> to the position of this <see cref="OsuDifficultyHitObject"/>.
         /// </summary>
         public double Distance { get; private set; }
@@ -56,6 +61,34 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
             // Capped to 25ms to prevent difficulty calculation breaking from simultaneous objects.
             StrainTime = Math.Max(DeltaTime, min_delta_time);
+
+            if (hitObject is Spinner)
+            {
+                TapStrainTime = null;
+            }
+            else if (lastObject is not Spinner)
+            {
+                TapStrainTime = StrainTime;
+            }
+            else
+            {
+                TapStrainTime = null;
+
+                double cumulativeDeltaTime = 0;
+
+                // Iterate backwards until we find the last non-spinner object.
+                for (int i = index - 1; i >= 0; i--)
+                {
+                    if (objects[i].BaseObject is Spinner)
+                    {
+                        cumulativeDeltaTime += objects[i].DeltaTime;
+                    }
+                    else
+                    {
+                        TapStrainTime = Math.Max(25, cumulativeDeltaTime);
+                    }
+                }
+            }
 
             if (BaseObject is Slider sliderObject)
             {
