@@ -133,18 +133,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
                 for (int timeIndex = 0; timeIndex < bin_dimension_length; timeIndex++)
                 {
-                    double deltaTime = timeIndex > 0 ? bins[0, timeIndex].Time - bins[0, timeIndex - 1].Time : bins[0, timeIndex].Time;
+                    double deltaTime = times.LastOrDefault() / bin_dimension_length;
 
                     double prodOfHitProbabilities = 1;
 
-                    for (int difficultyIndex = 0; difficultyIndex < bin_dimension_length; difficultyIndex++)
+                    for (int i = timeIndex; i < bin_dimension_length; i++)
                     {
-                        Bin bin = bins[difficultyIndex, timeIndex];
+                        for (int j = 0; j < bin_dimension_length; j++)
+                        {
+                            Bin bin = bins[i, j];
 
-                        prodOfHitProbabilities *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count);
-
-                        t += deltaTime / prodOfHitProbabilities - deltaTime;
+                            // When i = timeIndex, we halve binCount, to assume every note is in the center of that deltaTime region instead of at the start.
+                            if (i == timeIndex)
+                                prodOfHitProbabilities *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count / 2);
+                            else
+                                prodOfHitProbabilities *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count);
+                        }
                     }
+
+                    t += deltaTime / prodOfHitProbabilities - deltaTime;
                 }
 
                 return t;
@@ -181,8 +188,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulties.Count == 0) return 0;
 
             return difficulties.Count > 2 * bin_dimension_length * bin_dimension_length ? DifficultyValueBinned() : DifficultyValueExact();
-
-            // return DifficultyValueExact();
         }
     }
 }

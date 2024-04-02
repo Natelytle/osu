@@ -30,8 +30,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             {
                 for (int j = 0; j < binDimensionLength; j++)
                 {
-                    bins[i, j].Difficulty = maxDifficulty * (i + 1) / binDimensionLength;
-                    bins[i, j].Time = endTime * (j + 1) / binDimensionLength;
+                    bins[i, j].Time = endTime * (i + 1) / binDimensionLength;
+                    bins[i, j].Difficulty = maxDifficulty * (j + 1) / binDimensionLength;
                 }
             }
 
@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
                 double difficultyBinIndex = binDimensionLength * (difficulties[i] / maxDifficulty) - 1;
                 double timeBinIndex = binDimensionLength * (times[i] / endTime) - 1;
 
-                // Cap the upper bounds to the dimension length. If they're higher, then dt/tt will be 0 anyway, so it doesn't matter.
+                // Cap the upper bounds to dimension length - 1. If they're higher, then dt/tt will be 0 anyway, so it doesn't matter.
                 int difficultyLowerBound = (int)Math.Floor(difficultyBinIndex);
                 int difficultyUpperBound = Math.Min(difficultyLowerBound + 1, binDimensionLength - 1);
                 double dt = difficultyBinIndex - difficultyLowerBound;
@@ -57,25 +57,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
                 // We don't store those since they don't contribute to difficulty.
                 if (difficultyLowerBound >= 0 && timeLowerBound >= 0)
                 {
-                    bins[difficultyLowerBound, timeLowerBound].Count += distance(1 - dt, 1 - tt);
+                    bins[timeLowerBound, difficultyLowerBound].Count += (1 - tt) * (1 - dt);
                 }
 
                 if (difficultyLowerBound >= 0)
                 {
-                    bins[difficultyLowerBound, timeUpperBound].Count += distance(1 - dt, tt);
+                    bins[timeUpperBound, difficultyLowerBound].Count += tt * (1 - dt);
                 }
 
                 if (timeLowerBound >= 0)
                 {
-                    bins[difficultyUpperBound, timeLowerBound].Count += distance(dt, 1 - tt);
+                    bins[timeLowerBound, difficultyUpperBound].Count += (1 - tt) * dt;
                 }
 
-                bins[difficultyUpperBound, timeUpperBound].Count += distance(dt, tt);
+                bins[timeUpperBound, difficultyUpperBound].Count += tt * dt;
             }
 
             return bins;
-
-            double distance(double d1, double d2) => Math.Sqrt(d1 * d1 + d2 * d2);
         }
     }
 }
