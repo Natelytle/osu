@@ -46,11 +46,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
                 double difficultyBinIndex = difficultyDimensionLength * (difficulties[i] / maxDifficulty) - 1;
 
                 // Cap the upper bounds to dimension length - 1. If they're higher, then dt/tt will be 0 anyway, so it doesn't matter.
-                int timeLowerBound = (int)Math.Floor(timeBinIndex);
+                int timeLowerBound = (int)timeBinIndex;
                 int timeUpperBound = Math.Min(timeLowerBound + 1, timeDimensionLength - 1);
                 double tt = timeBinIndex - timeLowerBound;
 
-                int difficultyLowerBound = (int)Math.Floor(difficultyBinIndex);
+                int difficultyLowerBound = (int)difficultyBinIndex;
                 int difficultyUpperBound = Math.Min(difficultyLowerBound + 1, difficultyDimensionLength - 1);
                 double dt = difficultyBinIndex - difficultyLowerBound;
 
