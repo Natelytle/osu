@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         public double Count;
 
         /// <summary>
-        /// Create a 2 dimensional array of equally spaced bins. Count is linearly interpolated into the nearest bins using euclidean distance.
+        /// Create a 2 dimensional array of equally spaced bins. Count is linearly interpolated on each dimension into the nearest bins.
         /// For example, on one dimension if we have bins with values [1,2,3,4,5] and want to insert the value 3.2,
         /// we will add 0.8 total to the count of 3's on that dimension and 0.2 total to the count of 4's.
         /// </summary>
