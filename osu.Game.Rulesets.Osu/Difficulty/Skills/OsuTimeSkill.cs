@@ -110,7 +110,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
                     for (int difficultyIndex = 0; difficultyIndex < difficulty_bin_count; difficultyIndex++)
                     {
-                        Bin bin = bins[timeIndex, difficultyIndex];
+                        Bin bin = bins[difficulty_bin_count * timeIndex + difficultyIndex];
 
                         // Divide bin count by 2, otherwise the calc assumes every note in the bin is the first, inflating SR slightly.
                         currProd *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count / 2);
