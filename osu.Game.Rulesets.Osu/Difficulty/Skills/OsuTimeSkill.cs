@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
@@ -19,8 +18,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
         }
 
-        // The width of one dimension of the bins. Since the array of bins is 2 dimensional, the number of bins is this value squared.
-        private const int bin_dimension_length = 8;
+        // The width of each dimension of the bins. Since the array of bins is 2 dimensional, the number of bins is equal to these values squared.
+        private const int difficulty_bin_count = 8;
+        private const int time_bin_count = 8;
 
         // Assume players spend 12 minutes retrying a map before they FC
         private const double time_threshold = 12;
@@ -52,37 +52,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double upperBoundEstimate = 3.0 * maxDiff;
 
             double skill = RootFinding.FindRootExpand(
-                skill => fcTimeFast(skill) - time_threshold * 60000,
+                skill => fcTime(skill) - time_threshold * 60000,
                 lower_bound_estimate,
                 upperBoundEstimate);
 
             return skill;
 
-            /*
             double fcTime(double s)
-            {
-                if (s <= 0) return double.PositiveInfinity;
-
-                double t = 0;
-
-                for (int n = 0; n < times.Count; n++)
-                {
-                    double deltaTime = n > 0 ? times[n] - times[n - 1] : times[n];
-
-                    double prodOfHitProbabilities = 1;
-
-                    for (int m = n; m < difficulties.Count; m++)
-                    {
-                        prodOfHitProbabilities *= HitProbability(s, difficulties[m]);
-                    }
-
-                    t += deltaTime / prodOfHitProbabilities - deltaTime;
-                }
-
-                return t;
-            }*/
-
-            double fcTimeFast(double s)
             {
                 if (s <= 0) return double.PositiveInfinity;
 
@@ -103,14 +79,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public double DifficultyValueBinned()
         {
-            Stopwatch sw = new Stopwatch();
-
-            sw.Restart();
-
             double maxDiff = difficulties.Max();
             if (maxDiff <= 1e-10) return 0;
 
-            var bins = Bin.CreateBins(difficulties, times, bin_dimension_length);
+            var bins = Bin.CreateBins(difficulties, times, difficulty_bin_count, time_bin_count);
 
             const double lower_bound_estimate = 0;
             double upperBoundEstimate = 3.0 * maxDiff;
@@ -120,9 +92,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 lower_bound_estimate,
                 upperBoundEstimate);
 
-            sw.Stop();
-            Console.WriteLine(sw.Elapsed.TotalMicroseconds);
-
             return skill;
 
             double fcTime(double s)
@@ -130,64 +99,40 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 if (s <= 0) return double.PositiveInfinity;
 
                 double t = 0;
+                double prodOfHitProbabilities = 1;
+                double prevProd = 1;
 
-                for (int timeIndex = 0; timeIndex < bin_dimension_length; timeIndex++)
+                for (int timeIndex = time_bin_count - 1; timeIndex >= 0; timeIndex--)
                 {
-                    double deltaTime = times.LastOrDefault() / bin_dimension_length;
+                    double deltaTime = times.LastOrDefault() / time_bin_count;
 
-                    double prodOfHitProbabilities = 1;
+                    double currProd = 1;
 
-                    for (int i = timeIndex; i < bin_dimension_length; i++)
+                    for (int difficultyIndex = 0; difficultyIndex < difficulty_bin_count; difficultyIndex++)
                     {
-                        for (int j = 0; j < bin_dimension_length; j++)
-                        {
-                            Bin bin = bins[i, j];
+                        Bin bin = bins[timeIndex, difficultyIndex];
 
-                            // When i = timeIndex, we halve binCount, to assume every note is in the center of that deltaTime region instead of at the start.
-                            if (i == timeIndex)
-                                prodOfHitProbabilities *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count / 2);
-                            else
-                                prodOfHitProbabilities *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count);
-                        }
+                        // Divide bin count by 2, otherwise the calc assumes every note in the bin is the first, inflating SR slightly.
+                        currProd *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count / 2);
                     }
 
+                    prodOfHitProbabilities *= currProd * prevProd;
+
                     t += deltaTime / prodOfHitProbabilities - deltaTime;
+
+                    // Since we are dividing the bin count in half, add the current prod to a variable to be multiplied back in, because every note /will/ be after by then.
+                    prevProd = currProd;
                 }
 
                 return t;
             }
-
-            // Gotta figure this out
-            /*
-            double fcTimeFast(double s)
-            {
-                if (s <= 0) return double.PositiveInfinity;
-
-                double t = 0;
-                double prodOfHitProbabilities = 1;
-
-                for (int timeIndex = bin_dimension_length - 1; timeIndex >= 0; timeIndex--)
-                {
-                    double deltaTime = timeIndex > 0 ? bins[0, timeIndex].Time - bins[0, timeIndex - 1].Time : bins[0, timeIndex].Time;
-
-                    for (int difficultyIndex = bin_dimension_length - 1; difficultyIndex >= 0; difficultyIndex--)
-                    {
-                        Bin bin = bins[difficultyIndex, timeIndex];
-
-                        prodOfHitProbabilities *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count);
-                        t += deltaTime / prodOfHitProbabilities - deltaTime;
-                    }
-                }
-
-                return t;
-            }*/
         }
 
         public override double DifficultyValue()
         {
             if (difficulties.Count == 0) return 0;
 
-            return difficulties.Count > 2 * bin_dimension_length * bin_dimension_length ? DifficultyValueBinned() : DifficultyValueExact();
+            return difficulties.Count > 4 * difficulty_bin_count ? DifficultyValueBinned() : DifficultyValueExact();
         }
     }
 }

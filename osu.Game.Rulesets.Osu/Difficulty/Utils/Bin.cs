@@ -19,19 +19,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         /// For example, on one dimension if we have bins with values [1,2,3,4,5] and want to insert the value 3.2,
         /// we will add 0.8 total to the count of 3's on that dimension and 0.2 total to the count of 4's.
         /// </summary>
-        public static Bin[,] CreateBins(List<double> difficulties, List<double> times, int binDimensionLength)
+        public static Bin[,] CreateBins(List<double> difficulties, List<double> times, int difficultyDimensionLength, int timeDimensionLength)
         {
             double maxDifficulty = difficulties.Max();
             double endTime = times.Last();
 
-            var bins = new Bin[binDimensionLength, binDimensionLength];
+            var bins = new Bin[timeDimensionLength, difficultyDimensionLength];
 
-            for (int i = 0; i < binDimensionLength; i++)
+            for (int i = 0; i < timeDimensionLength; i++)
             {
-                for (int j = 0; j < binDimensionLength; j++)
+                double time = endTime * (i + 1) / timeDimensionLength;
+
+                for (int j = 0; j < difficultyDimensionLength; j++)
                 {
-                    bins[i, j].Time = endTime * (i + 1) / binDimensionLength;
-                    bins[i, j].Difficulty = maxDifficulty * (j + 1) / binDimensionLength;
+                    bins[i, j].Time = time;
+                    bins[i, j].Difficulty = maxDifficulty * (j + 1) / difficultyDimensionLength;
                 }
             }
 
@@ -40,17 +42,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 
             for (int i = 0; i < minimumCount; i++)
             {
-                double difficultyBinIndex = binDimensionLength * (difficulties[i] / maxDifficulty) - 1;
-                double timeBinIndex = binDimensionLength * (times[i] / endTime) - 1;
+                double timeBinIndex = timeDimensionLength * (times[i] / endTime) - 1;
+                double difficultyBinIndex = difficultyDimensionLength * (difficulties[i] / maxDifficulty) - 1;
 
                 // Cap the upper bounds to dimension length - 1. If they're higher, then dt/tt will be 0 anyway, so it doesn't matter.
-                int difficultyLowerBound = (int)Math.Floor(difficultyBinIndex);
-                int difficultyUpperBound = Math.Min(difficultyLowerBound + 1, binDimensionLength - 1);
-                double dt = difficultyBinIndex - difficultyLowerBound;
-
                 int timeLowerBound = (int)Math.Floor(timeBinIndex);
-                int timeUpperBound = Math.Min(timeLowerBound + 1, binDimensionLength - 1);
+                int timeUpperBound = Math.Min(timeLowerBound + 1, timeDimensionLength - 1);
                 double tt = timeBinIndex - timeLowerBound;
+
+                int difficultyLowerBound = (int)Math.Floor(difficultyBinIndex);
+                int difficultyUpperBound = Math.Min(difficultyLowerBound + 1, difficultyDimensionLength - 1);
+                double dt = difficultyBinIndex - difficultyLowerBound;
 
                 // Store the time and difficulty values into the nearest 4 buckets.
                 // The lower bounds can be -1, corresponding to buckets with 0 difficulty or at 0 time.
