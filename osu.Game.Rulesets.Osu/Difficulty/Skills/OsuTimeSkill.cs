@@ -18,9 +18,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
         }
 
-        // The width of each dimension of the bins. Since the array of bins is 2 dimensional, the number of bins is equal to these values squared.
+        // The width of each dimension of the bins. Since the array of bins is 2 dimensional, the number of bins is equal to these values multiplied together.
         private const int difficulty_bin_count = 8;
-        private const int time_bin_count = 8;
+        private const int time_bin_count = 12;
 
         // Assume players spend 12 minutes retrying a map before they FC
         private const double time_threshold = 12;
@@ -100,28 +100,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
                 double t = 0;
                 double prodOfHitProbabilities = 1;
-                double prevProd = 1;
 
                 for (int timeIndex = time_bin_count - 1; timeIndex >= 0; timeIndex--)
                 {
                     double deltaTime = times.LastOrDefault() / time_bin_count;
 
-                    double currProd = 1;
-
                     for (int difficultyIndex = 0; difficultyIndex < difficulty_bin_count; difficultyIndex++)
                     {
                         Bin bin = bins[difficulty_bin_count * timeIndex + difficultyIndex];
 
-                        // Divide bin count by 2, otherwise the calc assumes every note in the bin is the first, inflating SR slightly.
-                        currProd *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count / 2);
+                        prodOfHitProbabilities *= Math.Pow(HitProbability(s, bin.Difficulty), bin.Count);
                     }
 
-                    prodOfHitProbabilities *= currProd * prevProd;
-
                     t += deltaTime / prodOfHitProbabilities - deltaTime;
-
-                    // Since we are dividing the bin count in half, add the current prod to a variable to be multiplied back in, because every note /will/ be after by then.
-                    prevProd = currProd;
                 }
 
                 return t;
