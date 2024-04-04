@@ -5,12 +5,13 @@ using System;
 
 namespace osu.Game.Rulesets.Taiko.Difficulty.Utils
 {
-    public static class Chandrupatla
+    public static class RootFinding
     {
         /// <summary>
         /// Finds the root of a <paramref name="function"/>, expanding the bounds if the root is not located within.
         /// Expansion only occurs for the upward bound, as this function is optimized for functions of range [0, x),
         /// which is useful for finding skill level (skill can never be below 0).
+        /// Uses the Chandrupatla method, an improvement on Brent.
         /// </summary>
         /// <param name="function">The function of which to find the root.</param>
         /// <param name="guessLowerBound">The lower bound of the function inputs.</param>

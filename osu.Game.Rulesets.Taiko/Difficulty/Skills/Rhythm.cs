@@ -15,6 +15,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Skills
     /// </summary>
     public class Rhythm : TaikoProbSkill
     {
+        protected override double FcProbability => 0.02;
         protected override double SkillMultiplier => 70;
 
         /// <summary>

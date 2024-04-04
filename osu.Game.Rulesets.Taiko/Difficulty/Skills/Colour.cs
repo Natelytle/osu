@@ -13,6 +13,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Skills
     /// </summary>
     public class Colour : TaikoProbSkill
     {
+        protected override double FcProbability => 0.02;
         protected override double SkillMultiplier => 0.7;
 
         private double currentStrain;
