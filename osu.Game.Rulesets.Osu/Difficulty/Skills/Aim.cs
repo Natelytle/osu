@@ -4,7 +4,7 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
+using osu.Game.Rulesets.Osu.Difficulty.Evaluators.AimEvaluator;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills

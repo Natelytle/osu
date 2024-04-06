@@ -54,9 +54,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
 
             double aimValue = computeAimValue(score, osuAttributes);
-            double speedValue = computeSpeedValue(score, osuAttributes);
+            // double speedValue = computeSpeedValue(score, osuAttributes);
             double accuracyValue = computeAccuracyValue(score, osuAttributes);
-            double totalValue = speedValue + accuracyValue;
+            double totalValue = aimValue + accuracyValue;
 
             return new OsuPerformanceAttributes
             {
@@ -78,9 +78,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimDifficulty = aim.DifficultyValue(effectiveMissCount);
 
-            return aimDifficulty * 100;
+            return Math.Pow(aimDifficulty, 1.5) * 20;
         }
 
+        /*
         private double computeSpeedValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
             var speed = new Speed(score.Mods);
@@ -94,6 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             return speedDifficulty;
         }
+        */
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {

@@ -24,7 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     {
         public override int Version => 20220902;
 
-        private const double aim_multiplier = 0.75;
+        public const double AIM_MULTIPLIER = 2;
         private const double speed_multiplier = 0.01;
 
         public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
@@ -37,8 +37,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
 
-            double aimRating = skills[0].DifficultyValue() * aim_multiplier;
-            double speedRating = skills[1].DifficultyValue() * speed_multiplier;
+            double aimRating = skills[0].DifficultyValue() * AIM_MULTIPLIER;
+            // double speedRating = skills[1].DifficultyValue() * speed_multiplier;
 
             if (mods.Any(m => m is OsuModTouchDevice))
             {
@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimRating *= 0.9;
             }
 
-            double starRating = speedRating;
+            double starRating = Math.Sqrt(aimRating);
 
             double preempt = IBeatmapDifficultyInfo.DifficultyRange(beatmap.Difficulty.ApproachRate, 1800, 1200, 450) / clockRate;
             double drainRate = beatmap.Difficulty.DrainRate;
