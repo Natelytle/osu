@@ -156,7 +156,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 float dot = Vector2.Dot(v1, v2);
                 float det = v1.X * v2.Y - v1.Y * v2.X;
 
-                Angle = Math.Abs(Math.Atan2(det, dot));
+                Angle = 180 - 180 / Math.PI * Math.Abs(Math.Atan2(det, dot));
             }
         }
     }
