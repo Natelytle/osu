@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
 {
@@ -19,7 +20,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private int countOk;
         private int countMeh;
         private int countMiss;
-        private double scoreAccuracy;
 
         public ManiaPerformanceCalculator()
             : base(new ManiaRuleset())
@@ -36,7 +36,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countOk = score.Statistics.GetValueOrDefault(HitResult.Ok);
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
-            scoreAccuracy = calculateCustomAccuracy();
 
             // Arbitrary initial value for scaling pp in order to standardize distributions across game modes.
             // The specific number has no intrinsic meaning and can be adjusted as needed.
@@ -59,23 +58,59 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double difficultyValue = Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
-                                     * Math.Max(0, 5 * scoreAccuracy - 4); // From 80% accuracy, 1/20th of total pp is awarded per additional 1% accuracy
+            double difficultyValue = Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
+
+            if (countPerfect != totalHits)
+                difficultyValue *= Math.Pow(judgementPenalty(attributes), 2.2); // Skill penalty, raised to the power of 2.2 since PP is skill^2.2.
 
             return difficultyValue;
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;
 
-        /// <summary>
-        /// Accuracy used to weight judgements independently from the score's actual accuracy.
-        /// </summary>
-        private double calculateCustomAccuracy()
+        private double judgementPenalty(ManiaDifficultyAttributes attributes)
         {
             if (totalHits == 0)
                 return 0;
 
-            return (countPerfect * 320 + countGreat * 300 + countGood * 200 + countOk * 100 + countMeh * 50) / (totalHits * 320);
+            double likelihoodOfJudgements(double penalty)
+            {
+                if (penalty < 0 || penalty > 1)
+                    return double.PositiveInfinity;
+
+                double p300 = quartic(penalty, attributes.Coefficients300, true) / totalHits;
+                double p200 = quartic(penalty, attributes.Coefficients200, true) / totalHits;
+                double p100 = quartic(penalty, attributes.Coefficients100, true) / totalHits;
+                double p50 = quartic(penalty, attributes.Coefficients50, true) / totalHits;
+                double p0 = quartic(penalty, attributes.Coefficients0, false) / totalHits;
+
+                double p320 = 1 - p300 - p200 - p100 - p50 - p0;
+
+                double likelihood = Math.Pow(p320, countPerfect / totalHits)
+                                    * Math.Pow(p300, countGreat / totalHits)
+                                    * Math.Pow(p200, countGood / totalHits)
+                                    * Math.Pow(p100, countOk / totalHits)
+                                    * Math.Pow(p50, countMeh / totalHits)
+                                    * Math.Pow(p0, countMiss / totalHits);
+
+                return -likelihood;
+            }
+
+            var objective = new ValueObjectiveFunction(v => likelihoodOfJudgements(v[0]));
+
+            double penalty = NelderMeadSimplex.Minimum(objective, 0.2, 1e-6, 1000);
+
+            return 1 - penalty;
+        }
+
+        private double quartic(double x, (double, double, double) coefficients, bool endAtZero)
+        {
+            double a = coefficients.Item1;
+            double b = coefficients.Item2;
+            double c = coefficients.Item3;
+            double d = endAtZero ? -(a + b + c) : Math.Log(totalHits + 1) - a - b - c;
+
+            return Math.Clamp(Math.Exp(a * x * x * x * x + b * x * x * x + c * x * x + d * x) - 1, 1e-5, Math.Log(totalHits + 1));
         }
     }
 }

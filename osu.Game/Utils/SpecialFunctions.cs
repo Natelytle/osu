@@ -248,23 +248,24 @@ namespace osu.Game.Utils
         ///     <list type="bullet">
         ///         <item>returns 1 if <c>x == double.PositiveInfinity</c>.</item>
         ///         <item>returns -1 if <c>x == double.NegativeInfinity</c>.</item>
+        ///         <item>can evaluate <c>x</c> without rounding for values up to <c>27.25</c>.</item>
         ///     </list>
         /// </remarks>
-        public static double Erf(double x)
+        public static LogVal Erf(double x)
         {
+            if (double.IsNegativeInfinity(x))
+            {
+                return new LogVal(-1);
+            }
+
             if (x == 0)
             {
-                return 0;
+                return new LogVal(0);
             }
 
             if (double.IsPositiveInfinity(x))
             {
-                return 1;
-            }
-
-            if (double.IsNegativeInfinity(x))
-            {
-                return -1;
+                return new LogVal(1);
             }
 
             if (double.IsNaN(x))
@@ -272,7 +273,7 @@ namespace osu.Game.Utils
                 return double.NaN;
             }
 
-            return erfImp(x, false);
+            return 1.0 - Erfc(x);
         }
 
         /// <summary>Calculates the complementary error function.</summary>
@@ -282,23 +283,24 @@ namespace osu.Game.Utils
         ///     <list type="bullet">
         ///         <item>returns 0 if <c>x == double.PositiveInfinity</c>.</item>
         ///         <item>returns 2 if <c>x == double.NegativeInfinity</c>.</item>
+        ///         <item>can evaluate <c>x</c> without rounding for values up to <c>10^308</c>.</item>
         ///     </list>
         /// </remarks>
-        public static double Erfc(double x)
+        public static LogVal Erfc(double x)
         {
+            if (double.IsNegativeInfinity(x))
+            {
+                return new LogVal(2);
+            }
+
             if (x == 0)
             {
-                return 1;
+                return new LogVal(1);
             }
 
             if (double.IsPositiveInfinity(x))
             {
-                return 0;
-            }
-
-            if (double.IsNegativeInfinity(x))
-            {
-                return 2;
+                return new LogVal(0);
             }
 
             if (double.IsNaN(x))
@@ -306,7 +308,7 @@ namespace osu.Game.Utils
                 return double.NaN;
             }
 
-            return erfImp(x, true);
+            return x <= 5 ? erfImp(x, true) : LogVal.ToLogValNoConversion(-Math.Pow(x, 2) - Math.Log(x * Math.Sqrt(Math.PI)));
         }
 
         /// <summary>Calculates the inverse error function evaluated at z.</summary>
@@ -719,7 +721,7 @@ namespace osu.Game.Utils
         /// <param name="stddev">The standard deviation (σ) of the normal distribution. Range: σ ≥ 0.</param>
         /// <returns>the cumulative distribution at location <paramref name="x"/>.</returns>
         /// <remarks>MATLAB: normcdf</remarks>
-        public static double NormalCdf(double mean, double stddev, double x)
+        public static LogVal NormalCdf(double mean, double stddev, double x)
         {
             if (stddev < 0.0)
             {
@@ -727,6 +729,59 @@ namespace osu.Game.Utils
             }
 
             return 0.5 * Erfc((mean - x) / (stddev * sqrt2));
+        }
+
+        /// <summary>
+        /// Computes the cumulative distribution (CDF) of the distribution at x, i.e. P(X ≤ x).
+        /// </summary>
+        /// <param name="x">The location at which to compute the cumulative distribution function.</param>
+        /// <param name="mean">The mean (μ) of the normal distribution.</param>
+        /// <param name="stddev">The standard deviation (σ) of the normal distribution. Range: σ ≥ 0.</param>
+        /// <returns>the cumulative distribution at location <paramref name="x"/>.</returns>
+        /// <remarks>MATLAB: normcdf</remarks>
+        public static LogVal NormalCdfc(double mean, double stddev, double x)
+        {
+            if (stddev < 0.0)
+            {
+                throw new ArgumentException("Invalid parametrization for the distribution.");
+            }
+
+            return 0.5 * Erfc((x - mean) / (stddev * sqrt2));
+        }
+
+        /// <summary>
+        /// Computes ln(1+x) with good relative precision when |x| is small
+        /// </summary>
+        /// <param name="x">The parameter for which to compute the log1p function. Range: x > 0.</param>
+        // ReSharper disable once InconsistentNaming
+        public static double Log1p(double x)
+        {
+            double y0 = Math.Log(1.0 + x);
+
+            if ((-0.2928 < x) && (x < 0.4142))
+            {
+                double y = y0;
+
+                if (y == 0.0)
+                {
+                    y = 1.0;
+                }
+                else if ((y < -0.69) || (y > 0.4))
+                {
+                    y = (Math.Exp(y) - 1.0) / y;
+                }
+                else
+                {
+                    double t = y / 2.0;
+                    y = Math.Exp(t) * Math.Sinh(t) / t;
+                }
+
+                double s = y0 * y;
+                double r = (s - x) / (s + 1.0);
+                y0 = y0 - r * (6 - r) / (6 - 4 * r);
+            }
+
+            return y0;
         }
     }
 }

@@ -46,9 +46,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
+            (double, double, double) coefficients300 = ((Strain)skills[0]).GetJudgementCountCoefficients(1);
+            (double, double, double) coefficients200 = ((Strain)skills[0]).GetJudgementCountCoefficients(2);
+            (double, double, double) coefficients100 = ((Strain)skills[0]).GetJudgementCountCoefficients(3);
+            (double, double, double) coefficients50 = ((Strain)skills[0]).GetJudgementCountCoefficients(4);
+            (double, double, double) coefficients0 = ((Strain)skills[0]).GetJudgementCountCoefficients(5);
+
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
                 StarRating = skills[0].DifficultyValue() * star_scaling_factor,
+                Coefficients300 = coefficients300,
+                Coefficients200 = coefficients200,
+                Coefficients100 = coefficients100,
+                Coefficients50 = coefficients50,
+                Coefficients0 = coefficients0,
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.

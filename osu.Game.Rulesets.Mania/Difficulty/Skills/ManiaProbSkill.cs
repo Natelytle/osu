@@ -16,7 +16,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
     public abstract class ManiaProbSkill : Skill
     {
         private const double mistap_multiplier = 3;
-        private const double acc_multiplier = 60;
+        private const double acc_multiplier = 200;
         private const double ss_prob = 0.02;
 
         private readonly List<double> difficulties = new List<double>();
@@ -35,9 +35,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             hitWindows = classicBehaviour ? HitWindows.GetLegacyHitWindows(mods, false, overallDifficulty) : HitWindows.GetLazerHitWindows(mods, overallDifficulty);
         }
 
-        private double hitProbOf(double difficulty, double skill, double hitWindow) => SpecialFunctions.Erf(skill * hitWindow / (Math.Sqrt(2) * difficulty * acc_multiplier));
+        private LogVal missProbOf(double difficulty, double skill, double hitWindow) => SpecialFunctions.Erfc(skill * hitWindow / (Math.Sqrt(2) * difficulty * acc_multiplier));
 
-        private double[] getJudgementProbsOf(double skill, double difficulty)
+        private LogVal[] getJudgementProbsOf(double skill, double difficulty)
         {
             if (skill == 0) return [0.0, 0.0, 0.0, 0.0, 0.0, 1.0];
             if (difficulty == 0) return [1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
@@ -46,12 +46,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             // Mistaps are always assumed to result in misses. Subject to change.
             double mistapProb = 1 - Math.Tanh(skill / (difficulty * mistap_multiplier));
 
-            double prob320 = hitProbOf(difficulty, skill, hitWindows[0]) * (1 - mistapProb);
-            double prob300 = (hitProbOf(difficulty, skill, hitWindows[1]) - hitProbOf(difficulty, skill, hitWindows[0])) * (1 - mistapProb);
-            double prob200 = (hitProbOf(difficulty, skill, hitWindows[2]) - hitProbOf(difficulty, skill, hitWindows[1])) * (1 - mistapProb);
-            double prob100 = (hitProbOf(difficulty, skill, hitWindows[3]) - hitProbOf(difficulty, skill, hitWindows[2])) * (1 - mistapProb);
-            double prob50 = (hitProbOf(difficulty, skill, hitWindows[4]) - hitProbOf(difficulty, skill, hitWindows[3])) * (1 - mistapProb);
-            double prob0 = 1 - hitProbOf(difficulty, skill, hitWindows[4]);
+            LogVal prob320 = (1 - missProbOf(difficulty, skill, hitWindows[0])) * (1 - mistapProb);
+            LogVal prob300 = (missProbOf(difficulty, skill, hitWindows[0]) - missProbOf(difficulty, skill, hitWindows[1])) * (1 - mistapProb);
+            LogVal prob200 = (missProbOf(difficulty, skill, hitWindows[1]) - missProbOf(difficulty, skill, hitWindows[2])) * (1 - mistapProb);
+            LogVal prob100 = (missProbOf(difficulty, skill, hitWindows[2]) - missProbOf(difficulty, skill, hitWindows[3])) * (1 - mistapProb);
+            LogVal prob50 = (missProbOf(difficulty, skill, hitWindows[3]) - missProbOf(difficulty, skill, hitWindows[4])) * (1 - mistapProb);
+            LogVal prob0 = missProbOf(difficulty, skill, hitWindows[4]);
 
             prob0 = prob0 + mistapProb - prob0 * mistapProb;
 
@@ -61,6 +61,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         public override void Process(DifficultyHitObject current)
         {
             difficulties.Add(StrainValueAt(current));
+
+            if (!classicBehaviour)
+                difficulties.Add(StrainValueAt(current));
         }
 
         private double difficultyValueBinned()
@@ -79,13 +82,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 upperBoundEstimate,
                 accuracy: 1e-4);
 
-            return skill;
+            skillToSS = skill;
+
+            return skillToSS;
 
             double fcProbability(double s)
             {
                 if (s <= 0) return 0;
 
-                return bins.Aggregate(1.0, (current, bin) => current * Math.Pow(getJudgementProbsOf(s, bin.Difficulty)[0], bin.Count));
+                LogVal fcProb = bins.Aggregate(new LogVal(1), (current, bin) => current * LogVal.Pow(getJudgementProbsOf(s, bin.Difficulty)[0], bin.Count));
+
+                return fcProb.TrueValue;
             }
         }
 
@@ -111,7 +118,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             {
                 if (s <= 0) return 0;
 
-                return difficulties.Aggregate<double, double>(1, (current, d) => current * getJudgementProbsOf(s, d)[0]);
+                LogVal fcProb = difficulties.Aggregate(new LogVal(1), (current, d) => current * getJudgementProbsOf(s, d)[0]);
+
+                return fcProb.TrueValue;
             }
         }
 
@@ -120,7 +129,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (difficulties.Count == 0)
                 return 0;
 
-            return difficulties.Count < 64 ? difficultyValueExact() : difficultyValueBinned();
+            skillToSS = difficulties.Count < 64 ? difficultyValueExact() : difficultyValueBinned();
+
+            return skillToSS;
         }
 
         /// <summary>
@@ -132,8 +143,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             if (maxDiff == 0)
                 return 0;
+
             if (skill <= 0)
-                return difficulties.Count;
+            {
+                if (judgementId == 5)
+                    return difficulties.Count;
+
+                return 0;
+            }
 
             PoissonBinomial poiBin;
 
@@ -147,7 +164,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 poiBin = new PoissonBinomial(difficulties, skill, (s, d) => getJudgementProbsOf(s, d)[judgementId]);
             }
 
-            return Math.Max(0, RootFinding.FindRootExpand(x => poiBin.CDF(x) - ss_prob, -50, 1000, accuracy: 1e-4));
+            double count = Math.Max(0, RootFinding.FindRootExpand(x => poiBin.CDF(x) - ss_prob, -50, 1000, accuracy: 1e-4));
+
+            return count;
         }
 
         protected abstract double StrainValueAt(DifficultyHitObject current);

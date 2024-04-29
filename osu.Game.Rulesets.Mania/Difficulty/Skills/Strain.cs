@@ -6,6 +6,7 @@ using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
@@ -106,5 +107,37 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double applyDecay(double value, double deltaTime, double decayBase)
             => value * Math.Pow(decayBase, deltaTime / 1000);
+
+        /// <summary>
+        /// The coefficients of a quartic fitted to the miss counts at each skill level.
+        /// </summary>
+        /// <returns>The coefficients for ax^4+bx^3+cx^2. The 4th coefficient for dx^1 can be deduced from the first 3 in the performance calculator.</returns>
+        public (double, double, double) GetJudgementCountCoefficients(int judgementId)
+        {
+            const int count = 21;
+            const double penalty_per_misscount = 1.0 / (count - 1);
+
+            double skillToSS = GetSkillToSS();
+
+            double[] misscounts = new double[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                if (i == 0)
+                {
+                    misscounts[i] = 0;
+                    continue;
+                }
+
+                double penalizedSkill = skillToSS - skillToSS * penalty_per_misscount * i;
+
+                // Save misscounts as log form to give higher weight to lower values. Add 1 so that the lowest misscounts remain above 0.
+                misscounts[i] = Math.Log(GetJudgementCountAtSkill(penalizedSkill, judgementId) + 1);
+            }
+
+            double[] constants = FitMissCountPoints.GetPolynomialCoefficients(misscounts, judgementId == 5);
+
+            return (constants[0], constants[1], constants[2]);
+        }
     }
 }

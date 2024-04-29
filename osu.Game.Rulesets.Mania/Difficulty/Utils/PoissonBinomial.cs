@@ -28,17 +28,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// <summary>
         /// The expected value of the distribution.
         /// </summary>
-        private readonly double mu;
+        private readonly LogVal mu = 0;
 
         /// <summary>
         /// The standard deviation of the distribution.
         /// </summary>
-        private readonly double sigma;
+        private readonly LogVal sigma;
 
         /// <summary>
         /// The gamma factor from equation (11) in the cited paper, pre-divided by 6 to save on re-computation.
         /// </summary>
-        private readonly double v;
+        private readonly LogVal v;
 
         /// <summary>
         /// Creates a Poisson binomial distribution based on N trials with the provided difficulties, skill, and method for getting the miss probabilities.
@@ -46,23 +46,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// <param name="difficulties">The list of difficulties in the map.</param>
         /// <param name="skill">The skill level to get the miss probabilities with.</param>
         /// <param name="hitProbability">Converts difficulties and skill to miss probabilities.</param>
-        public PoissonBinomial(IList<double> difficulties, double skill, Func<double, double, double> hitProbability)
+        public PoissonBinomial(IList<double> difficulties, double skill, Func<double, double, LogVal> hitProbability)
         {
-            double variance = 0;
-            double gamma = 0;
+            LogVal variance = 0;
+            LogVal gamma = 0;
 
             foreach (double d in difficulties)
             {
-                double p = 1 - hitProbability(skill, d);
+                LogVal p = hitProbability(skill, d);
 
                 mu += p;
                 variance += p * (1 - p);
                 gamma += p * (1 - p) * (1 - 2 * p);
             }
 
-            sigma = Math.Sqrt(variance);
+            sigma = LogVal.Pow(variance, 1 / 2.0);
 
-            v = gamma / (6 * Math.Pow(sigma, 3));
+            v = gamma / (6 * LogVal.Pow(sigma, 3));
         }
 
         /// <summary>
@@ -71,23 +71,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// <param name="bins">The bins of difficulties in the map.</param>
         /// <param name="skill">The skill level to get the miss probabilities with.</param>
         /// /// <param name="hitProbability">Converts difficulties and skill to miss probabilities.</param>
-        public PoissonBinomial(Bin[] bins, double skill, Func<double, double, double> hitProbability)
+        public PoissonBinomial(Bin[] bins, double skill, Func<double, double, LogVal> hitProbability)
         {
-            double variance = 0;
-            double gamma = 0;
+            LogVal variance = 0;
+            LogVal gamma = 0;
 
             foreach (Bin bin in bins)
             {
-                double p = 1 - hitProbability(skill, bin.Difficulty);
+                // Infinitesimally hitProbability values get rounded down to 0, so let's correct that to prevent NaN values.
+                LogVal p = hitProbability(skill, bin.Difficulty);
 
                 mu += p * bin.Count;
                 variance += p * (1 - p) * bin.Count;
                 gamma += p * (1 - p) * (1 - 2 * p) * bin.Count;
             }
 
-            sigma = Math.Sqrt(variance);
+            sigma = LogVal.Pow(variance, 1 / 2.0);
 
-            v = gamma / (6 * Math.Pow(sigma, 3));
+            v = gamma / (6 * LogVal.Pow(sigma, 3));
         }
 
         /// <summary>
@@ -106,15 +107,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         // ReSharper disable once InconsistentNaming
         public double CDF(double count)
         {
-            if (sigma == 0)
+            if (sigma == new LogVal(0))
                 return 1;
 
-            double k = (count + 0.5 - mu) / sigma;
+            LogVal k = (count - mu) / sigma;
 
             // see equation (14) of the cited paper
-            double result = SpecialFunctions.NormalCdf(0, 1, k) + v * (1 - k * k) * SpecialFunctions.NormalPdf(0, 1, k);
+            LogVal result = SpecialFunctions.NormalCdfc(0, 1, k.TrueValue) - v * (1 - k * k) * SpecialFunctions.NormalPdf(0, 1, k.TrueValue);
 
-            return Math.Clamp(result, 0, 1);
+            LogVal debug = SpecialFunctions.NormalCdfc(0, 1, k.TrueValue);
+
+            return Math.Clamp(1 - result.TrueValue, 0.0, 1.0);
         }
     }
 }

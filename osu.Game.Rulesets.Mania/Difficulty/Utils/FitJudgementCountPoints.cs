@@ -16,21 +16,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             new[] { 0.0, -7.21754, -9.85841, -9.24217, -6.5276, -2.71265, 1.36553, 5.03057, 7.76692, 9.21984, 9.19538, 7.66039, 4.74253, 0.730255, -3.92717, -8.61967, -12.5764, -14.8657, -14.395, -9.91114, 0.0 }
         };
 
-        public static double[] GetPolynomialCoefficients(double[] missCounts)
+        public static double[] GetPolynomialCoefficients(double[] judgementCounts, bool endPointAtZero = false)
         {
-            double[] adjustedMissCounts = missCounts;
+            double[] adjustedJudgementCounts = judgementCounts;
 
-            // The polynomial will pass through the point (1, maxMisscount).
-            double maxMissCount = missCounts.Max();
+            // The polynomial will pass through the point (1, endPoint).
+            // As skill approaches 0, misses approach the number of notes,
+            // but all other judgements approach 0.
+            double endPoint = endPointAtZero ? 0 : judgementCounts.Max();
 
             for (int i = 0; i <= 20; i++)
             {
-                adjustedMissCounts[i] -= maxMissCount * i / 20;
+                adjustedJudgementCounts[i] -= endPoint * i / 20;
             }
 
             // The precomputed matrix assumes the misscounts go in order of greatest to least.
             // Temporary fix.
-            adjustedMissCounts = adjustedMissCounts.Reverse().ToArray();
+            adjustedJudgementCounts = adjustedJudgementCounts.Reverse().ToArray();
 
             double[] coefficients = new double[3];
 
@@ -39,7 +41,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             {
                 for (int column = 0; column < precomputedOperationsMatrix[row].Length; column++)
                 {
-                    coefficients[row] += precomputedOperationsMatrix[row][column] * adjustedMissCounts[column];
+                    coefficients[row] += precomputedOperationsMatrix[row][column] * adjustedJudgementCounts[column];
                 }
             }
 
