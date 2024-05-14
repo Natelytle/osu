@@ -11,6 +11,7 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Scoring;
 using osu.Game.Utils;
 
 namespace osu.Game.Tests.NonVisual
@@ -215,14 +216,14 @@ namespace osu.Game.Tests.NonVisual
         private class TestLegacyDifficultyCalculator : DifficultyCalculator
         {
             public TestLegacyDifficultyCalculator(params Mod[] mods)
-                : base(null, null)
+                : base(null)
             {
                 DifficultyAdjustmentMods = mods;
             }
 
             protected override Mod[] DifficultyAdjustmentMods { get; }
 
-            protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
+            protected override (DifficultyAttributes, PerformanceAttributes?) CreateAttributes(IBeatmap beatmap, Mod[] mods, ScoreInfo? scoreInfo, Skill[] skills, double clockRate)
             {
                 throw new NotImplementedException();
             }

@@ -19,6 +19,7 @@ using osu.Game.Rulesets.Mania.Scoring;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
 {
@@ -32,13 +33,34 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         public override int Version => 20230817;
 
         public ManiaDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
-            : base(ruleset, beatmap)
+            : base(ruleset)
         {
             isForCurrentRuleset = beatmap.BeatmapInfo.Ruleset.MatchesOnlineID(ruleset);
             originalOverallDifficulty = beatmap.BeatmapInfo.Difficulty.OverallDifficulty;
         }
 
-        protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
+        private static int maxComboForObject(HitObject hitObject)
+        {
+            if (hitObject is HoldNote hold)
+                return 1 + (int)((hold.EndTime - hold.StartTime) / 100);
+
+            return 1;
+        }
+
+        protected override (DifficultyAttributes, PerformanceAttributes?) CreateAttributes(IBeatmap beatmap, Mod[] mods, ScoreInfo? scoreInfo, Skill[] skills, double clockRate)
+        {
+            DifficultyAttributes difficultyAttributes = createDifficultyAttributes(beatmap, mods, skills, clockRate);
+
+            if (scoreInfo is null)
+                return (difficultyAttributes, null);
+
+            ManiaPerformanceCalculator performanceCalculator = new ManiaPerformanceCalculator();
+            PerformanceAttributes performanceAttributes = performanceCalculator.CreatePerformanceAttributes(scoreInfo, difficultyAttributes);
+
+            return (difficultyAttributes, performanceAttributes);
+        }
+
+        private DifficultyAttributes createDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
         {
             if (beatmap.HitObjects.Count == 0)
                 return new ManiaDifficultyAttributes { Mods = mods };
@@ -57,14 +79,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             };
 
             return attributes;
-        }
-
-        private static int maxComboForObject(HitObject hitObject)
-        {
-            if (hitObject is HoldNote hold)
-                return 1 + (int)((hold.EndTime - hold.StartTime) / 100);
-
-            return 1;
         }
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)

@@ -19,15 +19,12 @@ using osu.Game.Database;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Online.API;
 using osu.Game.Rulesets;
-using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Screens;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Ranking.Expanded.Accuracy;
-using osu.Game.Screens.Ranking.Expanded.Statistics;
 using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Skinning;
 using osu.Game.Tests.Resources;
@@ -338,23 +335,6 @@ namespace osu.Game.Tests.Visual.Ranking
             AddAssert("download button is enabled", () => screen.ChildrenOfType<DownloadButton>().Last().Enabled.Value);
         }
 
-        [Test]
-        public void TestRulesetWithNoPerformanceCalculator()
-        {
-            var ruleset = new RulesetWithNoPerformanceCalculator();
-            var score = TestResources.CreateTestScoreInfo(ruleset.RulesetInfo);
-
-            loadResultsScreen(() => createResultsScreen(score));
-            AddUntilStep("wait for load", () => this.ChildrenOfType<ScorePanelList>().Single().AllPanelsVisible);
-
-            AddAssert("PP displayed as 0", () =>
-            {
-                var performance = this.ChildrenOfType<PerformanceStatistic>().Single();
-                var counter = performance.ChildrenOfType<StatisticCounter>().Single();
-                return counter.Current.Value == 0;
-            });
-        }
-
         private void loadResultsScreen(Func<ResultsScreen> createResults)
         {
             ResultsScreen results = null;
@@ -484,11 +464,6 @@ namespace osu.Game.Tests.Visual.Ranking
 
                 RetryOverlay = InternalChildren.OfType<HotkeyRetryOverlay>().SingleOrDefault();
             }
-        }
-
-        private class RulesetWithNoPerformanceCalculator : OsuRuleset
-        {
-            public override PerformanceCalculator CreatePerformanceCalculator() => null!;
         }
     }
 }

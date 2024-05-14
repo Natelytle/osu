@@ -262,12 +262,6 @@ namespace osu.Game.Rulesets
 
         public abstract DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap);
 
-        /// <summary>
-        /// Optionally creates a <see cref="PerformanceCalculator"/> to generate performance data from the provided score.
-        /// </summary>
-        /// <returns>A performance calculator instance for the provided score.</returns>
-        public virtual PerformanceCalculator? CreatePerformanceCalculator() => null;
-
         public virtual HitObjectComposer? CreateHitObjectComposer() => null;
 
         public virtual IBeatmapVerifier? CreateBeatmapVerifier() => null;

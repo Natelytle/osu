@@ -1,20 +1,17 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-#nullable disable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
-using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Track;
-using osu.Framework.Extensions;
 using osu.Framework.Graphics.Textures;
 using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Beatmaps.Timing;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
@@ -32,43 +29,31 @@ namespace osu.Game.Screens.Play.HUD
         public bool UsesFixedAnchor { get; set; }
 
         [Resolved]
-        private ScoreProcessor scoreProcessor { get; set; }
+        private ScoreProcessor? scoreProcessor { get; set; }
 
         [Resolved]
-        private GameplayState gameplayState { get; set; }
-
-        [CanBeNull]
-        private List<TimedDifficultyAttributes> timedAttributes;
+        private GameplayState? gameplayState { get; set; }
 
         private readonly CancellationTokenSource loadCancellationSource = new CancellationTokenSource();
 
-        private JudgementResult lastJudgement;
-        private PerformanceCalculator performanceCalculator;
-        private ScoreInfo scoreInfo;
+        private JudgementResult? lastJudgement;
+        private DifficultyCalculator? difficultyCalculator;
+        private ScoreInfo scoreInfo = null!;
+        private IWorkingBeatmap? gameplayWorkingBeatmap;
 
-        private Mod[] clonedMods;
+        private Mod[]? clonedMods;
 
         [BackgroundDependencyLoader]
         private void load(BeatmapDifficultyCache difficultyCache)
         {
             if (gameplayState != null)
             {
-                performanceCalculator = gameplayState.Ruleset.CreatePerformanceCalculator();
+                gameplayWorkingBeatmap = new GameplayWorkingBeatmap(gameplayState.Beatmap);
+
+                difficultyCalculator = gameplayState.Ruleset.CreateDifficultyCalculator(gameplayWorkingBeatmap);
                 clonedMods = gameplayState.Mods.Select(m => m.DeepClone()).ToArray();
 
                 scoreInfo = new ScoreInfo(gameplayState.Score.ScoreInfo.BeatmapInfo, gameplayState.Score.ScoreInfo.Ruleset) { Mods = clonedMods };
-
-                var gameplayWorkingBeatmap = new GameplayWorkingBeatmap(gameplayState.Beatmap);
-                difficultyCache.GetTimedDifficultyAttributesAsync(gameplayWorkingBeatmap, gameplayState.Ruleset, clonedMods, loadCancellationSource.Token)
-                               .ContinueWith(task => Schedule(() =>
-                               {
-                                   timedAttributes = task.GetResultSafely();
-
-                                   IsValid = true;
-
-                                   if (lastJudgement != null)
-                                       onJudgementChanged(lastJudgement);
-                               }), TaskContinuationOptions.OnlyOnRanToCompletion);
             }
         }
 
@@ -92,30 +77,35 @@ namespace osu.Game.Screens.Play.HUD
         {
             lastJudgement = judgement;
 
-            var attrib = getAttributeAtTime(judgement);
+            var beatmapUntilJudgement = getHomophobicBeatmap(judgement);
 
-            if (gameplayState == null || attrib == null || scoreProcessor == null)
+            if (gameplayState == null || beatmapUntilJudgement == null || scoreProcessor == null)
             {
                 IsValid = false;
                 return;
             }
 
             scoreProcessor.PopulateScore(scoreInfo);
-            Current.Value = (int)Math.Round(performanceCalculator?.Calculate(scoreInfo, attrib).Total ?? 0, MidpointRounding.AwayFromZero);
+            Current.Value = (int)Math.Round(difficultyCalculator?.Calculate(scoreInfo.Mods, beatmapUntilJudgement, scoreInfo).PerfAttribs?.Total ?? 0, MidpointRounding.AwayFromZero);
             IsValid = true;
         }
 
-        [CanBeNull]
-        private DifficultyAttributes getAttributeAtTime(JudgementResult judgement)
+        private GameplayWorkingBeatmap? getHomophobicBeatmap(JudgementResult judgement)
         {
-            if (timedAttributes == null || timedAttributes.Count == 0)
+            if (gameplayWorkingBeatmap == null)
                 return null;
 
-            int attribIndex = timedAttributes.BinarySearch(new TimedDifficultyAttributes(judgement.HitObject.GetEndTime(), null));
-            if (attribIndex < 0)
-                attribIndex = ~attribIndex - 1;
+            var objectStartTimes = gameplayWorkingBeatmap.Beatmap.HitObjects.Select(o => o.StartTime).ToList();
 
-            return timedAttributes[Math.Clamp(attribIndex, 0, timedAttributes.Count - 1)].Attributes;
+            int objectIndex = objectStartTimes.BinarySearch(judgement.HitObject.StartTime);
+            if (objectIndex < 0)
+                objectIndex = ~objectIndex - 1;
+
+            var trimmedGameplayBeatmap = new GameplayWorkingBeatmap(gameplayWorkingBeatmap.Beatmap);
+
+            trimmedGameplayBeatmap.HomophobicBeatmap.HitObjects = gameplayWorkingBeatmap.Beatmap.HitObjects.ToList()[..objectIndex];
+
+            return trimmedGameplayBeatmap;
         }
 
         protected override void Dispose(bool isDisposing)
@@ -134,18 +124,18 @@ namespace osu.Game.Screens.Play.HUD
         // TODO: This class shouldn't exist, but requires breaking changes to allow DifficultyCalculator to receive an IBeatmap.
         private class GameplayWorkingBeatmap : WorkingBeatmap
         {
-            private readonly IBeatmap gameplayBeatmap;
+            public readonly HomophobicBeatmap HomophobicBeatmap;
 
             public GameplayWorkingBeatmap(IBeatmap gameplayBeatmap)
                 : base(gameplayBeatmap.BeatmapInfo, null)
             {
-                this.gameplayBeatmap = gameplayBeatmap;
+                HomophobicBeatmap = new HomophobicBeatmap(gameplayBeatmap);
             }
 
             public override IBeatmap GetPlayableBeatmap(IRulesetInfo ruleset, IReadOnlyList<Mod> mods, CancellationToken cancellationToken)
-                => gameplayBeatmap;
+                => HomophobicBeatmap;
 
-            protected override IBeatmap GetBeatmap() => gameplayBeatmap;
+            protected override IBeatmap GetBeatmap() => HomophobicBeatmap;
 
             public override Texture GetBackground() => throw new NotImplementedException();
 
@@ -154,6 +144,55 @@ namespace osu.Game.Screens.Play.HUD
             protected internal override ISkin GetSkin() => throw new NotImplementedException();
 
             public override Stream GetStream(string storagePath) => throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Used to calculate timed difficulty attributes, where only a subset of hitobjects should be visible at any point in time.
+        /// </summary>
+        private class HomophobicBeatmap : IBeatmap
+        {
+            private readonly IBeatmap baseBeatmap;
+            public List<HitObject> HitObjects;
+
+            public HomophobicBeatmap(IBeatmap baseBeatmap)
+            {
+                this.baseBeatmap = baseBeatmap;
+                HitObjects = baseBeatmap.HitObjects.ToList();
+            }
+
+            IReadOnlyList<HitObject> IBeatmap.HitObjects => HitObjects;
+
+            #region Delegated IBeatmap implementation
+
+            public BeatmapInfo BeatmapInfo
+            {
+                get => baseBeatmap.BeatmapInfo;
+                set => baseBeatmap.BeatmapInfo = value;
+            }
+
+            public ControlPointInfo ControlPointInfo
+            {
+                get => baseBeatmap.ControlPointInfo;
+                set => baseBeatmap.ControlPointInfo = value;
+            }
+
+            public BeatmapMetadata Metadata => baseBeatmap.Metadata;
+
+            public BeatmapDifficulty Difficulty
+            {
+                get => baseBeatmap.Difficulty;
+                set => baseBeatmap.Difficulty = value;
+            }
+
+            public List<BreakPeriod> Breaks => baseBeatmap.Breaks;
+            public List<string> UnhandledEventLines => baseBeatmap.UnhandledEventLines;
+
+            public double TotalBreakTime => baseBeatmap.TotalBreakTime;
+            public IEnumerable<BeatmapStatistic> GetStatistics() => baseBeatmap.GetStatistics();
+            public double GetMostCommonBeatLength() => baseBeatmap.GetMostCommonBeatLength();
+            public IBeatmap Clone() => new HomophobicBeatmap(baseBeatmap.Clone());
+
+            #endregion
         }
     }
 }

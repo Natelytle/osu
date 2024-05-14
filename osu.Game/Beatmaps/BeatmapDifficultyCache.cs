@@ -16,7 +16,6 @@ using osu.Framework.Threading;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Rulesets;
-using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.UI;
 
@@ -148,14 +147,6 @@ namespace osu.Game.Beatmaps
 
         protected override bool CacheNullValues => false;
 
-        public Task<List<TimedDifficultyAttributes>> GetTimedDifficultyAttributesAsync(IWorkingBeatmap beatmap, Ruleset ruleset, Mod[] mods, CancellationToken cancellationToken = default)
-        {
-            return Task.Factory.StartNew(() => ruleset.CreateDifficultyCalculator(beatmap).CalculateTimed(mods, cancellationToken),
-                cancellationToken,
-                TaskCreationOptions.HideScheduler | TaskCreationOptions.RunContinuationsAsynchronously,
-                updateScheduler);
-        }
-
         /// <summary>
         /// Updates all tracked <see cref="BindableStarDifficulty"/> using the current ruleset and mods.
         /// </summary>
@@ -237,10 +228,12 @@ namespace osu.Game.Beatmaps
                 var ruleset = rulesetInfo.CreateInstance();
                 Debug.Assert(ruleset != null);
 
-                var calculator = ruleset.CreateDifficultyCalculator(beatmapManager.GetWorkingBeatmap(key.BeatmapInfo));
-                var attributes = calculator.Calculate(key.OrderedMods, cancellationToken);
+                var beatmap = beatmapManager.GetWorkingBeatmap(key.BeatmapInfo);
 
-                return new StarDifficulty(attributes);
+                var calculator = ruleset.CreateDifficultyCalculator(beatmap);
+                var attributes = calculator.Calculate(key.OrderedMods, beatmap, null, cancellationToken);
+
+                return new StarDifficulty(attributes.DiffAttribs);
             }
             catch (OperationCanceledException)
             {

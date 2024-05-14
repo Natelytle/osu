@@ -16,6 +16,7 @@ using osu.Game.Rulesets.Taiko.Difficulty.Skills;
 using osu.Game.Rulesets.Taiko.Mods;
 using osu.Game.Rulesets.Taiko.Objects;
 using osu.Game.Rulesets.Taiko.Scoring;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Taiko.Difficulty
 {
@@ -26,7 +27,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty
         public override int Version => 20221107;
 
         public TaikoDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
-            : base(ruleset, beatmap)
+            : base(ruleset)
         {
         }
 
@@ -67,7 +68,20 @@ namespace osu.Game.Rulesets.Taiko.Difficulty
             return difficultyHitObjects;
         }
 
-        protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
+        protected override (DifficultyAttributes, PerformanceAttributes?) CreateAttributes(IBeatmap beatmap, Mod[] mods, ScoreInfo? scoreInfo, Skill[] skills, double clockRate)
+        {
+            DifficultyAttributes difficultyAttributes = createDifficultyAttributes(beatmap, mods, skills, clockRate);
+
+            if (scoreInfo is null)
+                return (difficultyAttributes, null);
+
+            TaikoPerformanceCalculator performanceCalculator = new TaikoPerformanceCalculator();
+            PerformanceAttributes performanceAttributes = performanceCalculator.CreatePerformanceAttributes(scoreInfo, difficultyAttributes);
+
+            return (difficultyAttributes, performanceAttributes);
+        }
+
+        private DifficultyAttributes createDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
         {
             if (beatmap.HitObjects.Count == 0)
                 return new TaikoDifficultyAttributes { Mods = mods };

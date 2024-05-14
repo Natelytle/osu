@@ -10,7 +10,7 @@ using osu.Game.Scoring.Legacy;
 
 namespace osu.Game.Rulesets.Catch.Difficulty
 {
-    public class CatchPerformanceCalculator : PerformanceCalculator
+    public class CatchPerformanceCalculator
     {
         private int num300;
         private int num100;
@@ -18,12 +18,7 @@ namespace osu.Game.Rulesets.Catch.Difficulty
         private int numKatu;
         private int numMiss;
 
-        public CatchPerformanceCalculator()
-            : base(new CatchRuleset())
-        {
-        }
-
-        protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
+        internal PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
         {
             var catchAttributes = (CatchDifficultyAttributes)attributes;
 

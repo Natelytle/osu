@@ -15,6 +15,7 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Catch.Difficulty
 {
@@ -27,11 +28,24 @@ namespace osu.Game.Rulesets.Catch.Difficulty
         public override int Version => 20220701;
 
         public CatchDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
-            : base(ruleset, beatmap)
+            : base(ruleset)
         {
         }
 
-        protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
+        protected override (DifficultyAttributes, PerformanceAttributes?) CreateAttributes(IBeatmap beatmap, Mod[] mods, ScoreInfo? scoreInfo, Skill[] skills, double clockRate)
+        {
+            DifficultyAttributes difficultyAttributes = createDifficultyAttributes(beatmap, mods, skills, clockRate);
+
+            if (scoreInfo is null)
+                return (difficultyAttributes, null);
+
+            CatchPerformanceCalculator performanceCalculator = new CatchPerformanceCalculator();
+            PerformanceAttributes performanceAttributes = performanceCalculator.CreatePerformanceAttributes(scoreInfo, difficultyAttributes);
+
+            return (difficultyAttributes, performanceAttributes);
+        }
+
+        private DifficultyAttributes createDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
         {
             if (beatmap.HitObjects.Count == 0)
                 return new CatchDifficultyAttributes { Mods = mods };

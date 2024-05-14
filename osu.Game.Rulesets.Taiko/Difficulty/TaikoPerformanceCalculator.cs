@@ -12,7 +12,7 @@ using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Taiko.Difficulty
 {
-    public class TaikoPerformanceCalculator : PerformanceCalculator
+    public class TaikoPerformanceCalculator
     {
         private int countGreat;
         private int countOk;
@@ -22,12 +22,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty
 
         private double effectiveMissCount;
 
-        public TaikoPerformanceCalculator()
-            : base(new TaikoRuleset())
-        {
-        }
-
-        protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
+        internal PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
         {
             var taikoAttributes = (TaikoDifficultyAttributes)attributes;
 

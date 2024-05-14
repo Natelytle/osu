@@ -24,6 +24,7 @@ namespace osu.Game.Screens.Ranking.Expanded.Statistics
     {
         public LocalisableString TooltipText { get; private set; }
 
+        private readonly IBeatmap playableBeatmap;
         private readonly ScoreInfo score;
 
         private readonly Bindable<int> performance = new Bindable<int>();
@@ -32,9 +33,10 @@ namespace osu.Game.Screens.Ranking.Expanded.Statistics
 
         private RollingCounter<int> counter = null!;
 
-        public PerformanceStatistic(ScoreInfo score)
+        public PerformanceStatistic(IBeatmap playableBeatmap, ScoreInfo score)
             : base(BeatmapsetsStrings.ShowScoreboardHeaderspp)
         {
+            this.playableBeatmap = playableBeatmap;
             this.score = score;
         }
 
@@ -50,15 +52,15 @@ namespace osu.Game.Screens.Ranking.Expanded.Statistics
                 Task.Run(async () =>
                 {
                     var attributes = await difficultyCache.GetDifficultyAsync(score.BeatmapInfo!, score.Ruleset, score.Mods, cancellationToken ?? default).ConfigureAwait(false);
-                    var performanceCalculator = score.Ruleset.CreateInstance().CreatePerformanceCalculator();
+                    var performanceCalculator = score.Ruleset.CreateInstance().CreateDifficultyCalculator(new FlatWorkingBeatmap(playableBeatmap));
 
                     // Performance calculation requires the beatmap and ruleset to be locally available. If not, return a default value.
-                    if (attributes?.Attributes == null || performanceCalculator == null)
+                    if (attributes?.Attributes == null)
                         return;
 
-                    var result = await performanceCalculator.CalculateAsync(score, attributes.Value.Attributes, cancellationToken ?? default).ConfigureAwait(false);
+                    var result = await performanceCalculator.CalculateAsync(score.Mods, new FlatWorkingBeatmap(playableBeatmap), score, cancellationToken ?? default).ConfigureAwait(false);
 
-                    Schedule(() => setPerformanceValue(score, result.Total));
+                    Schedule(() => setPerformanceValue(score, result.PerfAttribs!.Total));
                 }, cancellationToken ?? default);
             }
         }

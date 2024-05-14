@@ -9,19 +9,20 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.EmptyFreeform
 {
     public class EmptyFreeformDifficultyCalculator : DifficultyCalculator
     {
         public EmptyFreeformDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
-            : base(ruleset, beatmap)
+            : base(ruleset)
         {
         }
 
-        protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
+        protected override (DifficultyAttributes, PerformanceAttributes) CreateAttributes(IBeatmap beatmap, Mod[] mods, ScoreInfo scoreInfo, Skill[] skills, double clockRate)
         {
-            return new DifficultyAttributes(mods, 0);
+            return (new DifficultyAttributes(mods, 0), null);
         }
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate) => Enumerable.Empty<DifficultyHitObject>();

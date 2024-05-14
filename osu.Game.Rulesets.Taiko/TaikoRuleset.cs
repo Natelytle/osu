@@ -192,8 +192,6 @@ namespace osu.Game.Rulesets.Taiko
 
         public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new TaikoDifficultyCalculator(RulesetInfo, beatmap);
 
-        public override PerformanceCalculator CreatePerformanceCalculator() => new TaikoPerformanceCalculator();
-
         public int LegacyID => 1;
 
         public ILegacyScoreSimulator CreateLegacyScoreSimulator() => new TaikoLegacyScoreSimulator();

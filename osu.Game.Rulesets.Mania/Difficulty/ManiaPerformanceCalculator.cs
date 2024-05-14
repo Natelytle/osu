@@ -11,7 +11,7 @@ using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
 {
-    public class ManiaPerformanceCalculator : PerformanceCalculator
+    public class ManiaPerformanceCalculator
     {
         private int countPerfect;
         private int countGreat;
@@ -21,12 +21,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private int countMiss;
         private double scoreAccuracy;
 
-        public ManiaPerformanceCalculator()
-            : base(new ManiaRuleset())
-        {
-        }
-
-        protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
+        internal PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
         {
             var maniaAttributes = (ManiaDifficultyAttributes)attributes;
 

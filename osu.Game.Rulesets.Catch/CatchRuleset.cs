@@ -213,8 +213,6 @@ namespace osu.Game.Rulesets.Catch
             return null;
         }
 
-        public override PerformanceCalculator CreatePerformanceCalculator() => new CatchPerformanceCalculator();
-
         public int LegacyID => 2;
 
         public ILegacyScoreSimulator CreateLegacyScoreSimulator() => new CatchLegacyScoreSimulator();

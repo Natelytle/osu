@@ -11,7 +11,7 @@ using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
 {
-    public class OsuPerformanceCalculator : PerformanceCalculator
+    public class OsuPerformanceCalculator
     {
         public const double PERFORMANCE_BASE_MULTIPLIER = 1.14; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
 
@@ -24,12 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double effectiveMissCount;
 
-        public OsuPerformanceCalculator()
-            : base(new OsuRuleset())
-        {
-        }
-
-        protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
+        internal PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
         {
             var osuAttributes = (OsuDifficultyAttributes)attributes;
 

@@ -74,7 +74,7 @@ namespace osu.Game.Screens.Ranking.Expanded
             {
                 new AccuracyStatistic(score.Accuracy),
                 new ComboStatistic(score.MaxCombo, score.GetMaximumAchievableCombo()),
-                new PerformanceStatistic(score),
+                // new PerformanceStatistic(score),
             };
 
             var bottomStatistics = new List<HitResultStatistic>();
