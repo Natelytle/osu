@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using NUnit.Framework;
-using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Osu.Difficulty;
 using osu.Game.Rulesets.Osu.Mods;
@@ -34,7 +33,7 @@ namespace osu.Game.Rulesets.Osu.Tests
         public void TestClassicMod(double expectedStarRating, int expectedMaxCombo, string name)
             => Test(expectedStarRating, expectedMaxCombo, name, new OsuModClassic());
 
-        protected override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new OsuDifficultyCalculator(new OsuRuleset().RulesetInfo, beatmap);
+        protected override DifficultyCalculator CreateDifficultyCalculator() => new OsuDifficultyCalculator(new OsuRuleset().RulesetInfo);
 
         protected override Ruleset CreateRuleset() => new OsuRuleset();
     }

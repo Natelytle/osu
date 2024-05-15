@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Catch.Difficulty
 
         public override int Version => 20220701;
 
-        public CatchDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
+        public CatchDifficultyCalculator(IRulesetInfo ruleset)
             : base(ruleset)
         {
         }

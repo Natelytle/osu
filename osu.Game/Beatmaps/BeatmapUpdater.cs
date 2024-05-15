@@ -72,7 +72,7 @@ namespace osu.Game.Beatmaps
 
                 Debug.Assert(ruleset != null);
 
-                var calculator = ruleset.CreateDifficultyCalculator(working);
+                var calculator = ruleset.CreateDifficultyCalculator();
 
                 beatmap.StarRating = calculator.CalculateDifficultyAttributes(working).StarRating;
                 beatmap.Length = working.Beatmap.CalculatePlayableLength();

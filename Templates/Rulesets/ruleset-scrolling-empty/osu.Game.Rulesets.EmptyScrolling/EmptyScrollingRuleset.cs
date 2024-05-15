@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.EmptyScrolling
 
         public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new EmptyScrollingBeatmapConverter(beatmap, this);
 
-        public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new EmptyScrollingDifficultyCalculator(RulesetInfo, beatmap);
+        public override DifficultyCalculator CreateDifficultyCalculator() => new EmptyScrollingDifficultyCalculator(RulesetInfo);
 
         public override IEnumerable<Mod> GetModsFor(ModType type)
         {

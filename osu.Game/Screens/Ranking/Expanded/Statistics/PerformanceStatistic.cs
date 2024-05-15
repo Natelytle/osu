@@ -52,7 +52,7 @@ namespace osu.Game.Screens.Ranking.Expanded.Statistics
                 Task.Run(async () =>
                 {
                     var attributes = await difficultyCache.GetDifficultyAsync(score.BeatmapInfo!, score.Ruleset, score.Mods, cancellationToken ?? default).ConfigureAwait(false);
-                    var performanceCalculator = score.Ruleset.CreateInstance().CreateDifficultyCalculator(new FlatWorkingBeatmap(playableBeatmap));
+                    var performanceCalculator = score.Ruleset.CreateInstance().CreateDifficultyCalculator();
 
                     // Performance calculation requires the beatmap and ruleset to be locally available. If not, return a default value.
                     if (attributes?.Attributes == null)

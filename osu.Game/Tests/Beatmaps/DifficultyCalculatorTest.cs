@@ -25,7 +25,7 @@ namespace osu.Game.Tests.Beatmaps
 
         protected void Test(double expectedStarRating, int expectedMaxCombo, string name, params Mod[] mods)
         {
-            var attributes = CreateDifficultyCalculator(getBeatmap(name)).Calculate(mods, getBeatmap(name), null).DiffAttribs;
+            var attributes = CreateDifficultyCalculator().Calculate(mods, getBeatmap(name), null).DiffAttribs;
 
             // Platform-dependent math functions (Pow, Cbrt, Exp, etc) may result in minute differences.
             Assert.That(attributes.StarRating, Is.EqualTo(expectedStarRating).Within(0.00001));
@@ -57,7 +57,7 @@ namespace osu.Game.Tests.Beatmaps
             return Assembly.LoadFrom(Path.Combine(localPath, $"{ResourceAssembly}.dll")).GetManifestResourceStream($@"{ResourceAssembly}.Resources.{name}");
         }
 
-        protected abstract DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap);
+        protected abstract DifficultyCalculator CreateDifficultyCalculator();
 
         protected abstract Ruleset CreateRuleset();
     }

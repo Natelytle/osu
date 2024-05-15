@@ -98,8 +98,7 @@ namespace osu.Game.Database
         {
             foreach (var ruleset in rulesetStore.AvailableRulesets)
             {
-                // beatmap being passed in is arbitrary here. just needs to be non-null.
-                int currentVersion = ruleset.CreateInstance().CreateDifficultyCalculator(gameBeatmap.Value).Version;
+                int currentVersion = ruleset.CreateInstance().CreateDifficultyCalculator().Version;
 
                 if (ruleset.LastAppliedDifficultyVersion < currentVersion)
                 {

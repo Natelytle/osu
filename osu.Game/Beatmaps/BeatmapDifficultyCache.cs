@@ -230,7 +230,7 @@ namespace osu.Game.Beatmaps
 
                 var beatmap = beatmapManager.GetWorkingBeatmap(key.BeatmapInfo);
 
-                var calculator = ruleset.CreateDifficultyCalculator(beatmap);
+                var calculator = ruleset.CreateDifficultyCalculator();
                 var attributes = calculator.Calculate(key.OrderedMods, beatmap, null, cancellationToken);
 
                 return new StarDifficulty(attributes.DiffAttribs);

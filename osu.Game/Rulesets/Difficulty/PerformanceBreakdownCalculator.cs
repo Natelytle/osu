@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Difficulty
         {
             var attributes = await difficultyCache.GetDifficultyAsync(score.BeatmapInfo!, score.Ruleset, score.Mods, cancellationToken).ConfigureAwait(false);
 
-            var diffFormanceCalculator = score.Ruleset.CreateInstance().CreateDifficultyCalculator(new FlatWorkingBeatmap(playableBeatmap));
+            var difficultyCalculator = score.Ruleset.CreateInstance().CreateDifficultyCalculator();
 
             // Performance calculation requires the beatmap and ruleset to be locally available. If not, return a default value.
             if (attributes?.Attributes == null)

@@ -27,16 +27,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
     {
         private const double star_scaling_factor = 0.018;
 
-        private readonly bool isForCurrentRuleset;
-        private readonly double originalOverallDifficulty;
+        private readonly IRulesetInfo ruleset;
 
         public override int Version => 20230817;
 
-        public ManiaDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
+        public ManiaDifficultyCalculator(IRulesetInfo ruleset)
             : base(ruleset)
         {
-            isForCurrentRuleset = beatmap.BeatmapInfo.Ruleset.MatchesOnlineID(ruleset);
-            originalOverallDifficulty = beatmap.BeatmapInfo.Difficulty.OverallDifficulty;
+            this.ruleset = ruleset;
         }
 
         private static int maxComboForObject(HitObject hitObject)
@@ -74,7 +72,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.
-                GreatHitWindow = Math.Ceiling((int)(getHitWindow300(mods) * clockRate) / clockRate),
+                GreatHitWindow = Math.Ceiling((int)(getHitWindow300(mods, beatmap) * clockRate) / clockRate),
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
 
@@ -113,14 +111,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                     new ManiaModHalfTime(),
                     new ManiaModEasy(),
                     new ManiaModHardRock(),
-                };
 
-                if (isForCurrentRuleset)
-                    return mods;
-
-                // if we are a convert, we can be played in any key mod.
-                return mods.Concat(new Mod[]
-                {
+                    // These are only for converts, but putting the beatmap in the constructor complicates things, so always leave them in.
                     new ManiaModKey1(),
                     new ManiaModKey2(),
                     new ManiaModKey3(),
@@ -135,12 +127,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                     new MultiMod(new ManiaModKey8(), new ManiaModDualStages()),
                     new ManiaModKey9(),
                     new MultiMod(new ManiaModKey9(), new ManiaModDualStages()),
-                }).ToArray();
+                };
+
+                return mods;
             }
         }
 
-        private double getHitWindow300(Mod[] mods)
+        private double getHitWindow300(Mod[] mods, IBeatmap beatmap)
         {
+            bool isForCurrentRuleset = beatmap.BeatmapInfo.Ruleset.MatchesOnlineID(ruleset);
+
+            double originalOverallDifficulty = beatmap.BeatmapInfo.Difficulty.OverallDifficulty;
+
             if (isForCurrentRuleset)
             {
                 double od = Math.Min(10.0, Math.Max(0, 10.0 - originalOverallDifficulty));

@@ -260,7 +260,7 @@ namespace osu.Game.Rulesets
         /// <returns>The <see cref="IBeatmapProcessor"/>.</returns>
         public virtual IBeatmapProcessor? CreateBeatmapProcessor(IBeatmap beatmap) => null;
 
-        public abstract DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap);
+        public abstract DifficultyCalculator CreateDifficultyCalculator();
 
         public virtual HitObjectComposer? CreateHitObjectComposer() => null;
 

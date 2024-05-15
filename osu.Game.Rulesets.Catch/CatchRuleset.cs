@@ -197,7 +197,7 @@ namespace osu.Game.Rulesets.Catch
             return base.GetDisplayNameForHitResult(result);
         }
 
-        public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new CatchDifficultyCalculator(RulesetInfo, beatmap);
+        public override DifficultyCalculator CreateDifficultyCalculator() => new CatchDifficultyCalculator(RulesetInfo);
 
         public override ISkin? CreateSkinTransformer(ISkin skin, IBeatmap beatmap)
         {

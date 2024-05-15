@@ -50,7 +50,7 @@ namespace osu.Game.Screens.Play.HUD
             {
                 gameplayWorkingBeatmap = new GameplayWorkingBeatmap(gameplayState.Beatmap);
 
-                difficultyCalculator = gameplayState.Ruleset.CreateDifficultyCalculator(gameplayWorkingBeatmap);
+                difficultyCalculator = gameplayState.Ruleset.CreateDifficultyCalculator();
                 clonedMods = gameplayState.Mods.Select(m => m.DeepClone()).ToArray();
 
                 scoreInfo = new ScoreInfo(gameplayState.Score.ScoreInfo.BeatmapInfo, gameplayState.Score.ScoreInfo.Ruleset) { Mods = clonedMods };
@@ -77,7 +77,7 @@ namespace osu.Game.Screens.Play.HUD
         {
             lastJudgement = judgement;
 
-            var beatmapUntilJudgement = getHomophobicBeatmap(judgement);
+            var beatmapUntilJudgement = getPartialWorkingBeatmapAt(judgement);
 
             if (gameplayState == null || beatmapUntilJudgement == null || scoreProcessor == null)
             {
@@ -90,7 +90,7 @@ namespace osu.Game.Screens.Play.HUD
             IsValid = true;
         }
 
-        private GameplayWorkingBeatmap? getHomophobicBeatmap(JudgementResult judgement)
+        private GameplayWorkingBeatmap? getPartialWorkingBeatmapAt(JudgementResult judgement)
         {
             if (gameplayWorkingBeatmap == null)
                 return null;
@@ -103,7 +103,7 @@ namespace osu.Game.Screens.Play.HUD
 
             var trimmedGameplayBeatmap = new GameplayWorkingBeatmap(gameplayWorkingBeatmap.Beatmap);
 
-            trimmedGameplayBeatmap.HomophobicBeatmap.HitObjects = gameplayWorkingBeatmap.Beatmap.HitObjects.ToList()[..objectIndex];
+            trimmedGameplayBeatmap.PartialBeatmap.HitObjects = gameplayWorkingBeatmap.Beatmap.HitObjects.ToList()[..objectIndex];
 
             return trimmedGameplayBeatmap;
         }
@@ -124,18 +124,18 @@ namespace osu.Game.Screens.Play.HUD
         // TODO: This class shouldn't exist, but requires breaking changes to allow DifficultyCalculator to receive an IBeatmap.
         private class GameplayWorkingBeatmap : WorkingBeatmap
         {
-            public readonly HomophobicBeatmap HomophobicBeatmap;
+            public readonly PartialBeatmap PartialBeatmap;
 
             public GameplayWorkingBeatmap(IBeatmap gameplayBeatmap)
                 : base(gameplayBeatmap.BeatmapInfo, null)
             {
-                HomophobicBeatmap = new HomophobicBeatmap(gameplayBeatmap);
+                PartialBeatmap = new PartialBeatmap(gameplayBeatmap);
             }
 
             public override IBeatmap GetPlayableBeatmap(IRulesetInfo ruleset, IReadOnlyList<Mod> mods, CancellationToken cancellationToken)
-                => HomophobicBeatmap;
+                => PartialBeatmap;
 
-            protected override IBeatmap GetBeatmap() => HomophobicBeatmap;
+            protected override IBeatmap GetBeatmap() => PartialBeatmap;
 
             public override Texture GetBackground() => throw new NotImplementedException();
 
@@ -149,12 +149,12 @@ namespace osu.Game.Screens.Play.HUD
         /// <summary>
         /// Used to calculate timed difficulty attributes, where only a subset of hitobjects should be visible at any point in time.
         /// </summary>
-        private class HomophobicBeatmap : IBeatmap
+        private class PartialBeatmap : IBeatmap
         {
             private readonly IBeatmap baseBeatmap;
             public List<HitObject> HitObjects;
 
-            public HomophobicBeatmap(IBeatmap baseBeatmap)
+            public PartialBeatmap(IBeatmap baseBeatmap)
             {
                 this.baseBeatmap = baseBeatmap;
                 HitObjects = baseBeatmap.HitObjects.ToList();
@@ -190,7 +190,7 @@ namespace osu.Game.Screens.Play.HUD
             public double TotalBreakTime => baseBeatmap.TotalBreakTime;
             public IEnumerable<BeatmapStatistic> GetStatistics() => baseBeatmap.GetStatistics();
             public double GetMostCommonBeatLength() => baseBeatmap.GetMostCommonBeatLength();
-            public IBeatmap Clone() => new HomophobicBeatmap(baseBeatmap.Clone());
+            public IBeatmap Clone() => new PartialBeatmap(baseBeatmap.Clone());
 
             #endregion
         }
