@@ -48,8 +48,8 @@ namespace osu.Game.Rulesets.Difficulty
         /// <param name="score">The optional score information to calculate the Performance Attributes of.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A structure describing the difficulty of the beatmap.</returns>
-        public Task<(DifficultyAttributes DiffAttribs, PerformanceAttributes? PerfAttribs)> CalculateAsync(IEnumerable<Mod> mods, IWorkingBeatmap workingBeatmap, ScoreInfo? score, CancellationToken cancellationToken)
-            => Task.Run(() => Calculate(mods, workingBeatmap, score, cancellationToken), cancellationToken);
+        public Task<PerformanceAttributes> CalculatePerformanceAsync(IEnumerable<Mod> mods, IWorkingBeatmap workingBeatmap, ScoreInfo score, CancellationToken cancellationToken)
+            => Task.Run(() => Calculate(mods, workingBeatmap, score, cancellationToken).PerfAttribs!, cancellationToken);
 
         /// <summary>
         /// Calculates the difficulty attributes of the beatmap with no mods applied.

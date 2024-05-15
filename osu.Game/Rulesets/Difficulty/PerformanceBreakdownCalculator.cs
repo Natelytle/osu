@@ -8,10 +8,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-// using osu.Framework.Extensions;
-// using osu.Framework.Extensions.ObjectExtensions;
 using osu.Game.Beatmaps;
-// using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
@@ -29,35 +27,29 @@ namespace osu.Game.Rulesets.Difficulty
             this.difficultyCache = difficultyCache;
         }
 
-        // TODO: fix later because idk how to do async
         [ItemCanBeNull]
         public async Task<PerformanceBreakdown> CalculateAsync(ScoreInfo score, CancellationToken cancellationToken = default)
         {
             var attributes = await difficultyCache.GetDifficultyAsync(score.BeatmapInfo!, score.Ruleset, score.Mods, cancellationToken).ConfigureAwait(false);
 
-            var difficultyCalculator = score.Ruleset.CreateInstance().CreateDifficultyCalculator();
+            var performanceCalculator = score.Ruleset.CreateInstance().CreateDifficultyCalculator();
 
             // Performance calculation requires the beatmap and ruleset to be locally available. If not, return a default value.
             if (attributes?.Attributes == null)
                 return null;
 
-            /*
             cancellationToken.ThrowIfCancellationRequested();
 
             PerformanceAttributes[] performanceArray = await Task.WhenAll(
                 // compute actual performance
-                diffFormanceCalculator.CalculateAsync(score.Mods, new FlatWorkingBeatmap(playableBeatmap), score, cancellationToken),
+                performanceCalculator.CalculatePerformanceAsync(score.Mods, new FlatWorkingBeatmap(playableBeatmap), score, cancellationToken),
                 // compute performance for perfect play
                 getPerfectPerformance(score, cancellationToken)
             ).ConfigureAwait(false);
 
             return new PerformanceBreakdown(performanceArray[0] ?? new PerformanceAttributes(), performanceArray[1] ?? new PerformanceAttributes());
-            */
-
-            return new PerformanceBreakdown(new PerformanceAttributes(), new PerformanceAttributes());
         }
 
-        /*
         [ItemCanBeNull]
         private Task<PerformanceAttributes> getPerfectPerformance(ScoreInfo score, CancellationToken cancellationToken = default)
         {
@@ -103,15 +95,14 @@ namespace osu.Game.Rulesets.Difficulty
                     cancellationToken
                 ).ConfigureAwait(false);
 
-                var diffFormanceCalculator = ruleset.CreateDiffFormanceCalculator(new FlatWorkingBeatmap(playableBeatmap));
+                var performanceCalculator = ruleset.CreateDifficultyCalculator();
 
                 if (difficulty == null)
                     return null;
 
-                return await diffFormanceCalculator.CalculateAsync(perfectPlay.Mods, new FlatWorkingBeatmap(playableBeatmap), perfectPlay, cancellationToken).ConfigureAwait(false);
+                return await performanceCalculator.CalculatePerformanceAsync(perfectPlay.Mods, new FlatWorkingBeatmap(playableBeatmap), perfectPlay, cancellationToken).ConfigureAwait(false);
             }, cancellationToken);
         }
-        */
 
         private int calculateMaxCombo(IBeatmap beatmap)
         {

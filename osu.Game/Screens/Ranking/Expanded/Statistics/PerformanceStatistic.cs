@@ -58,9 +58,9 @@ namespace osu.Game.Screens.Ranking.Expanded.Statistics
                     if (attributes?.Attributes == null)
                         return;
 
-                    var result = await performanceCalculator.CalculateAsync(score.Mods, new FlatWorkingBeatmap(playableBeatmap), score, cancellationToken ?? default).ConfigureAwait(false);
+                    var result = await performanceCalculator.CalculatePerformanceAsync(score.Mods, new FlatWorkingBeatmap(playableBeatmap), score, cancellationToken ?? default).ConfigureAwait(false);
 
-                    Schedule(() => setPerformanceValue(score, result.PerfAttribs!.Total));
+                    Schedule(() => setPerformanceValue(score, result.Total));
                 }, cancellationToken ?? default);
             }
         }
