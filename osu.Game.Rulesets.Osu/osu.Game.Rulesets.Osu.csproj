@@ -15,4 +15,10 @@
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\osu.Game\osu.Game.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Difficulty\Evaluators\" />
+    <Folder Include="Difficulty\Preprocessing\" />
+    <Folder Include="Difficulty\Skills\" />
+  </ItemGroup>
 </Project>
