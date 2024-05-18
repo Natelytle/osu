@@ -225,14 +225,13 @@ namespace osu.Game.Rulesets.Catch
 
         public override StatisticItem[] CreateStatisticsForScore(ScoreInfo score, IBeatmap playableBeatmap)
         {
-            return new StatisticItem[]
+            return new[]
             {
-                /*
                 new StatisticItem("Performance Breakdown", () => new PerformanceBreakdownChart(score, playableBeatmap)
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
-                }),*/
+                }),
             };
         }
 

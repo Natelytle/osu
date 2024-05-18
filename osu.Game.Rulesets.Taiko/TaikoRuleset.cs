@@ -234,12 +234,11 @@ namespace osu.Game.Rulesets.Taiko
 
             return new[]
             {
-                /*
                 new StatisticItem("Performance Breakdown", () => new PerformanceBreakdownChart(score, playableBeatmap)
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
-                }),*/
+                }),
                 new StatisticItem("Timing Distribution", () => new HitEventTimingDistributionGraph(timedHitEvents)
                 {
                     RelativeSizeAxes = Axes.X,
