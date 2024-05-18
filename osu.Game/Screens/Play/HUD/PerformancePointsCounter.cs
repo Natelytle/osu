@@ -79,14 +79,14 @@ namespace osu.Game.Screens.Play.HUD
 
             var beatmapUntilJudgement = getPartialWorkingBeatmapAt(judgement);
 
-            if (gameplayState == null || beatmapUntilJudgement == null || scoreProcessor == null)
+            if (difficultyCalculator == null || gameplayState == null || beatmapUntilJudgement == null || scoreProcessor == null)
             {
                 IsValid = false;
                 return;
             }
 
             scoreProcessor.PopulateScore(scoreInfo);
-            Current.Value = (int)Math.Round(difficultyCalculator?.Calculate(scoreInfo.Mods, beatmapUntilJudgement, scoreInfo).PerfAttribs?.Total ?? 0, MidpointRounding.AwayFromZero);
+            Current.Value = (int)Math.Round(difficultyCalculator.Calculate(scoreInfo.Mods, beatmapUntilJudgement, scoreInfo).PerfAttribs?.Total ?? 0, MidpointRounding.AwayFromZero);
             IsValid = true;
         }
 
