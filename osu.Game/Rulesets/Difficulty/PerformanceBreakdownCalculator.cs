@@ -40,14 +40,13 @@ namespace osu.Game.Rulesets.Difficulty
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            PerformanceAttributes[] performanceArray = await Task.WhenAll(
-                // compute actual performance
-                performanceCalculator.CalculatePerformanceAsync(score.Mods, new FlatWorkingBeatmap(playableBeatmap), score, cancellationToken),
-                // compute performance for perfect play
-                getPerfectPerformance(score, cancellationToken)
-            ).ConfigureAwait(false);
+            // compute actual performance
+            PerformanceAttributes actualPerformance = await performanceCalculator.CalculatePerformanceAsync(score.Mods, new FlatWorkingBeatmap(playableBeatmap), score, cancellationToken).ConfigureAwait(false);
 
-            return new PerformanceBreakdown(performanceArray[0] ?? new PerformanceAttributes(), performanceArray[1] ?? new PerformanceAttributes());
+            // compute performance for perfect play
+            PerformanceAttributes perfectPerformance = await getPerfectPerformance(score, cancellationToken).ConfigureAwait(false);
+
+            return new PerformanceBreakdown(actualPerformance ?? new PerformanceAttributes(), perfectPerformance ?? new PerformanceAttributes());
         }
 
         [ItemCanBeNull]
