@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 
@@ -38,7 +39,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate)
         {
-            throw new NotImplementedException();
+            return
+            [
+                new AimNoteProbabilities(mods),
+                new AccuracyNoteProbabilities(mods)
+            ];
         }
 
         protected override Mod[] DifficultyAdjustmentMods =>

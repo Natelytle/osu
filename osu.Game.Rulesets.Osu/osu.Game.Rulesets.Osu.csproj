@@ -19,6 +19,5 @@
   <ItemGroup>
     <Folder Include="Difficulty\Evaluators\" />
     <Folder Include="Difficulty\Preprocessing\" />
-    <Folder Include="Difficulty\Skills\" />
   </ItemGroup>
 </Project>
