@@ -37,14 +37,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             throw new NotImplementedException();
         }
 
-        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate)
-        {
-            return
-            [
-                new AimNoteProbabilities(mods),
-                new AccuracyNoteProbabilities(mods)
-            ];
-        }
+        // We don't have skills!!!!!
+        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => [];
 
         protected override Mod[] DifficultyAdjustmentMods =>
         [
