@@ -3,11 +3,12 @@
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 {
-    public enum Finger
+    public enum TapMethod
     {
         Left,
         Right,
         DoubleTap,
-        RakeTap
+        RakeTap,
+        Relax
     }
 }

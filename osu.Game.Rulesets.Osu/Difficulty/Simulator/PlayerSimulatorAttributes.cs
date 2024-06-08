@@ -9,17 +9,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Simulator
 {
     public struct PlayerSimulatorAttributes
     {
-        // The note the player is going for next, and the position on the note.
-        // You don't always play maps sequentially, especially if there is a single really difficult note.
+        public PlayerSimulatorAttributes(DifficultyHitObject targetObject, Vector2 positionAtPrevNote)
+        {
+            TargetObject = targetObject;
+            PositionAtPrevNote = positionAtPrevNote;
+            LastTapTime = null;
+            LastTapMethod = null;
+            AgilityDrain = 0;
+            StaminaDrain = 0;
+            RhythmConfusion = 0;
+        }
+
+        // The note the player is going for next. You don't always attempt to hit every note in a map, especially in the case of a single really difficult note.
         public DifficultyHitObject TargetObject;
 
         // Aim specific attributes
-        public Vector2 TargetObjectPosition; // Where on the note to aim for.
-        public Vector2 PositionAtLastTargetNote; // Where we're coming from.
+        public Vector2 PositionAtPrevNote; // Average location of we're coming from - aim error is a normal distribution.
 
         // Tap specific attributes
-        public double LastTapTime; // Mean time of the last tap - tap time is a normal distribution.
-        public Finger LastTapFinger;
+        public double? LastTapTime; // Average time of the last tap - tap time is a normal distribution.
+        public TapMethod? LastTapMethod;
 
         // Player status attributes
         public double AgilityDrain;
