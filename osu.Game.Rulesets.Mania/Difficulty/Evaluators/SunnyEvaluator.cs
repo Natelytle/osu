@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double p_1 = 1.5;
 
         // Weights for each column (plus the extra one)
-        private readonly double[][] crossMatrix =
+        private static readonly double[][] cross_matrix =
         [
             [-1],
             [0.075, 0.075],
@@ -37,9 +37,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             [0.325, 0.55, 0.45, 0.35, 0.25, 0.05, 0.25, 0.35, 0.45, 0.55, 0.325]
         ];
 
-        public double EvaluateSameColumnIntensityAt(ManiaDifficultyHitObject[] currentObjects)
+        public static double EvaluateSameColumnIntensityAt(ManiaDifficultyHitObject?[] currentObjects)
         {
-            ManiaDifficultyHitObject[] nextObjects = currentObjects.Select(x => (ManiaDifficultyHitObject)x.Next(0)).ToArray();
+            ManiaDifficultyHitObject?[] nextObjects = currentObjects.Select(obj => (ManiaDifficultyHitObject?)obj?.NextInColumn(0)).ToArray();
 
             int totalColumns = currentObjects.Length;
 
@@ -48,23 +48,36 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             for (int column = 0; column < totalColumns; column++)
             {
-                // TODO: Need to ask why this formula is.
-                double hitLeniency = 0.3 * Math.Sqrt(currentObjects[column].GreatHitWindow / 500);
-                double deltaTime = (currentObjects[column].StartTime - nextObjects[column].StartTime) / 1000.0;
-                double intensity = 1 / (Math.Pow(deltaTime, 2) + deltaTime * lambda_1 * Math.Pow(hitLeniency, 1 / 4.0));
+                double? deltaTime = null;
+                double intensity = 0;
+
+                ManiaDifficultyHitObject? currObj = currentObjects[column];
+                ManiaDifficultyHitObject? nextObj = nextObjects[column];
+
+                if (currObj is not null && nextObj is not null)
+                {
+                    // TODO: Need to ask why this formula is.
+                    double hitLeniency = 0.3 * Math.Sqrt(currObj.GreatHitWindow / 500);
+                    deltaTime = (nextObj.StartTime - currObj.StartTime) / 1000.0;
+                    intensity = 1 / (Math.Pow(deltaTime.Value, 2) + deltaTime.Value * lambda_1 * Math.Pow(hitLeniency, 1 / 4.0));
+                }
 
                 // TODO: Smoothing here. Probably impossible so I'll look at alternatives
 
-                double weight = 1.0 / deltaTime;
+                double weight = 1.0 / deltaTime ?? 0;
 
                 weightSum += weight;
                 weightedValueSum += Math.Pow(intensity, lambda_n) * weight;
             }
 
-            return Math.Pow(weightedValueSum / Math.Max(1e-9, weightSum), 1 / lambda_n);
+            // Avoid 0 / 0
+            if (weightSum == 0)
+                return 0;
+
+            return Math.Pow(weightedValueSum / weightSum, 1 / lambda_n);
         }
 
-        public double EvaluateCrossColumnIntensityAt(ManiaDifficultyHitObject[] currentObjects)
+        public static double EvaluateCrossColumnIntensityAt(ManiaDifficultyHitObject?[] currentObjects)
         {
             int totalColumns = currentObjects.Length;
 
@@ -72,27 +85,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             for (int column = 0; column < totalColumns + 1; column++)
             {
-                ManiaDifficultyHitObject pairedPreviousObject;
+                ManiaDifficultyHitObject? currObj = currentObjects[Math.Min(column, totalColumns - 1)];
+                ManiaDifficultyHitObject? pairedPrevObj;
 
-                // Inefficient but it'll have to do
-                if (column == 0)
+                // If the current column is on the edge, we just take the previous note.
+                if (column == 0 || column == totalColumns)
                 {
-                    pairedPreviousObject = (ManiaDifficultyHitObject)currentObjects[column].Previous(0);
-                }
-                else if (column == totalColumns)
-                {
-                    pairedPreviousObject = (ManiaDifficultyHitObject)currentObjects[column - 1].Previous(0);
+                    pairedPrevObj = (ManiaDifficultyHitObject?)currObj?.PrevInColumn(0);
                 }
                 else
                 {
-                    pairedPreviousObject = currentObjects[column].CrossColumnPreviousObject!;
+                    pairedPrevObj = currObj?.CrossColumnPreviousObject;
                 }
 
-                double hitLeniency = 0.3 * Math.Sqrt(currentObjects[column].GreatHitWindow / 500);
-                double deltaTime = 0.001 * (currentObjects[column].StartTime - pairedPreviousObject.StartTime);
+                if (currObj is null || pairedPrevObj is null)
+                    continue;
+
+                double hitLeniency = 0.3 * Math.Sqrt(currObj.GreatHitWindow / 500);
+                double deltaTime = 0.001 * (currObj.StartTime - pairedPrevObj.StartTime);
                 double intensity = 0.1 * (1 / Math.Pow(Math.Max(hitLeniency, deltaTime), 2));
 
-                totalIntensity += intensity * crossMatrix[totalColumns][column];
+                totalIntensity += intensity * cross_matrix[totalColumns][column];
             }
 
             // There'd be Smoothing here. Yayy!!!!
@@ -100,15 +113,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return totalIntensity;
         }
 
-        public double EvaluatePressingIntensityAt(ManiaDifficultyHitObject currentObject, ManiaDifficultyHitObject[] currentObjects)
+        public static double EvaluatePressingIntensityAt(ManiaDifficultyHitObject currentObject, ManiaDifficultyHitObject?[] currentObjects)
         {
-            ManiaDifficultyHitObject nextObj = (ManiaDifficultyHitObject)currentObject.Next(0);
+            ManiaDifficultyHitObject? nextObj = (ManiaDifficultyHitObject?)currentObject.Next(0);
+
+            if (nextObj is null)
+                return 0;
 
             double hitLeniency = 0.3 * Math.Sqrt(currentObject.GreatHitWindow / 500);
 
             double deltaTime = 0.001 * (nextObj.StartTime - currentObject.StartTime);
 
-            if (deltaTime < 1e-9)
+            // If notes are simultaneous
+            if (deltaTime == 0)
                 return Math.Pow(0.02 * (4 / hitLeniency - lambda_3), 1 / 4.0);
 
             // TODO: wtf is this
@@ -124,7 +141,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 return (1 / deltaTime) * Math.Pow(0.08 * (1 / deltaTime) * (1 - lambda_3 * (1 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0) * streamBooster() * v;
             }
 
-            return (1 / deltaTime) * Math.Pow(0.08 * (1 / deltaTime) * (1 - lambda_3 * (1 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 6, 2)), 1 / 4.0) * streamBooster() * v;
+            return (1 / deltaTime) * Math.Pow(0.08 * (1 / deltaTime) * (1 - lambda_3 * (1 / hitLeniency) * Math.Pow(hitLeniency / 6, 2)), 1 / 4.0) * streamBooster() * v;
 
             // TODO: clean up this local function
             double streamBooster()
@@ -140,9 +157,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
         }
 
-        public double EvaluateUnevennessIntensityAt(ManiaDifficultyHitObject[] currentObjects)
+        public static double EvaluateUnevennessIntensityAt(ManiaDifficultyHitObject?[] currentObjects)
         {
-            ManiaDifficultyHitObject[] nextObjects = currentObjects.Select(x => (ManiaDifficultyHitObject)x.Next(0)).ToArray();
+            ManiaDifficultyHitObject?[] nextObjects = currentObjects.Select(x => (ManiaDifficultyHitObject?)x?.Next(0)).ToArray();
 
             int totalColumns = currentObjects.Length;
 
@@ -150,8 +167,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             for (int column = 0; column < totalColumns - 1; column++)
             {
-                double curColumnDeltaTime = 0.001 * (nextObjects[column].StartTime - currentObjects[column].StartTime);
-                double adjColumnDeltaTime = 0.001 * (nextObjects[column + 1].StartTime - currentObjects[column + 1].StartTime);
+                ManiaDifficultyHitObject? currObj = currentObjects[column];
+                ManiaDifficultyHitObject? nextObj = nextObjects[column];
+                ManiaDifficultyHitObject? adjCurrObj = currentObjects[column + 1];
+                ManiaDifficultyHitObject? adjNextObj = currentObjects[column + 1];
+
+                if (currObj is null || nextObj is null || adjCurrObj is null || adjNextObj is null)
+                    continue;
+
+                double curColumnDeltaTime = 0.001 * (nextObj.StartTime - currObj.StartTime);
+                double adjColumnDeltaTime = 0.001 * (adjNextObj.StartTime - adjCurrObj.StartTime);
                 double dynamicKeyStroke = Math.Abs(curColumnDeltaTime - adjColumnDeltaTime) + Math.Max(0, Math.Max(adjColumnDeltaTime, curColumnDeltaTime - 0.3));
 
                 if (dynamicKeyStroke < 0.02)
@@ -163,7 +188,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return unevenness;
         }
 
-        public double EvaluateReleaseFactorAt(ManiaDifficultyHitObject currentObject, ManiaDifficultyHitObject[] currentObjects)
+        public static double EvaluateReleaseFactorAt(ManiaDifficultyHitObject currentObject)
         {
             ManiaDifficultyHitObject? currLn = currentObject.PrevLongNote;
             ManiaDifficultyHitObject? nextObjInColumn = (ManiaDifficultyHitObject?)currLn?.Next(0);
@@ -171,10 +196,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             ManiaDifficultyHitObject? nextLn = currLn?.NextLongNote;
             ManiaDifficultyHitObject? nextNoteAfterLn = (ManiaDifficultyHitObject?)nextLn?.Next(0);
 
-            double hitLeniency = 0.3 * Math.Sqrt(currentObject.GreatHitWindow / 500);
-
             if (currLn is null || nextObjInColumn is null || nextLn is null || nextNoteAfterLn is null)
                 return 0;
+
+            double hitLeniency = 0.3 * Math.Sqrt(currentObject.GreatHitWindow / 500);
 
             double currI = 0.001 * Math.Abs(currLn.EndTime!.Value - currLn.StartTime - 80.0) / hitLeniency;
             double nextI = 0.001 * Math.Abs(nextObjInColumn.StartTime - currLn.EndTime.Value - 80.0) / hitLeniency;
@@ -190,14 +215,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         }
 
         // ReSharper disable once InconsistentNaming
-        private double countLNBodiesAt(int millisecond, ManiaDifficultyHitObject[] currentObjects)
+        private static double countLNBodiesAt(int millisecond, ManiaDifficultyHitObject?[] currentObjects)
         {
             double count = 0;
 
             for (int column = 0; column < currentObjects.Length; column++)
             {
-                int currentNoteStartTime = currentObjects[column].StartTime;
-                int currentNoteEndTime = currentObjects[column].EndTime ?? -1;
+                ManiaDifficultyHitObject? currObj = currentObjects[column];
+
+                if (currObj is null)
+                    continue;
+
+                int currentNoteStartTime = currObj.StartTime;
+                int currentNoteEndTime = currObj.EndTime ?? -1;
 
                 // If the current millisecond is before the end time of the previous hit note
                 if (currentNoteEndTime > millisecond)

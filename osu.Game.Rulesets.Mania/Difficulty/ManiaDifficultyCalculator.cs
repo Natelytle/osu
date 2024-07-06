@@ -70,14 +70,30 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
+            // Create a single sorted list of hit objects.
             var sortedObjects = beatmap.HitObjects.ToArray();
-
             LegacySortHelper<HitObject>.Sort(sortedObjects, Comparer<HitObject>.Create((a, b) => (int)Math.Round(a.StartTime) - (int)Math.Round(b.StartTime)));
 
+            // Then split the hit objects into n lists, each representing a column.
+            int columns = ((ManiaBeatmap)beatmap).TotalColumns;
+
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
+            List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[columns];
+
+            for (int column = 0; column < columns; column++)
+                perColumnObjects[column] = new List<DifficultyHitObject>();
 
             for (int i = 1; i < sortedObjects.Length; i++)
-                objects.Add(new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, objects.Count));
+            {
+                int[] columnIndices = new int[columns];
+
+                for (int column = 0; column < columns; column++)
+                    columnIndices[column] = perColumnObjects[column].Count;
+
+                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count, columnIndices);
+                objects.Add(currentObject);
+                perColumnObjects[currentObject.Column].Add(currentObject);
+            }
 
             return objects;
         }
@@ -88,10 +104,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate)
         {
             // new Strain(mods, ((ManiaBeatmap)Beatmap).TotalColumns)
-            // finds the endtime of the last object in the map, adjusted by clockrate
-            var lastObject = ((ManiaBeatmap)beatmap).HitObjects.MaxBy(a => a.GetEndTime());
-            double lastTime = Math.Max(lastObject?.StartTime ?? 0, lastObject?.GetEndTime() ?? 0) / clockRate;
-            return new Skill[] { new SunnySkill(mods, ((ManiaBeatmap)beatmap).TotalColumns, beatmap.HitObjects.Count, lastTime, beatmap.Difficulty.OverallDifficulty) };
+            return new Skill[] { new SunnySkill2(mods, ((ManiaBeatmap)beatmap).TotalColumns) };
         }
 
         protected override Mod[] DifficultyAdjustmentMods
