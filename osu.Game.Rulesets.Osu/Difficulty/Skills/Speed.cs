@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
