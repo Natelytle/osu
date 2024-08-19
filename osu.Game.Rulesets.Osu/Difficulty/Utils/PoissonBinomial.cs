@@ -119,7 +119,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 
     public class IterativePoissonBinomial
     {
-        private double mu = 0, var = 0, gamma = 0;
+        private double mu, var, gamma;
+
+        public void Reset()
+        {
+            mu = 0;
+            var = 0;
+            gamma = 0;
+        }
 
         public void AddProbability(double p)
         {
@@ -135,7 +142,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             gamma += p * (1 - p) * (1 - 2 * p) * count;
         }
 
-        public double Cdf(double count)
+        // ReSharper disable once InconsistentNaming
+        public double CDF(double count)
         {
             if (var == 0)
                 return mu <= count ? 1 : 0;

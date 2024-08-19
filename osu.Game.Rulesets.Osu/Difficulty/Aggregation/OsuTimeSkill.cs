@@ -146,6 +146,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
             double timeAtMissCountAtSkill(double missCount)
             {
+                poiBin.Reset();
+
                 if (difficulties.Count > time_bin_count * difficulty_bin_count)
                 {
                     var bins = Bin.CreateBins(difficulties, times, difficulty_bin_count, time_bin_count);
@@ -164,15 +166,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                             poiBin.AddBinnedProbabilities(missProb, bin.Count);
                         }
 
-                        totalTime += binTimeSteps * poiBin.Cdf(missCount);
+                        totalTime += binTimeSteps * poiBin.CDF(missCount);
                     }
 
-                    double visibilityThing = poiBin.Cdf(missCount);
-
-                    if (visibilityThing < 1e-10)
+                    if (poiBin.CDF(missCount) < 1e-10)
                         return double.PositiveInfinity;
 
-                    return totalTime / visibilityThing - totalTime;
+                    return (totalTime / poiBin.CDF(missCount) - totalTime) / 60000;
                 }
                 else
                 {
@@ -183,17 +183,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                         double hitProb = HitProbability(skill, difficulties[i]);
                         poiBin.AddProbability(hitProb);
 
-                        totalTime += times[i] * poiBin.Cdf(missCount);
+                        totalTime += times[i] * poiBin.CDF(missCount);
                     }
 
-                    if (poiBin.Cdf(missCount) < 1e-10)
+                    if (poiBin.CDF(missCount) < 1e-10)
                         return double.PositiveInfinity;
 
-                    return totalTime / poiBin.Cdf(missCount) - totalTime;
+                    return (totalTime / poiBin.CDF(missCount) - totalTime) / 60000;
                 }
             }
 
-            return Math.Max(0, RootFinding.FindRootExpand(x => timeAtMissCountAtSkill(x) - time_threshold * 60000, -50, 1000, accuracy: 1e-2));
+            return Math.Max(0, RootFinding.FindRootExpand(x => timeAtMissCountAtSkill(x) - time_threshold, -50, 1000));
         }
     }
 }
