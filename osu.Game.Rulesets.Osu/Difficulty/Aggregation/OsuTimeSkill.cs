@@ -18,12 +18,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         {
         }
 
+        // Assume players spend 12 minutes retrying a map before they FC
+        private const double time_threshold = 12;
+
         // The width of each dimension of the bins. Since the array of bins is 2 dimensional, the number of bins is equal to these values multiplied together.
         private const int difficulty_bin_count = 8;
         private const int time_bin_count = 16;
-
-        // Assume players spend 12 minutes retrying a map before they FC
-        private const double time_threshold = 12;
 
         private readonly List<double> difficulties = new List<double>();
         private readonly List<double> times = new List<double>();
@@ -127,9 +127,48 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         }
 
         /// <summary>
+        /// The coefficients of a quartic fitted to the miss counts at each skill level.
+        /// </summary>
+        /// <returns>The coefficients for ax^4+bx^3+cx^2. The 4th coefficient for dx^1 can be deduced from the first 3 in the performance calculator.</returns>
+        public ExpPolynomial GetMissCountPolynomial()
+        {
+            const int count = 21;
+            const double penalty_per_misscount = 1.0 / (count - 1);
+
+            double[] misscounts = new double[count];
+
+            ExpPolynomial polynomial = new ExpPolynomial(3);
+
+            // If there are no notes, we just return the polynomial with all coefficients 0.
+            if (difficulties.Count == 0 || difficulties.Max() == 0)
+                return polynomial;
+
+            double fcSkill = DifficultyValue();
+
+            Bin[] bins = Bin.CreateBins(difficulties, times, difficulty_bin_count, time_bin_count);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (i == 0)
+                {
+                    misscounts[i] = 0;
+                    continue;
+                }
+
+                double penalizedSkill = fcSkill - fcSkill * penalty_per_misscount * i;
+
+                misscounts[i] = getMissCountAtSkill(penalizedSkill, bins);
+            }
+
+            polynomial.Compute(misscounts);
+
+            return polynomial;
+        }
+
+        /// <summary>
         /// Find the lowest misscount that a player with the provided <paramref name="skill"/> would likely achieve within 12 minutes of retrying.
         /// </summary>
-        protected double GetMissCountAtSkill(double skill)
+        private double getMissCountAtSkill(double skill, Bin[] bins)
         {
             if (difficulties.Count == 0)
                 return 0;
@@ -150,8 +189,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
                 if (difficulties.Count > time_bin_count * difficulty_bin_count)
                 {
-                    var bins = Bin.CreateBins(difficulties, times, difficulty_bin_count, time_bin_count);
-
                     double binTimeSteps = endTime / time_bin_count;
 
                     double totalTime = 0;

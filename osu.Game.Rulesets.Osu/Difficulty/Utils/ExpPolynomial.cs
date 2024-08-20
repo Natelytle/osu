@@ -9,7 +9,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 {
     public struct ExpPolynomial
     {
-        private double[]? coefficients;
+        private double[] coefficients;
+        private readonly int degree;
 
         // The product of this matrix with 21 computed points at X values [0.0, 0.05, ..., 0.95, 1.0] returns the least squares fit polynomial coefficients.
         private static readonly double[][] quartic_matrix =
@@ -26,15 +27,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         };
 
         /// <summary>
+        /// Creates a new Exponential Polynomial with all coefficients set to 0.
+        /// </summary>
+        /// <param name="degree">The degree of the polynomial, either 3 or 4.</param>
+        public ExpPolynomial(int degree)
+        {
+            if (degree != 3 && degree != 4)
+                throw new ArgumentOutOfRangeException(nameof(degree));
+
+            this.degree = degree;
+            coefficients = new double[degree];
+        }
+
+        /// <summary>
         /// Computes a quartic or cubic function that starts at 0 and ends at the highest judgement count in the array.
         /// </summary>
         /// <param name="judgementCounts">A list of judgements, with X values [0.0, 0.05, ..., 0.95, 1.0].</param>
-        /// <param name="degree">The degree of the polynomial. Only supports cubic and quintic functions.</param>
-        public void Compute(double[] judgementCounts, int degree)
+        public void Compute(double[] judgementCounts)
         {
-            if (degree != 3 && degree != 4)
-                return;
-
             List<double> logJudgementCounts = judgementCounts.Select(x => Math.Log(x + 1)).ToList();
 
             // The polynomial will pass through the point (1, endPoint).
@@ -46,7 +56,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             }
 
             // The precomputed matrix assumes the misscounts go in order of greatest to least.
-            // Temporary fix.
             logJudgementCounts.Reverse();
 
             double[][] matrix = degree == 4 ? quartic_matrix : cubic_matrix;
