@@ -132,10 +132,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// <returns>The coefficients for ax^4+bx^3+cx^2. The 4th coefficient for dx^1 can be deduced from the first 3 in the performance calculator.</returns>
         public ExpPolynomial GetMissCountPolynomial()
         {
-            const int count = 21;
-            const double penalty_per_misscount = 1.0 / (count - 1);
-
-            double[] misscounts = new double[count];
+            double[] missCounts = new double[7];
+            double[] penalties = { 1, 0.95, 0.9, 0.8, 0.6, 0.3, 0 };
 
             ExpPolynomial polynomial = new ExpPolynomial(3);
 
@@ -147,20 +145,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
             Bin[] bins = Bin.CreateBins(difficulties, times, difficulty_bin_count, time_bin_count);
 
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < penalties.Length; i++)
             {
                 if (i == 0)
                 {
-                    misscounts[i] = 0;
+                    missCounts[i] = 0;
                     continue;
                 }
 
-                double penalizedSkill = fcSkill - fcSkill * penalty_per_misscount * i;
+                double penalizedSkill = fcSkill * penalties[i];
 
-                misscounts[i] = getMissCountAtSkill(penalizedSkill, bins);
+                missCounts[i] = getMissCountAtSkill(penalizedSkill, bins);
             }
 
-            polynomial.Compute(misscounts);
+            polynomial.Compute(missCounts);
 
             return polynomial;
         }
@@ -230,7 +228,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                 }
             }
 
-            return Math.Max(0, RootFinding.FindRootExpand(x => timeAtMissCountAtSkill(x) - time_threshold, -50, 1000));
+            return Math.Max(0, RootFinding.FindRootExpand(x => timeAtMissCountAtSkill(x) - time_threshold, -50, 1000, accuracy: 0.01));
         }
     }
 }
