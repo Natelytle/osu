@@ -7,6 +7,13 @@ using System.Linq;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 {
+    /// <summary>
+    /// Represents an Exponential Polynomial to compress the skill to miss count curve into a few coefficient values.
+    /// </summary>
+    /// <remarks>
+    /// Miss counts in relation to skill are exponential in nature, so we take the natural log of the miss counts which returns a mostly linear set of points.
+    /// With this, we can also fit the data with a low degree polynomial with very good accuracy, even if the highest and lowest miss counts are orders of magnitude apart.
+    /// </remarks>
     public struct ExpPolynomial
     {
         private double[] coefficients;
@@ -26,14 +33,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             new[] { 0.0, -4.85829, -8.09612, -10.4498, -3.84479, 12.1626, 0.0 }
         };
 
-        /// <summary>
-        /// Represents an Exponential Polynomial to compress the skill to miss count curve into a few coefficient values.
-        /// </summary>
+        /// <inheritdoc cref="ExpPolynomial"/>
         /// <param name="degree">The degree of the polynomial to fit, either 3 or 4.</param>
-        /// <remarks>
-        /// Miss counts in relation to skill are exponential in nature, so we take the natural log of the miss counts which returns a mostly linear set of points.
-        /// With this, we can also fit the data with a low degree polynomial with very good accuracy, even if the highest and lowest miss counts are orders of magnitude apart.
-        /// </remarks>
         public ExpPolynomial(int degree)
         {
             if (degree != 3 && degree != 4)
