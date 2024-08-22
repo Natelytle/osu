@@ -158,7 +158,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                 missCounts[i] = getMissCountAtSkill(penalizedSkill, bins);
             }
 
-            polynomial.Compute(missCounts);
+            polynomial.Fit(missCounts);
 
             return polynomial;
         }

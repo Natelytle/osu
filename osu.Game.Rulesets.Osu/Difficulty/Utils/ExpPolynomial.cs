@@ -12,24 +12,28 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         private double[] coefficients;
         private readonly int degree;
 
-        // The product of this matrix with 21 computed points at X values [0.0, 0.05, ..., 0.95, 1.0] returns the least squares fit polynomial coefficients.
+        // The dot product of this matrix with 7 computed points at X values [0.0, 0.30, 0.60, 0.80, 0.90, 0.95, 1.0] results in the least squares fit coefficients.
         private static readonly double[][] quartic_matrix =
         {
-            new[] { 0.0, -25.8899, -32.6909, -11.9147, 48.8588, -26.8943, 0.0 },
-            new[] { 0.0, 51.7809, 64.1686, 18.807, -105.117, 66.591, 0.0 },
-            new[] { 0.0, -31.506, -38.1003, -7.6446, 68.6352, -53.9226, 0.0 }
+            new[] { 0.0, 25.8899, 32.6909, 11.9147, -48.8588, 26.8943, 0.0 },
+            new[] { 0.0, -51.7809, -64.1686, -18.807, 105.117, -66.591, 0.0 },
+            new[] { 0.0, 31.506, 38.1003, 7.6446, -68.6352, 53.9226, 0.0 }
         };
 
         private static readonly double[][] cubic_matrix =
         {
-            new[] { 0.0, -3.14395, -5.18439, -6.46975, -1.4638, 9.53526, 0.0 },
-            new[] { 0.0, 4.57357, 7.45704, 8.95944, 0.546602, -16.4432, 0.0 }
+            new[] { 0.0, 3.14395, 5.18439, 6.46975, 1.4638, -9.53526, 0.0 },
+            new[] { 0.0, -4.85829, -8.09612, -10.4498, -3.84479, 12.1626, 0.0 }
         };
 
         /// <summary>
-        /// Creates a new Exponential Polynomial with all coefficients set to 0.
+        /// Represents an Exponential Polynomial to compress the skill to miss count curve into a few coefficient values.
         /// </summary>
-        /// <param name="degree">The degree of the polynomial, either 3 or 4.</param>
+        /// <param name="degree">The degree of the polynomial to fit, either 3 or 4.</param>
+        /// <remarks>
+        /// Miss counts in relation to skill are exponential in nature, so we take the natural log of the miss counts which returns a mostly linear set of points.
+        /// With this, we can also fit the data with a low degree polynomial with very good accuracy, even if the highest and lowest miss counts are orders of magnitude apart.
+        /// </remarks>
         public ExpPolynomial(int degree)
         {
             if (degree != 3 && degree != 4)
@@ -43,7 +47,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         /// Computes a quartic or cubic function that starts at 0 and ends at the highest judgement count in the array.
         /// </summary>
         /// <param name="judgementCounts">A list of judgements, with X values [0.0, 0.05, ..., 0.95, 1.0].</param>
-        public void Compute(double[] judgementCounts)
+        public void Fit(double[] judgementCounts)
         {
             List<double> logMissCounts = judgementCounts.Select(x => Math.Log(x + 1)).ToList();
 
