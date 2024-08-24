@@ -261,7 +261,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double calculateAimMissPenalty(double missCount, OsuDifficultyAttributes attributes)
         {
-            double penalty = attributes.AimMissCountPolynomial.SolveBetweenZeroAndOne(missCount) ?? 1;
+            double penalty = attributes.AimMissCountPolynomial.GetSkillMultiplier(missCount) ?? 1;
 
             double multiplier = Math.Pow(1 - penalty, 1.5);
 

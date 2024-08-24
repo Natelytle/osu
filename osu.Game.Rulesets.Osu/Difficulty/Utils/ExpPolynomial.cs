@@ -22,9 +22,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         // The dot product of this matrix with 7 computed points at X values [0.0, 0.30, 0.60, 0.80, 0.90, 0.95, 1.0] results in the least squares fit coefficients.
         private static readonly double[][] quartic_matrix =
         {
-            new[] { 0.0, 25.8899, 32.6909, 11.9147, -48.8588, 26.8943, 0.0 },
-            new[] { 0.0, -51.7809, -64.1686, -18.807, 105.117, -66.591, 0.0 },
-            new[] { 0.0, 31.506, 38.1003, 7.6446, -68.6352, 53.9226, 0.0 }
+            new[] { 0.0, -25.8899, -32.6909, -11.9147, 48.8588, -26.8943, 0.0 },
+            new[] { 0.0, 51.7787, 66.595, 28.8517, -90.3185, 40.9864, 0.0 },
+            new[] { 0.0, -31.5028, -41.7398, -22.7118, 46.438, -15.5156, 0.0 }
         };
 
         private static readonly double[][] cubic_matrix =
@@ -83,17 +83,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         }
 
         /// <summary>
-        /// Solve for the largest corresponding x value of a polynomial within x = 0 and x = 1 at a specified y value.
+        /// Solve for the largest x value of a polynomial within x = 0 and x = 1 at the specified judgementCount value.
         /// </summary>
-        /// <param name="y">A value between 0 and 1, inclusive, to solve the polynomial at.</param>
-        /// <returns>The x value at the specified y value, and null if no value exists.</returns>
-        public double? SolveBetweenZeroAndOne(double y)
+        /// <param name="judgementCount">The number of judgements to get the multiplier at.</param>
+        /// <returns>The x value at the specified judgementCount value, and null if no value exists.</returns>
+        public double? GetSkillMultiplier(double judgementCount)
         {
             if (coefficients is null)
                 return null;
 
             List<double> listCoefficients = coefficients.ToList();
-            listCoefficients.Add(-Math.Log(y + 1));
+            listCoefficients.Add(-Math.Log(judgementCount + 1));
 
             List<double?> xVals = SpecialFunctions.SolvePolynomialRoots(listCoefficients);
 
