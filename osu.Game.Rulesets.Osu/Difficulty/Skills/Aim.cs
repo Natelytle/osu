@@ -6,7 +6,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
-using osu.Game.Rulesets.Osu.Difficulty.Utils;
+using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {

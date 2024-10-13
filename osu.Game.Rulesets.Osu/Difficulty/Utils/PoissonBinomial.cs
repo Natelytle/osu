@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 {
