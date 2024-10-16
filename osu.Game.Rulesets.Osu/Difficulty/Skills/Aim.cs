@@ -28,8 +28,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double skillMultiplier => 130;
         private double strainDecayBase => 0.15;
 
-        protected override double FcProbability => 0.02;
-
         protected override double HitProbability(double skill, double difficulty)
         {
             if (skill <= 0) return 0;

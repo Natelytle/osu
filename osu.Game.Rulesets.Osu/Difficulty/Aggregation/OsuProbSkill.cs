@@ -20,7 +20,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
         /// The skill level returned from this class will have FcProbability chance of hitting every note correctly.
         /// A higher value rewards short, high difficulty sections, whereas a lower value rewards consistent, lower difficulty.
-        protected abstract double FcProbability { get; }
+        private const double fc_prob = 0.02;
 
         private readonly List<double> difficulties = new List<double>();
 
@@ -47,7 +47,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             double upperBoundEstimate = 3.0 * maxDiff;
 
             double skill = RootFinding.FindRootExpand(
-                skill => fcProbability(skill) - FcProbability,
+                skill => fcProbability(skill) - fc_prob,
                 lower_bound,
                 upperBoundEstimate,
                 accuracy: 1e-4);
@@ -71,7 +71,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             double upperBoundEstimate = 3.0 * maxDiff;
 
             double skill = RootFinding.FindRootExpand(
-                skill => fcProbability(skill) - FcProbability,
+                skill => fcProbability(skill) - fc_prob,
                 lower_bound,
                 upperBoundEstimate,
                 accuracy: 1e-4);
@@ -145,7 +145,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
             var poiBin = difficulties.Count > 64 ? new PoissonBinomial(bins, skill, HitProbability) : new PoissonBinomial(difficulties, skill, HitProbability);
 
-            return Math.Max(0, RootFinding.FindRootExpand(x => poiBin.CDF(x) - FcProbability, -50, 1000, accuracy: 1e-4));
+            return Math.Max(0, RootFinding.FindRootExpand(x => poiBin.CDF(x) - fc_prob, -50, 1000, accuracy: 1e-4));
         }
     }
 }
