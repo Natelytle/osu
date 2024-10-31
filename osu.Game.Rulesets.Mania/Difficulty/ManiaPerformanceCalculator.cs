@@ -1,7 +1,6 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty;
@@ -57,9 +56,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double difficultyValue = 8.0 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
-                                         * Math.Max(0, 5 * scoreAccuracy - 4) // From 80% accuracy, 1/20th of total pp is awarded per additional 1% accuracy
-                                         * (1 + 0.1 * Math.Min(1, totalHits / 1500)); // Length bonus, capped at 1500 notes
+            double difficultyValue = 10 * attributes.StarRating;
 
             return difficultyValue;
         }

@@ -13,7 +13,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Strain : Skill
     {
-        private double skillMultiplier => 1.0;
+        private double skillMultiplier => 10.0;
+
+        private double strainMultiplier => 0.33;
+
         private double strainDecayBase => 0.3;
 
         private readonly List<double> difficulties = new List<double>();
@@ -35,7 +38,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         public override double DifficultyValue()
         {
-            return difficulties.Max() * skillMultiplier;
+            if (difficulties.Count == 0)
+                return 0;
+
+            return difficulties.Last() * skillMultiplier;
         }
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
@@ -60,13 +66,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             timeSinceLastChord = current.Next(0)?.StartTime - current.StartTime;
 
+            // We are going to be increasing currentStrain by the current note difficulties, but we also want to increase the note difficulties by what currentStrain was.
+            double additionalStrain = currentStrain * strainMultiplier;
+
             for (int i = 0; i < currentChordDifficulties.Count; i++)
             {
-                currentChordDifficulties[i] = norm(1.3, currentChordDifficulties[i], chordDifficulty);
-                currentChordDifficulties[i] += currentStrain;
+                currentChordDifficulties[i] = norm(BalancingConstants.CHORD, currentChordDifficulties[i], chordDifficulty);
+                currentStrain = norm(BalancingConstants.STRAIN, currentStrain, currentChordDifficulties[i]);
+                currentChordDifficulties[i] = norm(BalancingConstants.STRAIN, currentChordDifficulties[i], additionalStrain);
             }
-
-            currentStrain = currentChordDifficulties.Max();
 
             difficulties.AddRange(currentChordDifficulties);
 
@@ -75,8 +83,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double combinedValue(double speedValue, double sameColumnDifficulty, double crossColumnDifficulty)
         {
-            double combinedValue = norm(1.5, sameColumnDifficulty, crossColumnDifficulty);
-            combinedValue = norm(1.2, combinedValue, speedValue);
+            double combinedValue = norm(BalancingConstants.COLUMN, sameColumnDifficulty, crossColumnDifficulty);
+            combinedValue = norm(BalancingConstants.SPEED, combinedValue, speedValue);
 
             return combinedValue;
         }
