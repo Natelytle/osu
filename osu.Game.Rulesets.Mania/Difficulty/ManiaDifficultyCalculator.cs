@@ -68,8 +68,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
+            // We want to split LNs into their heads and tails.
+            List<HitObject> nestedHitObjects = new List<HitObject>();
+
+            foreach (var obj in beatmap.HitObjects)
+            {
+                if (obj.NestedHitObjects.Count == 0)
+                    nestedHitObjects.Add(obj);
+                else
+                {
+                    nestedHitObjects.Add(obj.NestedHitObjects.First());
+                    nestedHitObjects.Add(obj.NestedHitObjects.Last());
+                }
+            }
+
             // Order notes by start time, then by column left to right.
-            var sortedObjects = beatmap.HitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToArray();
+            var sortedObjects = nestedHitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToArray();
 
             int columns = ((ManiaBeatmap)beatmap).TotalColumns;
 
@@ -79,10 +93,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             for (int column = 0; column < columns; column++)
                 perColumnObjects[column] = new List<DifficultyHitObject>();
 
+            List<ManiaDifficultyHitObject> currentTimeObjects = new List<ManiaDifficultyHitObject>();
+
             for (int i = 1; i < sortedObjects.Length; i++)
             {
+                // Worlds worst hack. Please kill me. I hate this so much but I don't know any other way.
+                if (sortedObjects[i].StartTime != sortedObjects[i - 1].StartTime)
+                {
+                    foreach (ManiaDifficultyHitObject currentObj in currentTimeObjects)
+                    {
+                        foreach (var concurrentObj in currentTimeObjects)
+                            currentObj.CurrHitObjects[concurrentObj.Column] = concurrentObj;
+                    }
+
+                    currentTimeObjects.Clear();
+                }
+
                 var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count);
                 objects.Add(currentObject);
+                currentTimeObjects.Add(currentObject);
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }
 
@@ -94,7 +123,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new Strain(mods)
+            new Strain(mods, beatmap.Difficulty.OverallDifficulty, !mods.Any(m => m is ManiaModClassic))
         };
 
         protected override Mod[] DifficultyAdjustmentMods

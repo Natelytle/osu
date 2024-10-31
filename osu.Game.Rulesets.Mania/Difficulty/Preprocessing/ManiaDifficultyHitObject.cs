@@ -17,10 +17,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         private readonly int columnIndex;
 
-        // The current hit object in each column
-        public readonly ManiaDifficultyHitObject?[] CurrentHitObjects;
-
-        public readonly int NotesInCurrentChord;
+        // The hit object earlier in time than this note in each column
+        public readonly ManiaDifficultyHitObject?[] PrevHitObjects;
+        public ManiaDifficultyHitObject?[] CurrHitObjects { get; set; }
 
         public int Column;
 
@@ -31,13 +30,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             this.perColumnObjects = perColumnObjects;
             Column = BaseObject.Column;
             columnIndex = this.perColumnObjects[Column].Count;
-            CurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
+            PrevHitObjects = new ManiaDifficultyHitObject[totalColumns];
+            CurrHitObjects = new ManiaDifficultyHitObject[totalColumns];
 
-            // Note: We're iterating through objects from left to right, so when calculating chord difficulty we want to do so on the rightmost note, or else mirror mod will different values.
             for (int i = 0; i < totalColumns; i++)
-                CurrentHitObjects[i] = (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault();
-
-            NotesInCurrentChord = CurrentHitObjects.Count(obj => obj?.StartTime == hitObject.StartTime);
+            {
+                PrevHitObjects[i] = perColumnObjects[i].LastOrDefault()?.StartTime == hitObject.StartTime
+                    ? (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault()
+                    : (ManiaDifficultyHitObject?)perColumnObjects[i].AsEnumerable().Reverse().Skip(1).FirstOrDefault();
+            }
         }
 
         public DifficultyHitObject? PrevInColumn(int backwardsIndex)
