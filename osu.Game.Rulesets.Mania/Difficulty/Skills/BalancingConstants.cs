@@ -8,7 +8,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         public const double COLUMN = 1.5;
         public const double SPEED = 1.2;
         public const double CHORD = 1.3;
+        public const double HOLD = 1.2;
 
         public const double STRAIN = 1.5;
+
+        // Higher decreases the influence of accuracy, and vice versa
+        public const double ACC = 2;
     }
 }

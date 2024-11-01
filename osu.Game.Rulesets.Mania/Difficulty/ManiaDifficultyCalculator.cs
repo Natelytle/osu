@@ -23,7 +23,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 0.018;
+        private const double difficulty_multiplier = 1.0;
 
         private readonly bool isForCurrentRuleset;
         private readonly double originalOverallDifficulty;
@@ -45,9 +45,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
+            double starRating = skills[0].DifficultyValue() * difficulty_multiplier;
+            double ssRating = ((Strain)skills[0]).SSValue() * difficulty_multiplier;
+
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = skills[0].DifficultyValue() * difficulty_multiplier,
+                StarRating = starRating,
+                SSRating = ssRating,
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.
@@ -123,7 +127,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new Strain(mods, beatmap.Difficulty.OverallDifficulty, !mods.Any(m => m is ManiaModClassic))
+            new Strain(mods, beatmap.Difficulty.OverallDifficulty)
         };
 
         protected override Mod[] DifficultyAdjustmentMods

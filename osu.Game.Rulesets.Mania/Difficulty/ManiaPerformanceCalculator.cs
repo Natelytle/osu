@@ -56,7 +56,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double difficultyValue = 10 * attributes.StarRating;
+            double difficultyValue = 10 * attributes.SSRating;
 
             return difficultyValue;
         }

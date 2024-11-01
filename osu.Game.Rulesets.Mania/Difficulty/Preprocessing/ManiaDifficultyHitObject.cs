@@ -17,6 +17,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         private readonly int columnIndex;
 
+        // The index of the current note when nestedHitObjects are combined.
+        public readonly int NoNestedIndex;
+
         // The hit object earlier in time than this note in each column
         public readonly ManiaDifficultyHitObject?[] PrevHitObjects;
         public ManiaDifficultyHitObject?[] CurrHitObjects { get; set; }
@@ -30,6 +33,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             this.perColumnObjects = perColumnObjects;
             Column = BaseObject.Column;
             columnIndex = this.perColumnObjects[Column].Count;
+            NoNestedIndex = objects.Count(obj => obj.BaseObject is not TailNote);
             PrevHitObjects = new ManiaDifficultyHitObject[totalColumns];
             CurrHitObjects = new ManiaDifficultyHitObject[totalColumns];
 

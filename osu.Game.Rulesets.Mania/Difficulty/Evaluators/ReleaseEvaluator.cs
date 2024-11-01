@@ -5,7 +5,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
-    public class ReleaseFactor
+    public class ReleaseEvaluator
     {
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
