@@ -12,6 +12,7 @@ using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Scoring;
@@ -45,13 +46,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
-            double starRating = skills[0].DifficultyValue() * difficulty_multiplier;
-            double ssRating = ((Strain)skills[0]).SSValue() * difficulty_multiplier;
+            var strain = (Strain)skills[0];
+
+            double starRating = strain.DifficultyValue();
+            double ssRating = strain.SSValue();
+            double acc90 = strain.TotalAccuracyAt(ssRating * 0.9);
+            double acc80 = strain.TotalAccuracyAt(ssRating * 0.8);
+            double acc70 = strain.TotalAccuracyAt(ssRating * 0.7);
+            double acc60 = strain.TotalAccuracyAt(ssRating * 0.6);
+            double acc50 = strain.TotalAccuracyAt(ssRating * 0.5);
+            double acc40 = strain.TotalAccuracyAt(ssRating * 0.4);
+            double acc30 = strain.TotalAccuracyAt(ssRating * 0.3);
+            double acc20 = strain.TotalAccuracyAt(ssRating * 0.2);
+            double acc10 = strain.TotalAccuracyAt(ssRating * 0.1);
+            double acc0 = strain.TotalAccuracyAt(0);
+            ExpPolynomial accuracyCurve = strain.AccuracyCurve();
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
                 SSRating = ssRating,
+                AccuracyCurve = accuracyCurve,
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.

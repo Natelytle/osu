@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
 {
@@ -20,6 +21,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         public double GreatHitWindow { get; set; }
 
         public double SSRating { get; set; }
+
+        public ExpPolynomial AccuracyCurve { get; set; }
 
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {

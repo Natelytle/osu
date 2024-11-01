@@ -58,6 +58,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             double difficultyValue = 10 * attributes.SSRating;
 
+            difficultyValue *= 1 - attributes.AccuracyCurve.GetPenaltyAt(calculateCustomAccuracy());
+
             return difficultyValue;
         }
 

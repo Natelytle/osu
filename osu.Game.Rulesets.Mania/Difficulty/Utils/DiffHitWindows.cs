@@ -52,13 +52,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             // When converting beatmaps to osu!mania in stable, the resulting hit window sizes are dependent on whether the beatmap's OD is above or below 4.
             if (isConvert)
             {
-                overallDifficulty = 10;
-
                 if (overallDifficulty <= 4)
                 {
                     greatWindowLeniency = 13;
                     goodWindowLeniency = 10;
                 }
+
+                overallDifficulty = 10;
             }
 
             double windowMultiplier = 1;

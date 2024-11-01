@@ -17,11 +17,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Strain : Skill
     {
-        private double strainMultiplier => 0.33;
-        private double strainDecayBase => 0.3;
+        private double strainMultiplier => 0.1;
+        private double strainDecayBase => 0.15;
 
         // To calculate accuracy at a skill level correctly, we need this information.
-        private double od;
         private readonly bool lazerMechanics;
         private DiffHitWindows hitWindows;
 
@@ -35,7 +34,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         public Strain(Mod[] mods, double od)
             : base(mods)
         {
-            this.od = od;
             lazerMechanics = !mods.Any(m => m is ManiaModClassic);
             hitWindows = new DiffHitWindows(mods, od);
         }
@@ -50,7 +48,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 return 1;
 
             // This formula is uuuugly, but it ensures that when your skill equals the note difficulty, you get 100 UR, and when your skill level is 0 (mashing), you get 500 UR.
-            double skillToUr(double d) => 100 / Math.Pow((skill * (1 - Math.Pow(0.2, 1 / BalancingConstants.ACC)) + d * Math.Pow(0.2, 1 / BalancingConstants.ACC)) / d, BalancingConstants.ACC);
+            double skillToUr(double d) => 10 / Math.Pow((skill * (1 - Math.Pow(0.2, 1 / BalancingConstants.ACC)) + d * Math.Pow(0.2, 1 / BalancingConstants.ACC)) / d, BalancingConstants.ACC);
 
             double unstableRate = skillToUr(difficulty);
 
@@ -59,6 +57,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double p200;
             double p100;
             double p50;
+
+            double accuracy = 0;
 
             // In case the current note is a classic Long Note, we need a special formula to account for it only giving one judgement.
             if (tailDifficulty is not null)
@@ -71,19 +71,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 p100 = hitWindows.HitProbabilityLn(hitWindows.H100, unstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H200, unstableRate, tailUnstableRate);
                 p50 = hitWindows.HitProbabilityLn(hitWindows.H50, unstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H100, unstableRate, tailUnstableRate);
 
-                return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+                accuracy = (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+                return accuracy;
             }
 
             pMax = hitWindows.HitProbability(hitWindows.HMax * windowMultiplier, unstableRate);
-            p300 = hitWindows.HitProbability(hitWindows.H300 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.HMax, unstableRate);
-            p200 = hitWindows.HitProbability(hitWindows.H200 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.H300, unstableRate);
-            p100 = hitWindows.HitProbability(hitWindows.H100 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.H200, unstableRate);
-            p50 = hitWindows.HitProbability(hitWindows.H50 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.H100, unstableRate);
+            p300 = hitWindows.HitProbability(hitWindows.H300 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.HMax * windowMultiplier, unstableRate);
+            p200 = hitWindows.HitProbability(hitWindows.H200 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.H300 * windowMultiplier, unstableRate);
+            p100 = hitWindows.HitProbability(hitWindows.H100 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.H200 * windowMultiplier, unstableRate);
+            p50 = hitWindows.HitProbability(hitWindows.H50 * windowMultiplier, unstableRate) - hitWindows.HitProbability(hitWindows.H100 * windowMultiplier, unstableRate);
 
-            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            accuracy = (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            return accuracy;
         }
 
-        private double getTotalAccuracy(double skill)
+        public double TotalAccuracyAt(double skill)
         {
             double averageAccuracy = 0;
             double count = 0;
@@ -107,10 +109,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 for (int i = 0; i < noteDifficulties.Count; i++)
                 {
                     averageAccuracy = (count * averageAccuracy + getNoteAccuracy(noteDifficulties[i], tailDifficulties[i], skill)) / (count + 1);
+                    count += 1;
                 }
             }
 
             return averageAccuracy;
+        }
+
+        public override double DifficultyValue()
+        {
+            if (noteDifficulties.Count == 0 || noteDifficulties.Max() == 0)
+                return 0;
+
+            const double target_accuracy = 0.95;
+
+            double skillLevel = RootFinding.FindRootExpand(x => TotalAccuracyAt(x) - target_accuracy, 0, noteDifficulties.Max());
+
+            return skillLevel;
         }
 
         // The skill level required to get 99% or the accuracy attained if you got an additional 300, whichever accuracy is higher.
@@ -124,26 +139,43 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             double targetAccuracy = Math.Max(0.99, (totalNotes * 320 + 300) / (totalNotes * 320 + 320));
 
-            double skillLevel = RootFinding.FindRootExpand(x => getTotalAccuracy(x) - targetAccuracy, 0, noteDifficulties.Max() * 2);
+            double skillLevel = RootFinding.FindRootExpand(x => TotalAccuracyAt(x) - targetAccuracy, 0, noteDifficulties.Max() * 2);
 
             return skillLevel;
         }
 
-        public override double DifficultyValue()
+        public ExpPolynomial AccuracyCurve()
         {
+            double[] accuracyLosses = new double[21];
+            double[] penalties = { 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0 };
+
+            double fcSkill = SSValue();
+
+            ExpPolynomial curve = new ExpPolynomial();
+
+            // If there are no notes, we just return the empty polynomial.
             if (noteDifficulties.Count == 0 || noteDifficulties.Max() == 0)
-                return 0;
+                return curve;
 
-            const double target_accuracy = 0.95;
+            // Still need to add binning
+            // var bins = Bin.CreateBins(difficulties);
 
-            double skillLevel = RootFinding.FindRootExpand(x => getTotalAccuracy(x) - target_accuracy, 0, noteDifficulties.Max());
+            for (int i = 0; i < penalties.Length; i++)
+            {
+                if (i == 0)
+                {
+                    accuracyLosses[i] = 0;
+                    continue;
+                }
 
-            return skillLevel;
-        }
+                double penalizedSkill = fcSkill * penalties[i];
 
-        public double AccuracyAt(double skill)
-        {
-            return getTotalAccuracy(skill);
+                accuracyLosses[i] = 1 - TotalAccuracyAt(penalizedSkill);
+            }
+
+            curve.Fit(accuracyLosses);
+
+            return curve;
         }
 
         /* /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
