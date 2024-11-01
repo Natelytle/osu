@@ -97,7 +97,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
                     if (tailDifficulties[i] is not null)
                     {
-                        averageAccuracy = (count * averageAccuracy + getNoteAccuracy(tailDifficulties[i]!.Value, null, skill)) / (count + 1);
+                        averageAccuracy = (count * averageAccuracy + getNoteAccuracy(tailDifficulties[i]!.Value, null, skill, 1.5)) / (count + 1);
                         count += 1;
                     }
                 }
