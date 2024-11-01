@@ -764,6 +764,7 @@ namespace osu.Game.Utils
             return xVals;
         }
 
+        // https://github.com/sasamil/Quartic/blob/master/quartic.cpp
         private static double?[] solveP4(double a, double b, double c, double d, double e, out int nRoots)
         {
             double?[] xVals = new double?[4];
@@ -785,6 +786,7 @@ namespace osu.Game.Utils
             b /= a;
             c /= a;
             d /= a;
+            e /= a;
 
             double a3 = -c;
             double b3 = b * d - 4 * e;
@@ -829,7 +831,7 @@ namespace osu.Game.Utils
                 q1 = (y + sqD) * 0.5;
                 q2 = (y - sqD) * 0.5;
 
-                p1 = (b * q1 - c) / (q1 - q2);
+                p1 = (b * q1 - d) / (q1 - q2);
                 p2 = (d - b * q2) / (q1 - q2);
             }
 
@@ -886,10 +888,10 @@ namespace osu.Game.Utils
             c /= a;
             d /= a;
 
-            double b2 = b * b;
-            double q = (b2 - 3 * c) / 9;
+            double a2 = b * b;
+            double q = (a2 - 3 * c) / 9;
             double q3 = q * q * q;
-            double r = (b * (2 * b2 - 9 * c) + 27 * d) / 54;
+            double r = (b * (2 * a2 - 9 * c) + 27 * d) / 54;
             double r2 = r * r;
 
             if (r2 < q3)
@@ -909,7 +911,7 @@ namespace osu.Game.Utils
                 return xVals;
             }
 
-            double upperA = -Math.Cbrt(Math.Abs(r) + double.Sqrt(r2 - q3));
+            double upperA = -Math.Cbrt(Math.Abs(r) + Math.Sqrt(r2 - q3));
 
             if (r < 0)
                 upperA = -upperA;

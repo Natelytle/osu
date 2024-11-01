@@ -50,16 +50,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double starRating = strain.DifficultyValue();
             double ssRating = strain.SSValue();
-            double acc90 = strain.TotalAccuracyAt(ssRating * 0.9);
-            double acc80 = strain.TotalAccuracyAt(ssRating * 0.8);
-            double acc70 = strain.TotalAccuracyAt(ssRating * 0.7);
-            double acc60 = strain.TotalAccuracyAt(ssRating * 0.6);
-            double acc50 = strain.TotalAccuracyAt(ssRating * 0.5);
-            double acc40 = strain.TotalAccuracyAt(ssRating * 0.4);
-            double acc30 = strain.TotalAccuracyAt(ssRating * 0.3);
-            double acc20 = strain.TotalAccuracyAt(ssRating * 0.2);
-            double acc10 = strain.TotalAccuracyAt(ssRating * 0.1);
-            double acc0 = strain.TotalAccuracyAt(0);
             ExpPolynomial accuracyCurve = strain.AccuracyCurve();
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes

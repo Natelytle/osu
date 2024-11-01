@@ -19,6 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
     {
         private double strainMultiplier => 0.1;
         private double strainDecayBase => 0.15;
+        private double tailDeviationMultiplier => 1.8;
 
         // To calculate accuracy at a skill level correctly, we need this information.
         private readonly bool lazerMechanics;
@@ -47,10 +48,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (difficulty + (tailDifficulty ?? 0) == 0)
                 return 1;
 
-            // This formula is uuuugly, but it ensures that when your skill equals the note difficulty, you get 100 UR, and when your skill level is 0 (mashing), you get 500 UR.
+            // These formulas is uuuugly, but it ensures that when your skill equals the note difficulty, you get 100 UR (or 100 * tailDeviationMultiplier), and when your skill level is 0 (mashing), you get 500 UR.
             double skillToUr(double d) => 10 / Math.Pow((skill * (1 - Math.Pow(0.2, 1 / BalancingConstants.ACC)) + d * Math.Pow(0.2, 1 / BalancingConstants.ACC)) / d, BalancingConstants.ACC);
+            double skillToUrTail(double d) => 10 * tailDeviationMultiplier / Math.Pow((skill * (1 - Math.Pow(0.2 * tailDeviationMultiplier, 1 / BalancingConstants.ACC)) + d * Math.Pow(0.2 * tailDeviationMultiplier, 1 / BalancingConstants.ACC)) / d, BalancingConstants.ACC);
 
-            double unstableRate = skillToUr(difficulty);
+            // Check window multiplier to see if the current note is a lazer LN tail.
+            double unstableRate = windowMultiplier == 1.0 ? skillToUr(difficulty) : skillToUrTail(difficulty);
 
             double pMax;
             double p300;
@@ -58,12 +61,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double p100;
             double p50;
 
-            double accuracy = 0;
+            double accuracy;
 
             // In case the current note is a classic Long Note, we need a special formula to account for it only giving one judgement.
             if (tailDifficulty is not null)
             {
-                double tailUnstableRate = skillToUr(tailDifficulty.Value);
+                double tailUnstableRate = skillToUrTail(tailDifficulty.Value);
 
                 pMax = hitWindows.HitProbabilityLn(hitWindows.HMax, unstableRate, tailUnstableRate);
                 p300 = hitWindows.HitProbabilityLn(hitWindows.H300, unstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.HMax, unstableRate, tailUnstableRate);
@@ -99,7 +102,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
                     if (tailDifficulties[i] is not null)
                     {
-                        averageAccuracy = (count * averageAccuracy + getNoteAccuracy(tailDifficulties[i]!.Value, null, skill, 1.5)) / (count + 1);
+                        averageAccuracy = (count * averageAccuracy + getNoteAccuracy(tailDifficulties[i]!.Value, null, skill, 1.5 / tailDeviationMultiplier)) / (count + 1);
                         count += 1;
                     }
                 }
@@ -123,7 +126,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             const double target_accuracy = 0.95;
 
-            double skillLevel = RootFinding.FindRootExpand(x => TotalAccuracyAt(x) - target_accuracy, 0, noteDifficulties.Max());
+            double skillLevel = RootFinding.FindRootExpand(x => TotalAccuracyAt(x) - target_accuracy, 0, noteDifficulties.Max(), accuracy: 1e-4);
+
+            if (noteDifficulties.Count % 100 == 0)
+                Console.WriteLine(noteDifficulties.Count);
 
             return skillLevel;
         }
@@ -139,7 +145,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             double targetAccuracy = Math.Max(0.99, (totalNotes * 320 + 300) / (totalNotes * 320 + 320));
 
-            double skillLevel = RootFinding.FindRootExpand(x => TotalAccuracyAt(x) - targetAccuracy, 0, noteDifficulties.Max() * 2);
+            double skillLevel = RootFinding.FindRootExpand(x => TotalAccuracyAt(x) - targetAccuracy, 0, noteDifficulties.Max() * 2, accuracy: 1e-4);
 
             return skillLevel;
         }
