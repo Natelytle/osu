@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         public const double STRAIN = 1.5;
 
-        // Higher decreases the influence of accuracy, and vice versa
-        public const double ACC = 3;
+        // Lower increases the influence of accuracy, and vice versa
+        public const double ACC = 2;
     }
 }

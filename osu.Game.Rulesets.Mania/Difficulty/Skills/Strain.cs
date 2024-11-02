@@ -46,20 +46,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                                                       AGGREGATION BEGINS HERE
         */ /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        // These formulas are uuuugly, but it ensures that when your skill equals the note difficulty, you get 100 UR (or 100 * tailDeviationMultiplier), and when your skill level is 0 (mashing), you get 500 UR.
-        private double skillToUr(double skill, double d)
-        {
-            if (d == 0) return 0;
-
-            return 10 / Math.Pow((skill * (1 - Math.Pow(0.2, 1 / BalancingConstants.ACC)) + d * Math.Pow(0.2, 1 / BalancingConstants.ACC)) / d, BalancingConstants.ACC);
-        }
-
-        private double skillToUrTail(double skill, double d)
-        {
-            if (d == 0) return 0;
-
-            return 10 * tailDeviationMultiplier / Math.Pow((skill * (1 - Math.Pow(0.2 * tailDeviationMultiplier, 1 / BalancingConstants.ACC)) + d * Math.Pow(0.2 * tailDeviationMultiplier, 1 / BalancingConstants.ACC)) / d, BalancingConstants.ACC);
-        }
+        // These formulas ensure that when your skill equals the note difficulty, you get 100 (* tail deviation mult) UR, and when your skill level is 0 (mashing), you get 500 UR.
+        private double skillToUr(double skill, double d) => d != 0 ? 50 * Math.Pow(10 / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
+        private double skillToUrTail(double skill, double d) => d != 0 ? 50 * Math.Pow(10 * tailDeviationMultiplier / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
 
         private double getNoteAccuracy(double difficulty, double skill)
         {
