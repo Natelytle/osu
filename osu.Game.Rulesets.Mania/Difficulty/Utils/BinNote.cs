@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
             foreach (double d in difficulties)
             {
-                double binIndex = totalBins * (d / maxDifficulty) - 1;
+                double binIndex = maxDifficulty > 0 ? totalBins * (d / maxDifficulty) - 1 : -1;
 
                 int lowerBound = (int)Math.Floor(binIndex);
                 double t = binIndex - lowerBound;
