@@ -17,8 +17,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         private readonly int columnIndex;
 
-        // The index of the current note when nestedHitObjects are combined.
-        public readonly int NoNestedIndex;
+        // The number of long notes before this note.
+        public readonly int LongNoteIndex;
 
         // The hit object earlier in time than this note in each column
         public readonly ManiaDifficultyHitObject?[] PrevHitObjects;
@@ -26,22 +26,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public int Column;
 
-        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index)
+        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index, int longNoteIndex)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
             int totalColumns = perColumnObjects.Length;
             this.perColumnObjects = perColumnObjects;
             Column = BaseObject.Column;
             columnIndex = this.perColumnObjects[Column].Count;
-            NoNestedIndex = objects.Count(obj => obj.BaseObject is not TailNote);
+            LongNoteIndex = longNoteIndex;
             PrevHitObjects = new ManiaDifficultyHitObject[totalColumns];
             CurrHitObjects = new ManiaDifficultyHitObject[totalColumns];
 
             for (int i = 0; i < totalColumns; i++)
             {
-                PrevHitObjects[i] = perColumnObjects[i].LastOrDefault()?.StartTime == hitObject.StartTime
-                    ? (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault()
-                    : (ManiaDifficultyHitObject?)perColumnObjects[i].AsEnumerable().Reverse().Skip(1).FirstOrDefault();
+                PrevHitObjects[i] = (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault(obj => obj.StartTime < hitObject.StartTime);
             }
         }
 
