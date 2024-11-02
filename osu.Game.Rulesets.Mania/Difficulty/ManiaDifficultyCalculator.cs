@@ -108,18 +108,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             for (int i = 1; i < sortedObjects.Length; i++)
             {
-                // Worlds worst hack. Please kill me. I hate this so much but I don't know any other way.
-                if (sortedObjects[i].StartTime != sortedObjects[i - 1].StartTime)
-                {
-                    foreach (ManiaDifficultyHitObject currentObj in currentTimeObjects)
-                    {
-                        foreach (var concurrentObj in currentTimeObjects)
-                            currentObj.CurrHitObjects[concurrentObj.Column] = concurrentObj;
-                    }
-
-                    currentTimeObjects.Clear();
-                }
-
                 var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count, longNoteIndex);
                 objects.Add(currentObject);
                 currentTimeObjects.Add(currentObject);
@@ -127,6 +115,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
                 if (currentObject.BaseObject is HeadNote)
                     longNoteIndex += 1;
+
+                if (i + 1 != sortedObjects.Length && sortedObjects[i].StartTime == sortedObjects[i + 1].StartTime)
+                    continue;
+
+                // Update the current objects of every note once we've processed every note in this chord.
+                foreach (ManiaDifficultyHitObject currentObj in currentTimeObjects)
+                {
+                    foreach (var concurrentObj in currentTimeObjects)
+                        currentObj.CurrHitObjects[concurrentObj.Column] = concurrentObj;
+                }
+
+                currentTimeObjects.Clear();
             }
 
             return objects;
