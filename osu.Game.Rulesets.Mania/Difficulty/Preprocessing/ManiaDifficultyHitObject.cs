@@ -37,9 +37,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             PrevHitObjects = new ManiaDifficultyHitObject[totalColumns];
             CurrHitObjects = new ManiaDifficultyHitObject[totalColumns];
 
+            double adjustedStartTime = hitObject.StartTime / clockRate;
+
             for (int i = 0; i < totalColumns; i++)
             {
-                PrevHitObjects[i] = (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault(obj => obj.StartTime < hitObject.StartTime);
+                PrevHitObjects[i] = (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault(obj => obj.StartTime < adjustedStartTime);
             }
         }
 
