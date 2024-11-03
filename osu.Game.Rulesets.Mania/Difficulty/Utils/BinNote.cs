@@ -29,24 +29,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
             for (int i = 0; i < totalBins; i++)
             {
-                bins[i].Difficulty = maxDifficulty * (i + 1) / totalBins;
+                bins[i].Difficulty = maxDifficulty * i / (totalBins - 1);
             }
 
             foreach (double d in difficulties)
             {
-                double binIndex = maxDifficulty > 0 ? totalBins * (d / maxDifficulty) - 1 : -1;
+                double binIndex = maxDifficulty > 0 ? totalBins * (d / maxDifficulty) : 0;
 
-                int lowerBound = (int)Math.Floor(binIndex);
+                int lowerBound = Math.Min((int)binIndex, totalBins - 1);
                 double t = binIndex - lowerBound;
 
-                //This can be -1, corresponding to the zero difficulty bucket.
-                //We don't store that since it doesn't contribute to difficulty
-                if (lowerBound >= 0)
-                {
-                    bins[lowerBound].Count += (1 - t);
-                }
-
                 int upperBound = lowerBound + 1;
+
+                bins[lowerBound].Count += 1 - t;
 
                 // this can be == bin_count for the maximum difficulty object, in which case t will be 0 anyway
                 if (upperBound < totalBins)

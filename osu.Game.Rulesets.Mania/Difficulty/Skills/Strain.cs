@@ -17,7 +17,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Strain : Skill
     {
-        private double strainMultiplier => 0.1;
+        private const double star_rating_accuracy = 0.95;
+
+        private double strainMultiplier => 0.05;
         private double strainDecayBase => 0.15;
         private double tailDeviationMultiplier => 1.8;
 
@@ -29,8 +31,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private readonly List<double> noteDifficulties = new List<double>();
         private readonly List<(double Head, double Tail)> longNoteDifficulties = new List<(double, double)>();
 
-        private BinNote[] binNotes = Array.Empty<BinNote>();
-        private BinLongNote[] binLongNotes = Array.Empty<BinLongNote>();
+        private BinNote[]? binNotes;
+        private BinLongNote[]? binLongNotes;
 
         private double currChordStrain;
         private double prevChordStrain;
@@ -46,48 +48,54 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                                                       AGGREGATION BEGINS HERE
         */ /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        // These formulas ensure that when your skill equals the note difficulty, you get 100 (* tail deviation mult) UR, and when your skill level is 0 (mashing), you get 500 UR.
-        private double skillToUr(double skill, double d) => d != 0 ? 50 * Math.Pow(10 / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
-        private double skillToUrTail(double skill, double d) => d != 0 ? 50 * Math.Pow(10 * tailDeviationMultiplier / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
+        public override double DifficultyValue() => skillLevelAtAccuracy(star_rating_accuracy);
 
-        private double getNoteAccuracy(double difficulty, double skill)
+        public double[] AccuracyCurve()
         {
-            double unstableRate = skillToUr(skill, difficulty);
+            double[] skillLevels = new double[20];
+            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.88, 0.86, 0.84, 0.82, 0.80, 0.75, 0.70 };
 
-            double pMax = hitWindows.HitProbability(hitWindows.HMax, unstableRate);
-            double p300 = hitWindows.HitProbability(hitWindows.H300, unstableRate) - hitWindows.HitProbability(hitWindows.HMax, unstableRate);
-            double p200 = hitWindows.HitProbability(hitWindows.H200, unstableRate) - hitWindows.HitProbability(hitWindows.H300, unstableRate);
-            double p100 = hitWindows.HitProbability(hitWindows.H100, unstableRate) - hitWindows.HitProbability(hitWindows.H200, unstableRate);
-            double p50 = hitWindows.HitProbability(hitWindows.H50, unstableRate) - hitWindows.HitProbability(hitWindows.H100, unstableRate);
+            // If there are no notes, we just return the empty polynomial.
+            if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
+                return skillLevels;
 
-            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            for (int i = 0; i < accuracies.Length; i++)
+            {
+                skillLevels[i] = skillLevelAtAccuracy(accuracies[i]);
+            }
+
+            return skillLevels;
         }
 
-        private double getTailAccuracy(double difficulty, double skill)
+        private double skillLevelAtAccuracy(double accuracy)
         {
-            double unstableRate = skillToUrTail(skill, difficulty);
+            if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
+                return 0;
 
-            double pMax = hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
-            double p300 = hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
-            double p200 = hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate);
-            double p100 = hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate);
-            double p50 = hitWindows.HitProbability(hitWindows.H50 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate);
+            double maxDifficulty = noteDifficulties.Count != 0 ? noteDifficulties.Max() : longNoteDifficulties.ConvertAll(obj => obj.Head + obj.Tail).Max();
 
-            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            if (maxDifficulty == 0)
+                return 0;
+
+            double totalNotes = lazerMechanics ? noteDifficulties.Count + 2 * longNoteDifficulties.Count : noteDifficulties.Count + longNoteDifficulties.Count;
+
+            double targetAccuracy = Math.Min((totalNotes - 1) / totalNotes, accuracy);
+
+            // binNotes ??= BinNote.CreateBins(noteDifficulties, 128);
+            // binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 64);
+
+            return RootFinding.FindRootExpand(x => totalAccuracy(x) - accuracy, 0, maxDifficulty * 10 * Math.Pow(targetAccuracy, 10));
         }
 
-        private double getLongNoteAccuracy((double head, double tail) difficulties, double skill)
+        private double totalAccuracy(double skill)
         {
-            double headUnstableRate = skillToUrTail(skill, difficulties.head);
-            double tailUnstableRate = skillToUrTail(skill, difficulties.tail);
+            // Just a little root finding trick since accuracy can have be above 0% even at 0 skill. Doing this lets the root finding algorithm find a root anyway.
+            if (skill == 0)
+                return 0;
 
-            double pMax = hitWindows.HitProbabilityLn(hitWindows.HMax, headUnstableRate, tailUnstableRate);
-            double p300 = hitWindows.HitProbabilityLn(hitWindows.H300, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.HMax, headUnstableRate, tailUnstableRate);
-            double p200 = hitWindows.HitProbabilityLn(hitWindows.H200, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H300, headUnstableRate, tailUnstableRate);
-            double p100 = hitWindows.HitProbabilityLn(hitWindows.H100, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H200, headUnstableRate, tailUnstableRate);
-            double p50 = hitWindows.HitProbabilityLn(hitWindows.H50, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H100, headUnstableRate, tailUnstableRate);
+            // return noteDifficulties.Count > 128 || longNoteDifficulties.Count > 128 ? totalAccuracyBinned(skill) : totalAccuracyExact(skill);
 
-            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            return totalAccuracyExact(skill);
         }
 
         private double totalAccuracyExact(double skill)
@@ -129,9 +137,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double averageAccuracy = 0;
             double count = 0;
 
-            for (int i = 0; i < binNotes.Length; i++)
+            for (int i = 0; i < binNotes!.Length; i++)
             {
-                if (count + binNotes[i].Count == 0) continue;
+                if (binNotes[i].Count == 0) continue;
 
                 averageAccuracy = (count * averageAccuracy + binNotes[i].Count * getNoteAccuracy(binNotes[i].Difficulty, skill)) / (count + binNotes[i].Count);
                 count += binNotes[i].Count;
@@ -139,9 +147,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             if (lazerMechanics)
             {
-                for (int i = 0; i < binLongNotes.Length; i++)
+                for (int i = 0; i < binLongNotes!.Length; i++)
                 {
-                    if (count + binLongNotes[i].Count == 0) continue;
+                    if (binLongNotes[i].Count == 0) continue;
 
                     averageAccuracy = (count * averageAccuracy + binLongNotes[i].Count * getNoteAccuracy(binLongNotes[i].HeadDifficulty, skill)) / (count + binLongNotes[i].Count);
                     count += binLongNotes[i].Count;
@@ -152,9 +160,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             }
             else
             {
-                for (int i = 0; i < binLongNotes.Length; i++)
+                for (int i = 0; i < binLongNotes!.Length; i++)
                 {
-                    if (count + binLongNotes[i].Count == 0) continue;
+                    if (binLongNotes[i].Count == 0) continue;
 
                     averageAccuracy = (count * averageAccuracy + binLongNotes[i].Count * getLongNoteAccuracy((binLongNotes[i].HeadDifficulty, binLongNotes[i].TailDifficulty), skill)) / (count + binLongNotes[i].Count);
                     count += binLongNotes[i].Count;
@@ -164,94 +172,49 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             return averageAccuracy;
         }
 
-        private double totalAccuracy(double skill)
+        private double getNoteAccuracy(double difficulty, double skill)
         {
-            // Just a little root finding trick since accuracy can have be above 0% even at 0 skill. Doing this lets the root finding algorithm find a root anyway.
-            if (skill == 0)
-                return 0;
+            double unstableRate = skillToUr(skill, difficulty);
 
-            return noteDifficulties.Count > 128 || longNoteDifficulties.Count > 128 ? totalAccuracyBinned(skill) : totalAccuracyExact(skill);
+            double pMax = hitWindows.HitProbability(hitWindows.HMax, unstableRate);
+            double p300 = hitWindows.HitProbability(hitWindows.H300, unstableRate) - hitWindows.HitProbability(hitWindows.HMax, unstableRate);
+            double p200 = hitWindows.HitProbability(hitWindows.H200, unstableRate) - hitWindows.HitProbability(hitWindows.H300, unstableRate);
+            double p100 = hitWindows.HitProbability(hitWindows.H100, unstableRate) - hitWindows.HitProbability(hitWindows.H200, unstableRate);
+            double p50 = hitWindows.HitProbability(hitWindows.H50, unstableRate) - hitWindows.HitProbability(hitWindows.H100, unstableRate);
+
+            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
         }
 
-        public override double DifficultyValue()
+        private double getTailAccuracy(double difficulty, double skill)
         {
-            if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
-                return 0;
+            double unstableRate = skillToUrTail(skill, difficulty);
 
-            double maxDifficulty = noteDifficulties.Count != 0 ? noteDifficulties.Max() : longNoteDifficulties.ConvertAll(obj => obj.Head + obj.Tail).Max();
+            double pMax = hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
+            double p300 = hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
+            double p200 = hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate);
+            double p100 = hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate);
+            double p50 = hitWindows.HitProbability(hitWindows.H50 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate);
 
-            if (maxDifficulty == 0)
-                return 0;
-
-            binNotes = BinNote.CreateBins(noteDifficulties, 32);
-            binLongNotes = BinLongNote.CreateBins(longNoteDifficulties, 64);
-
-            double totalNotes = lazerMechanics ? noteDifficulties.Count + 2 * longNoteDifficulties.Count : noteDifficulties.Count + longNoteDifficulties.Count;
-
-            double targetAccuracy = Math.Min(0.95, (totalNotes - 1) / totalNotes);
-
-            double skillLevel = RootFinding.FindRootExpand(x => totalAccuracy(x) - targetAccuracy, 0, maxDifficulty, accuracy: 1e-4);
-
-            if (noteDifficulties.Count % 100 == 0)
-                Console.WriteLine(noteDifficulties.Count);
-
-            return skillLevel;
+            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
         }
 
-        // The skill level required to get the accuracy if you got a 320 on every note, with 1 miss added.
-        // This value is not calculated for a true SS or else the star rating would be infinite.
-        public double SSValue()
+        private double getLongNoteAccuracy((double head, double tail) difficulties, double skill)
         {
-            if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
-                return 0;
+            double headUnstableRate = skillToUr(skill, difficulties.head);
+            double tailUnstableRate = skillToUrTail(skill, difficulties.tail);
 
-            double maxDifficulty = noteDifficulties.Count != 0 ? noteDifficulties.Max() : longNoteDifficulties.ConvertAll(obj => obj.Head + obj.Tail).Max();
+            double pMax = hitWindows.HitProbabilityLn(hitWindows.HMax, headUnstableRate, tailUnstableRate);
+            double p300 = hitWindows.HitProbabilityLn(hitWindows.H300, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.HMax, headUnstableRate, tailUnstableRate);
+            double p200 = hitWindows.HitProbabilityLn(hitWindows.H200, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H300, headUnstableRate, tailUnstableRate);
+            double p100 = hitWindows.HitProbabilityLn(hitWindows.H100, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H200, headUnstableRate, tailUnstableRate);
+            double p50 = hitWindows.HitProbabilityLn(hitWindows.H50, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H100, headUnstableRate, tailUnstableRate);
 
-            if (maxDifficulty == 0)
-                return 0;
-
-            binNotes = BinNote.CreateBins(noteDifficulties, 32);
-            binLongNotes = BinLongNote.CreateBins(longNoteDifficulties, 64);
-
-            double totalNotes = lazerMechanics ? noteDifficulties.Count + 2 * longNoteDifficulties.Count : noteDifficulties.Count + longNoteDifficulties.Count;
-
-            double targetAccuracy = (totalNotes - 1) / totalNotes;
-
-            double skillLevel = RootFinding.FindRootExpand(x => totalAccuracy(x) - targetAccuracy, 0, maxDifficulty * 3, accuracy: 1e-4);
-
-            return skillLevel;
+            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
         }
 
-        public ExpPolynomial AccuracyCurve()
-        {
-            double[] accuracyLosses = new double[21];
-            double[] penalties = { 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0 };
-
-            double fcSkill = SSValue();
-
-            ExpPolynomial curve = new ExpPolynomial();
-
-            // If there are no notes, we just return the empty polynomial.
-            if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
-                return curve;
-
-            for (int i = 0; i < penalties.Length; i++)
-            {
-                if (i == 0)
-                {
-                    accuracyLosses[i] = 0;
-                    continue;
-                }
-
-                double penalizedSkill = fcSkill * penalties[i];
-
-                accuracyLosses[i] = 1 - totalAccuracy(penalizedSkill);
-            }
-
-            curve.Fit(accuracyLosses);
-
-            return curve;
-        }
+        // These formulas ensure that when your skill equals the note difficulty, you get 100 (* tail deviation mult) UR, and when your skill level is 0 (mashing), you get 500 UR.
+        private double skillToUr(double skill, double d) => d != 0 ? 50 * Math.Pow(10 / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
+        private double skillToUrTail(double skill, double d) => d != 0 ? 50 * Math.Pow(10 * tailDeviationMultiplier / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
 
         /* /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                                                       PROCESSING BEGINS HERE

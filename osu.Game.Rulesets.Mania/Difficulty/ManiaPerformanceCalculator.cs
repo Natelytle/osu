@@ -1,8 +1,10 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
@@ -37,7 +39,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
             scoreAccuracy = calculateCustomAccuracy();
 
-            double multiplier = 1.0;
+            double multiplier = 2.0;
 
             if (score.Mods.Any(m => m is ModNoFail))
                 multiplier *= 0.75;
@@ -56,11 +58,40 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double difficultyValue = 200 * attributes.SSRating;
+            double skill = accuracyAdjustedSkillLevel(attributes);
 
-            difficultyValue *= 1 - attributes.AccuracyCurve.GetPenaltyAt(calculateCustomAccuracy());
+            double difficultyValue = Math.Pow(skill, 2);
 
-            return difficultyValue;
+            // It's easy to spam retry short maps for a high accuracy value.
+            double shortMapNerf = 2 / (1 + Math.Exp(-totalHits / 20)) - 1;
+
+            return difficultyValue * shortMapNerf;
+        }
+
+        private double accuracyAdjustedSkillLevel(ManiaDifficultyAttributes attributes)
+        {
+            double[] skillLevels = attributes.AccuracySkillLevels!;
+            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.88, 0.86, 0.84, 0.82, 0.80, 0.75, 0.70 };
+
+            if (scoreAccuracy == 1)
+                return skillLevels[0];
+
+            for (int i = 1; i < accuracies.Length; i++)
+            {
+                if (accuracies[i] > scoreAccuracy) continue;
+
+                double highAccBound = accuracies[i - 1];
+                double highAccSkill = skillLevels[i - 1];
+
+                double lowAccBound = accuracies[i];
+                double lowAccSkill = skillLevels[i];
+
+                double penalty = Interpolation.Lerp(highAccSkill, lowAccSkill, (scoreAccuracy - lowAccBound) / (highAccBound - lowAccBound));
+
+                return penalty;
+            }
+
+            return 0;
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;

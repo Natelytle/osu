@@ -12,7 +12,6 @@ using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
-using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Scoring;
@@ -49,14 +48,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             var strain = (Strain)skills[0];
 
             double starRating = strain.DifficultyValue();
-            double ssRating = strain.SSValue();
-            ExpPolynomial accuracyCurve = strain.AccuracyCurve();
+            double[] accuracySkillLevels = strain.AccuracyCurve();
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
-                SSRating = ssRating,
-                AccuracyCurve = accuracyCurve,
+                AccuracySkillLevels = accuracySkillLevels,
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.
