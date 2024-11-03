@@ -12,12 +12,16 @@ using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Strain : Skill
     {
         private const double star_rating_accuracy = 0.95;
+
+        // The player has a 2% chance of achieving the score's accuracy.
+        private const double accuracy_prob = 0.02;
 
         private double strainMultiplier => 0.05;
         private double strainDecayBase => 0.15;
@@ -77,17 +81,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (maxDifficulty == 0)
                 return 0;
 
-            double totalNotes = lazerMechanics ? noteDifficulties.Count + 2 * longNoteDifficulties.Count : noteDifficulties.Count + longNoteDifficulties.Count;
-
-            double targetAccuracy = Math.Min((totalNotes - 1) / totalNotes, accuracy);
-
             // binNotes ??= BinNote.CreateBins(noteDifficulties, 128);
             // binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 64);
 
-            return RootFinding.FindRootExpand(x => totalAccuracy(x) - accuracy, 0, maxDifficulty * 10 * Math.Pow(targetAccuracy, 10));
+            return RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2);
         }
 
-        private double totalAccuracy(double skill)
+        private double accuracyProb(double accuracy, double skill)
         {
             // Just a little root finding trick since accuracy can have be above 0% even at 0 skill. Doing this lets the root finding algorithm find a root anyway.
             if (skill == 0)
@@ -95,84 +95,114 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             // return noteDifficulties.Count > 128 || longNoteDifficulties.Count > 128 ? totalAccuracyBinned(skill) : totalAccuracyExact(skill);
 
-            return totalAccuracyExact(skill);
+            return accuracyProbExact(accuracy, skill);
         }
 
-        private double totalAccuracyExact(double skill)
+        /// <summary>
+        /// The probability of achieving x accuracy given y skill. We approximate this using the central limit theorem because it would be expensive to compute manually.
+        /// </summary>
+        /// <param name="accuracy"></param>
+        /// <param name="skill"></param>
+        /// <returns></returns>
+        private double accuracyProbExact(double accuracy, double skill)
         {
-            double averageAccuracy = 0;
-            double count = 0;
+            double count = noteDifficulties.Count;
+
+            double sum = 0;
+            double var = 0;
 
             for (int i = 0; i < noteDifficulties.Count; i++)
             {
-                averageAccuracy = (count * averageAccuracy + getNoteAccuracy(noteDifficulties[i], skill)) / (count + 1);
-                count += 1;
+                var noteProbs = getNoteProbs(noteDifficulties[i], skill);
+
+                sum += noteProbs.Score;
+                var += noteProbs.Variance;
             }
 
             if (lazerMechanics)
             {
+                count += longNoteDifficulties.Count * 2;
+
                 for (int i = 0; i < longNoteDifficulties.Count; i++)
                 {
-                    averageAccuracy = (count * averageAccuracy + getNoteAccuracy(longNoteDifficulties[i].Head, skill)) / (count + 1);
-                    count += 1;
+                    var noteProbs = getNoteProbs(longNoteDifficulties[i].Head, skill);
 
-                    averageAccuracy = (count * averageAccuracy + getTailAccuracy(longNoteDifficulties[i].Tail, skill)) / (count + 1);
-                    count += 1;
+                    sum += noteProbs.Score;
+                    var += noteProbs.Variance;
+
+                    var tailProbs = getTailProbs(longNoteDifficulties[i].Tail, skill);
+
+                    sum += tailProbs.Score;
+                    var += tailProbs.Variance;
                 }
             }
             else
             {
+                count += longNoteDifficulties.Count;
+
                 for (int i = 0; i < longNoteDifficulties.Count; i++)
                 {
-                    averageAccuracy = (count * averageAccuracy + getLongNoteAccuracy(longNoteDifficulties[i], skill)) / (count + 1);
-                    count += 1;
+                    var longNoteProbs = getLongNoteProbs(longNoteDifficulties[i], skill);
+
+                    sum += longNoteProbs.Score;
+                    var += longNoteProbs.Variance;
                 }
             }
 
-            return averageAccuracy;
+            double scoreTotal = accuracy * 320 * count;
+            double dev = Math.Sqrt(var);
+
+            double p = 1 - SpecialFunctions.NormalCdf(sum, dev, scoreTotal);
+
+            return p;
         }
 
-        private double totalAccuracyBinned(double skill)
+        /*
+        private double expectedAccuracyBinned(double skill)
         {
-            double averageAccuracy = 0;
-            double count = 0;
+            double count = noteDifficulties.Count;
+
+            double sum = 0;
+            double variance = 0;
 
             for (int i = 0; i < binNotes!.Length; i++)
             {
-                if (binNotes[i].Count == 0) continue;
+                if (binNotes[i].Count == 0)
+                    continue;
 
-                averageAccuracy = (count * averageAccuracy + binNotes[i].Count * getNoteAccuracy(binNotes[i].Difficulty, skill)) / (count + binNotes[i].Count);
-                count += binNotes[i].Count;
+                sum += binNotes[i].Count * getNoteProbs(binNotes[i].Difficulty, skill);
             }
 
             if (lazerMechanics)
             {
+                count += longNoteDifficulties.Count * 2;
+
                 for (int i = 0; i < binLongNotes!.Length; i++)
                 {
-                    if (binLongNotes[i].Count == 0) continue;
+                    if (binLongNotes[i].Count == 0)
+                        continue;
 
-                    averageAccuracy = (count * averageAccuracy + binLongNotes[i].Count * getNoteAccuracy(binLongNotes[i].HeadDifficulty, skill)) / (count + binLongNotes[i].Count);
-                    count += binLongNotes[i].Count;
-
-                    averageAccuracy = (count * averageAccuracy + binLongNotes[i].Count * getTailAccuracy(binLongNotes[i].TailDifficulty, skill)) / (count + binLongNotes[i].Count);
-                    count += binLongNotes[i].Count;
+                    sum += binLongNotes[i].Count * getNoteProbs(binLongNotes[i].HeadDifficulty, skill);
+                    sum += binLongNotes[i].Count * getTailProbs(binLongNotes[i].TailDifficulty, skill);
                 }
             }
             else
             {
+                count += longNoteDifficulties.Count;
+
                 for (int i = 0; i < binLongNotes!.Length; i++)
                 {
                     if (binLongNotes[i].Count == 0) continue;
 
-                    averageAccuracy = (count * averageAccuracy + binLongNotes[i].Count * getLongNoteAccuracy((binLongNotes[i].HeadDifficulty, binLongNotes[i].TailDifficulty), skill)) / (count + binLongNotes[i].Count);
-                    count += binLongNotes[i].Count;
+                    sum += binLongNotes[i].Count * getLongNoteProbs((binLongNotes[i].HeadDifficulty, binLongNotes[i].TailDifficulty), skill);
                 }
             }
 
-            return averageAccuracy;
+            return sum / count;
         }
+        */
 
-        private double getNoteAccuracy(double difficulty, double skill)
+        private JudgementProbs getNoteProbs(double difficulty, double skill)
         {
             double unstableRate = skillToUr(skill, difficulty);
 
@@ -182,10 +212,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double p100 = hitWindows.HitProbability(hitWindows.H100, unstableRate) - hitWindows.HitProbability(hitWindows.H200, unstableRate);
             double p50 = hitWindows.HitProbability(hitWindows.H50, unstableRate) - hitWindows.HitProbability(hitWindows.H100, unstableRate);
 
-            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            return new JudgementProbs(pMax, p300, p200, p100, p50); // (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
         }
 
-        private double getTailAccuracy(double difficulty, double skill)
+        private JudgementProbs getTailProbs(double difficulty, double skill)
         {
             double unstableRate = skillToUrTail(skill, difficulty);
 
@@ -195,10 +225,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double p100 = hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate);
             double p50 = hitWindows.HitProbability(hitWindows.H50 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate);
 
-            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            return new JudgementProbs(pMax, p300, p200, p100, p50);
         }
 
-        private double getLongNoteAccuracy((double head, double tail) difficulties, double skill)
+        private JudgementProbs getLongNoteProbs((double head, double tail) difficulties, double skill)
         {
             double headUnstableRate = skillToUr(skill, difficulties.head);
             double tailUnstableRate = skillToUrTail(skill, difficulties.tail);
@@ -209,12 +239,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double p100 = hitWindows.HitProbabilityLn(hitWindows.H100, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H200, headUnstableRate, tailUnstableRate);
             double p50 = hitWindows.HitProbabilityLn(hitWindows.H50, headUnstableRate, tailUnstableRate) - hitWindows.HitProbabilityLn(hitWindows.H100, headUnstableRate, tailUnstableRate);
 
-            return (320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50) / 320;
+            return new JudgementProbs(pMax, p300, p200, p100, p50);
         }
 
-        // These formulas ensure that when your skill equals the note difficulty, you get 100 (* tail deviation mult) UR, and when your skill level is 0 (mashing), you get 500 UR.
-        private double skillToUr(double skill, double d) => d != 0 ? 50 * Math.Pow(10 / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
-        private double skillToUrTail(double skill, double d) => d != 0 ? 50 * Math.Pow(10 * tailDeviationMultiplier / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
+        // This formula ensure that when your skill equals the note difficulty, you get around 99%, and when your skill level is 0 (mashing), you get around 80%.
+        private double skillToUr(double skill, double d) => d != 0 ? 50 * Math.Pow(12 / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
+        private double skillToUrTail(double skill, double d) => d != 0 ? 50 * Math.Pow(12 * tailDeviationMultiplier / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
 
         /* /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                                                       PROCESSING BEGINS HERE
