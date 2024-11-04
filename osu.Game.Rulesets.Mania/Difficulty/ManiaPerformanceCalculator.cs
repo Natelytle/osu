@@ -63,9 +63,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double difficultyValue = Math.Pow(skill, 2);
 
             // It's easy to spam retry short maps for a high accuracy value.
-            double shortMapNerf = 2 / (1 + Math.Exp(-totalHits / 20)) - 1;
+            // double shortMapNerf = 2 / (1 + Math.Exp(-totalHits / 20)) - 1;
 
-            return difficultyValue * shortMapNerf;
+            return difficultyValue;
         }
 
         private double accuracyAdjustedSkillLevel(ManiaDifficultyAttributes attributes)

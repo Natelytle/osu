@@ -730,6 +730,9 @@ namespace osu.Game.Utils
                 throw new ArgumentException("Invalid parametrization for the distribution.");
             }
 
+            if (mean == x && stddev == 0)
+                return 0;
+
             return 0.5 * Erfc((mean - x) / (stddev * sqrt2));
         }
 

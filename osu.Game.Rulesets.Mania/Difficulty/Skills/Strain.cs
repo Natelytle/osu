@@ -109,14 +109,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double count = noteDifficulties.Count;
 
             double sum = 0;
-            double var = 0;
+            double varSum = 0;
 
             for (int i = 0; i < noteDifficulties.Count; i++)
             {
                 var noteProbs = getNoteProbs(noteDifficulties[i], skill);
 
                 sum += noteProbs.Score;
-                var += noteProbs.Variance;
+                varSum += noteProbs.Variance;
             }
 
             if (lazerMechanics)
@@ -128,12 +128,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                     var noteProbs = getNoteProbs(longNoteDifficulties[i].Head, skill);
 
                     sum += noteProbs.Score;
-                    var += noteProbs.Variance;
+                    varSum += noteProbs.Variance;
 
                     var tailProbs = getTailProbs(longNoteDifficulties[i].Tail, skill);
 
                     sum += tailProbs.Score;
-                    var += tailProbs.Variance;
+                    varSum += tailProbs.Variance;
                 }
             }
             else
@@ -145,14 +145,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                     var longNoteProbs = getLongNoteProbs(longNoteDifficulties[i], skill);
 
                     sum += longNoteProbs.Score;
-                    var += longNoteProbs.Variance;
+                    varSum += longNoteProbs.Variance;
                 }
             }
 
-            double scoreTotal = accuracy * 320 * count;
-            double dev = Math.Sqrt(var);
+            double mean = sum / count / 320;
+            double dev = Math.Sqrt(varSum) / count / 320;
 
-            double p = 1 - SpecialFunctions.NormalCdf(sum, dev, scoreTotal);
+            double p = 1 - SpecialFunctions.NormalCdf(mean, dev, accuracy);
 
             return p;
         }
