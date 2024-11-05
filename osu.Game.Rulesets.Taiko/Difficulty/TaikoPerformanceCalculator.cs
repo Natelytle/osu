@@ -97,7 +97,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty
 
             // Scale accuracy more harshly on nearly-completely mono (single coloured) speed maps.
             double accScalingExponent = 2 + attributes.MonoStaminaFactor;
-            double accScalingShift = 300 - 100 * attributes.MonoStaminaFactor;
+            double accScalingShift = 250 - 50 * attributes.MonoStaminaFactor;
 
             return difficultyValue * Math.Pow(SpecialFunctions.Erf(accScalingShift / (Math.Sqrt(2) * estimatedUnstableRate.Value)), accScalingExponent);
         }
@@ -107,7 +107,7 @@ namespace osu.Game.Rulesets.Taiko.Difficulty
             if (attributes.GreatHitWindow <= 0 || estimatedUnstableRate == null)
                 return 0;
 
-            double accuracyValue = Math.Pow(70 / estimatedUnstableRate.Value, 1.1) * Math.Pow(attributes.StarRating, 0.4) * 100.0;
+            double accuracyValue = Math.Pow(70 / estimatedUnstableRate.Value, 1.5) * Math.Pow(attributes.StarRating, 0.4) * 110.0;
 
             double lengthBonus = Math.Min(1.15, Math.Pow(totalHits / 1500.0, 0.3));
 
