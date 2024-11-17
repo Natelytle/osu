@@ -26,33 +26,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 
             var bins = new Bin[timeDimensionLength * difficultyDimensionLength];
 
-            // Like times are grouped together, like difficulties are separate.
             for (int i = 0; i < timeDimensionLength; i++)
             {
-                // If there are enough notes for each note to have a separate time value, we can keep the time bins
-                // closer to the actual notes by using percentile time values instead of evenly spacing them.
-                // int timePercentileIndex = Math.Min(i * times.Count / (timeDimensionLength - 1), times.Count - 1);
-                // double time = times.Count >= timeDimensionLength ? times[timePercentileIndex] : endTime * (i + 1) / timeDimensionLength;
-
-                double time = endTime * (i + 1) / timeDimensionLength;
+                double time = endTime * i / (timeDimensionLength - 1);
 
                 for (int j = 0; j < difficultyDimensionLength; j++)
                 {
                     bins[difficultyDimensionLength * i + j].Time = time;
+
+                    // We don't create a 0 difficulty bin because 0 difficulty notes don't contribute to star rating.
                     bins[difficultyDimensionLength * i + j].Difficulty = maxDifficulty * (j + 1) / difficultyDimensionLength;
                 }
             }
 
-            // These will always be the same, but min them just in case.
-            int minimumCount = Math.Min(difficulties.Count, times.Count);
-
-            for (int i = 0; i < minimumCount; i++)
+            for (int i = 0; i < difficulties.Count; i++)
             {
-                double timeBinIndex = timeDimensionLength * (times[i] / endTime) - 1;
+                double timeBinIndex = timeDimensionLength * (times[i] / endTime);
                 double difficultyBinIndex = difficultyDimensionLength * (difficulties[i] / maxDifficulty) - 1;
 
-                // Cap the upper bounds to dimension length - 1. If they're higher, then dt/tt will be 0 anyway, so it doesn't matter.
-                int timeLowerBound = fastFloor(timeBinIndex);
+                int timeLowerBound = Math.Min((int)timeBinIndex, timeDimensionLength - 1);
                 int timeUpperBound = Math.Min(timeLowerBound + 1, timeDimensionLength - 1);
                 double tt = timeBinIndex - timeLowerBound;
 
@@ -60,10 +52,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
                 int difficultyUpperBound = Math.Min(difficultyLowerBound + 1, difficultyDimensionLength - 1);
                 double dt = difficultyBinIndex - difficultyLowerBound;
 
-                // Store the time and difficulty values into the nearest 4 buckets.
-                // The lower bounds can be -1, corresponding to buckets with 0 difficulty or at 0 time.
-                // We don't store those since they don't contribute to difficulty.
-                if (difficultyLowerBound >= 0 && timeLowerBound >= 0)
+                // The lower bound of difficulty can be -1, corresponding to buckets with 0 difficulty.
+                // We don't store those since they don't contribute to star rating.
+                if (difficultyLowerBound >= 0)
                 {
                     bins[difficultyDimensionLength * timeLowerBound + difficultyLowerBound].Count += (1 - tt) * (1 - dt);
                 }
@@ -73,10 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
                     bins[difficultyDimensionLength * timeUpperBound + difficultyLowerBound].Count += tt * (1 - dt);
                 }
 
-                if (timeLowerBound >= 0)
-                {
-                    bins[difficultyDimensionLength * timeLowerBound + difficultyUpperBound].Count += (1 - tt) * dt;
-                }
+                bins[difficultyDimensionLength * timeLowerBound + difficultyUpperBound].Count += (1 - tt) * dt;
 
                 bins[difficultyDimensionLength * timeUpperBound + difficultyUpperBound].Count += tt * dt;
             }
@@ -85,6 +73,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         }
 
         // Faster implementation of the floor function to speed up binning times.
-        private static int fastFloor(double x) => x is >= 0 or -1 ? (int)x : (int)(x - 1);
+        private static int fastFloor(double x) => x >= 0 || x == -1 ? (int)x : (int)(x - 1);
     }
 }
