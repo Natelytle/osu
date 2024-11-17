@@ -13,12 +13,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
     public abstract class OsuStrainSkill : StrainSkill
     {
         /// <summary>
-        /// The default multiplier applied by <see cref="OsuStrainSkill"/> to the final difficulty value after all other calculations.
-        /// May be overridden via <see cref="DifficultyMultiplier"/>.
-        /// </summary>
-        public const double DEFAULT_DIFFICULTY_MULTIPLIER = 1.06;
-
-        /// <summary>
         /// The number of sections with the highest strains, which the peak strain reductions will apply to.
         /// This is done in order to decrease their impact on the overall difficulty of the map for this skill.
         /// </summary>
@@ -29,10 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// </summary>
         protected virtual double ReducedStrainBaseline => 0.75;
 
-        /// <summary>
-        /// The final multiplier to be applied to <see cref="DifficultyValue"/> after all other calculations.
-        /// </summary>
-        protected virtual double DifficultyMultiplier => DEFAULT_DIFFICULTY_MULTIPLIER;
+        protected double Difficulty;
 
         protected OsuStrainSkill(Mod[] mods)
             : base(mods)
@@ -41,7 +32,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
         public override double DifficultyValue()
         {
-            double difficulty = 0;
+            Difficulty = 0;
             double weight = 1;
 
             // Sections with 0 strain are excluded to avoid worst-case time complexity of the following sort (e.g. /b/2351871).
@@ -61,11 +52,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             // We're sorting from highest to lowest strain.
             foreach (double strain in strains.OrderDescending())
             {
-                difficulty += strain * weight;
+                Difficulty += strain * weight;
                 weight *= DecayWeight;
             }
 
-            return difficulty * DifficultyMultiplier;
+            return Difficulty;
         }
+
+        public static double DifficultyToPerformance(double difficulty) => Math.Pow(5.0 * Math.Max(1.0, difficulty / 0.0675) - 4.0, 3.0) / 100000.0;
     }
 }
