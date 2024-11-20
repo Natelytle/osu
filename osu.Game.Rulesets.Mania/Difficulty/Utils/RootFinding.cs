@@ -17,20 +17,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// <param name="guessUpperBound">The upper bound of the function inputs.</param>
         /// <param name="maxIterations">The maximum number of iterations before the function throws an error.</param>
         /// <param name="accuracy">The desired precision in which the root is returned.</param>
-        /// <param name="expansionFactor">The multiplier on the upper bound when no root is found within the provided bounds.</param>
-        public static double FindRootExpand(Func<double, double> function, double guessLowerBound, double guessUpperBound, int maxIterations = 25, double accuracy = 1e-6D, double expansionFactor = 2)
+        public static double FindRootExpand(Func<double, double> function, double guessLowerBound, double guessUpperBound, int maxIterations = 25, double accuracy = 1e-6D)
         {
             double a = guessLowerBound;
             double b = guessUpperBound;
             double fa = function(a);
             double fb = function(b);
 
+            double expansions = 0;
+
             while (fa * fb > 0)
             {
                 a = b;
-                b *= expansionFactor;
+                b *= 2;
                 fa = function(a);
                 fb = function(b);
+
+                expansions += 1;
+
+                if (expansions > 32)
+                    throw new ArgumentOutOfRangeException();
             }
 
             double t = 0.5;

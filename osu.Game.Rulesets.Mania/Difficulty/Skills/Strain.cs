@@ -36,6 +36,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private readonly List<(double Head, double Tail)> longNoteDifficulties = new List<(double, double)>();
 
         private BinNote[]? binNotes;
+
+        // Lazer mechanics let us split heads and tails and treat them like notes.
+        private BinNote[]? binHeads;
+        private BinNote[]? binTails;
+
+        // Stable mechanics depend on having both heads and tails available at the same time, so we must bin them together.
+        // Since this is slower, we only do it when necessary.
         private BinLongNote[]? binLongNotes;
 
         private double currChordStrain;
@@ -81,21 +88,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (maxDifficulty == 0)
                 return 0;
 
-            // binNotes ??= BinNote.CreateBins(noteDifficulties, 128);
-            // binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 64);
+            binNotes ??= BinNote.CreateBins(noteDifficulties, 32);
+
+            if (lazerMechanics)
+            {
+                binHeads ??= BinNote.CreateBins(longNoteDifficulties.ConvertAll(d => d.Head), 32);
+                binTails ??= BinNote.CreateBins(longNoteDifficulties.ConvertAll(d => d.Tail), 32);
+            }
+            else
+            {
+                binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 8);
+            }
 
             return RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2);
-        }
-
-        private double accuracyProb(double accuracy, double skill)
-        {
-            // Just a little root finding trick since accuracy can have be above 0% even at 0 skill. Doing this lets the root finding algorithm find a root anyway.
-            if (skill == 0)
-                return 0;
-
-            // return noteDifficulties.Count > 128 || longNoteDifficulties.Count > 128 ? totalAccuracyBinned(skill) : totalAccuracyExact(skill);
-
-            return accuracyProbExact(accuracy, skill);
         }
 
         /// <summary>
@@ -103,7 +108,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         /// </summary>
         /// <param name="accuracy"></param>
         /// <param name="skill"></param>
-        /// <returns></returns>
+        private double accuracyProb(double accuracy, double skill)
+        {
+            // Just a little root finding trick since accuracy can have be above 0% even at 0 skill. Doing this lets the root finding algorithm find a root anyway.
+            if (skill == 0)
+                return 0;
+
+            return noteDifficulties.Count > 128 || longNoteDifficulties.Count > 128 ? accuracyProbBinned(accuracy, skill) : accuracyProbExact(accuracy, skill);
+        }
+
         private double accuracyProbExact(double accuracy, double skill)
         {
             double count = noteDifficulties.Count;
@@ -150,40 +163,46 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             }
 
             double mean = sum / count / 320;
-            double dev = Math.Sqrt(varSum) / count / 320;
+            double dev = Math.Sqrt(varSum) / count / 320 + 1e-6;
 
             double p = 1 - SpecialFunctions.NormalCdf(mean, dev, accuracy);
 
             return p;
         }
 
-        /*
-        private double expectedAccuracyBinned(double skill)
+        private double accuracyProbBinned(double accuracy, double skill)
         {
             double count = noteDifficulties.Count;
 
             double sum = 0;
-            double variance = 0;
+            double varSum = 0;
 
             for (int i = 0; i < binNotes!.Length; i++)
             {
                 if (binNotes[i].Count == 0)
                     continue;
 
-                sum += binNotes[i].Count * getNoteProbs(binNotes[i].Difficulty, skill);
+                var noteProbs = getNoteProbs(binNotes[i].Difficulty, skill);
+
+                sum += binNotes[i].Count * noteProbs.Score;
+                varSum += binNotes[i].Count * noteProbs.Variance;
             }
 
             if (lazerMechanics)
             {
                 count += longNoteDifficulties.Count * 2;
 
-                for (int i = 0; i < binLongNotes!.Length; i++)
+                for (int i = 0; i < binHeads!.Length; i++)
                 {
-                    if (binLongNotes[i].Count == 0)
-                        continue;
+                    var noteProbs = getNoteProbs(binHeads[i].Difficulty, skill);
 
-                    sum += binLongNotes[i].Count * getNoteProbs(binLongNotes[i].HeadDifficulty, skill);
-                    sum += binLongNotes[i].Count * getTailProbs(binLongNotes[i].TailDifficulty, skill);
+                    sum += binHeads[i].Count * noteProbs.Score;
+                    varSum += binHeads[i].Count * noteProbs.Variance;
+
+                    var tailProbs = getTailProbs(binTails![i].Difficulty, skill);
+
+                    sum += binTails[i].Count * tailProbs.Score;
+                    varSum += binTails[i].Count * tailProbs.Variance;
                 }
             }
             else
@@ -192,15 +211,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
                 for (int i = 0; i < binLongNotes!.Length; i++)
                 {
-                    if (binLongNotes[i].Count == 0) continue;
+                    var longNoteProbs = getLongNoteProbs((binLongNotes[i].HeadDifficulty, binLongNotes[i].TailDifficulty), skill);
 
-                    sum += binLongNotes[i].Count * getLongNoteProbs((binLongNotes[i].HeadDifficulty, binLongNotes[i].TailDifficulty), skill);
+                    sum += binLongNotes[i].Count * longNoteProbs.Score;
+                    varSum += binLongNotes[i].Count * longNoteProbs.Variance;
                 }
             }
 
-            return sum / count;
+            double mean = sum / count / 320;
+            double dev = Math.Sqrt(varSum) / count / 320 + 1e-6;
+
+            double p = 1 - SpecialFunctions.NormalCdf(mean, dev, accuracy);
+
+            return p;
         }
-        */
 
         private JudgementProbs getNoteProbs(double difficulty, double skill)
         {

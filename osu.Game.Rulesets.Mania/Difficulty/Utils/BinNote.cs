@@ -23,30 +23,38 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             if (difficulties.Count == 0)
                 return Array.Empty<BinNote>();
 
-            double maxDifficulty = difficulties.Max();
+            List<double> ordered = difficulties.OrderBy(d => d).ToList();
 
             var bins = new BinNote[totalBins];
 
-            for (int i = 0; i < totalBins; i++)
+            List<double>[] difficultiesPerBin = new List<double>[totalBins];
+
+            int previousIndex = 0;
+
+            for (int i = 1; i < totalBins; i++)
             {
-                bins[i].Difficulty = maxDifficulty * i / (totalBins - 1);
+                int noteIndex = (int)Math.Floor(ordered.Count * (double)i / (totalBins - 1));
+
+                List<double> difficultiesInBin = ordered.Skip(previousIndex).Take(noteIndex - previousIndex).ToList();
+
+                bins[i].Difficulty = difficultiesInBin.Count > 0 ? difficultiesInBin.Max() : bins[i - 1].Difficulty;
+
+                difficultiesPerBin[i] = difficultiesInBin;
+
+                previousIndex = noteIndex;
             }
 
-            foreach (double d in difficulties)
+            for (int i = 1; i < totalBins; i++)
             {
-                double binIndex = maxDifficulty > 0 ? totalBins * (d / maxDifficulty) : 0;
+                double lowerDifficulty = bins[i - 1].Difficulty;
+                double upperDifficulty = bins[i].Difficulty;
 
-                int lowerBound = Math.Min((int)binIndex, totalBins - 1);
-                double t = binIndex - lowerBound;
-
-                int upperBound = lowerBound + 1;
-
-                bins[lowerBound].Count += 1 - t;
-
-                // this can be == bin_count for the maximum difficulty object, in which case t will be 0 anyway
-                if (upperBound < totalBins)
+                foreach (double d in difficultiesPerBin[i])
                 {
-                    bins[upperBound].Count += t;
+                    double t = upperDifficulty - lowerDifficulty != 0 ? (d - lowerDifficulty) / (upperDifficulty - lowerDifficulty) : 0;
+
+                    bins[i - 1].Count += 1 - t;
+                    bins[i].Count += t;
                 }
             }
 

@@ -26,56 +26,69 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             if (difficulties.Count == 0)
                 return Array.Empty<BinLongNote>();
 
-            List<double> headDifficulties = difficulties.ConvertAll(d => d.head).ToList();
-            List<double> tailDifficulties = difficulties.ConvertAll(d => d.tail).ToList();
-
-            double maxHeadDifficulty = headDifficulties.Max();
-            double maxTailDifficulty = tailDifficulties.Max();
+            List<(double head, double tail)> ordered = difficulties.OrderBy(d => d.head).ToList();
 
             int totalBins = dimensionLength * dimensionLength;
 
+            List<(double head, double tail)>[] difficultiesPerBin = new List<(double head, double tail)>[totalBins];
+
             var bins = new BinLongNote[totalBins];
 
-            for (int i = 0; i < dimensionLength; i++)
-            {
-                double headDifficulty = maxHeadDifficulty * i / (dimensionLength - 1);
+            int notePreviousIndex = 0;
 
-                for (int j = 0; j < dimensionLength; j++)
+            for (int iHead = 0; iHead < dimensionLength; iHead++)
+            {
+                int noteIndex = (int)Math.Floor(ordered.Count * Math.Max(iHead, 1) / (dimensionLength - 1.0));
+
+                List<(double head, double tail)> difficultiesInRow = ordered.Skip(notePreviousIndex).Take(noteIndex - notePreviousIndex).ToList();
+
+                difficultiesInRow = difficultiesInRow.OrderBy(d => d.tail).ToList();
+
+                int tailPreviousIndex = 0;
+
+                for (int iTail = 0; iTail < dimensionLength; iTail++)
                 {
-                    bins[dimensionLength * i + j].HeadDifficulty = headDifficulty;
-                    bins[dimensionLength * i + j].TailDifficulty = maxTailDifficulty * j / (dimensionLength - 1);
+                    if (iHead > 0)
+                        bins[dimensionLength * iHead + iTail].HeadDifficulty = difficultiesInRow.Count > 0 ? difficultiesInRow.Max(d => d.tail) : bins[dimensionLength * (iHead - 1) + iTail].TailDifficulty;
+
+                    if (iTail == 0) continue;
+
+                    int tailIndex = (int)Math.Floor(difficultiesInRow.Count * iTail / (dimensionLength - 1.0));
+
+                    List<(double head, double tail)> difficultiesInBin = difficultiesInRow.Skip(tailPreviousIndex).Take(tailIndex - tailPreviousIndex).ToList();
+
+                    bins[dimensionLength * iHead + iTail].TailDifficulty = difficultiesInBin.Count > 0 ? difficultiesInBin.Max(d => d.tail) : bins[dimensionLength * iHead + (iTail - 1)].TailDifficulty;
+
+                    difficultiesPerBin[dimensionLength * iHead + iTail] = difficultiesInBin;
+
+                    tailPreviousIndex = tailIndex;
                 }
+
+                if (iHead == 0) continue;
+
+                notePreviousIndex = noteIndex;
             }
 
-            for (int i = 0; i < difficulties.Count; i++)
+            for (int iHead = 1; iHead < dimensionLength; iHead++)
             {
-                double headDifficultyBinIndex = maxHeadDifficulty > 0 ? dimensionLength * (headDifficulties[i] / maxHeadDifficulty) : 0;
-                double tailDifficultyBinIndex = maxTailDifficulty > 0 ? dimensionLength * (tailDifficulties[i] / maxTailDifficulty) : 0;
+                double lowerHeadDifficulty = bins[dimensionLength * (iHead - 1)].HeadDifficulty;
+                double upperHeadDifficulty = bins[dimensionLength * iHead].HeadDifficulty;
 
-                // Cap the upper bounds to dimension length - 1. If they're higher, then dt/tt will be 0 anyway, so it doesn't matter.
-                int headLowerBound = Math.Min((int)headDifficultyBinIndex, dimensionLength - 1);
-                int headUpperBound = Math.Min(headLowerBound + 1, dimensionLength - 1);
-                double ht = headDifficultyBinIndex - headLowerBound;
-
-                int tailLowerBound = Math.Min((int)tailDifficultyBinIndex, dimensionLength - 1);
-                int tailUpperBound = tailLowerBound + 1;
-                double tt = tailDifficultyBinIndex - tailLowerBound;
-
-                bins[dimensionLength * headLowerBound + tailLowerBound].Count += (1 - ht) * (1 - tt);
-
-                if (headUpperBound < dimensionLength)
+                for (int iTail = 1; iTail < dimensionLength; iTail++)
                 {
-                    bins[dimensionLength * headUpperBound + tailLowerBound].Count += ht * (1 - tt);
-                }
+                    double lowerTailDifficulty = bins[dimensionLength * iHead + (iTail - 1)].TailDifficulty;
+                    double upperTailDifficulty = bins[dimensionLength * iHead + iTail].TailDifficulty;
 
-                if (tailUpperBound < dimensionLength)
-                {
-                    bins[dimensionLength * headLowerBound + tailUpperBound].Count += (1 - ht) * tt;
-                }
+                    foreach ((double head, double tail) d in difficultiesPerBin[dimensionLength * iHead + iTail])
+                    {
+                        double tHead = upperHeadDifficulty - lowerHeadDifficulty != 0 ? (d.head - lowerHeadDifficulty) / (upperHeadDifficulty - lowerHeadDifficulty) : 0;
+                        double tTail = upperHeadDifficulty - lowerHeadDifficulty != 0 ? (d.tail - lowerTailDifficulty) / (upperTailDifficulty - lowerTailDifficulty) : 0;
 
-                if (headUpperBound < dimensionLength && tailUpperBound < dimensionLength)
-                {
-                    bins[dimensionLength * headUpperBound + tailUpperBound].Count += ht * tt;
+                        bins[dimensionLength * (iHead - 1) + (iTail - 1)].Count += (1 - tHead) * (1 - tTail);
+                        bins[dimensionLength * iHead + (iTail - 1)].Count += tHead * (1 - tTail);
+                        bins[dimensionLength * (iHead - 1) + iTail].Count += (1 - tHead) * tTail;
+                        bins[dimensionLength * iHead + iTail].Count += tHead * tTail;
+                    }
                 }
             }
 
