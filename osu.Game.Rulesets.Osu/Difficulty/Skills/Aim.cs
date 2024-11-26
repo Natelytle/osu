@@ -48,8 +48,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double currentStrain = getStrainValueOf(currentDifficulty, priorDifficulty);
             previousStrains.Add(currentStrain);
 
-            // Cap a note to 3x its difficulty value to prevent large jumps into bursts from getting too much from strain.
-            return Math.Min(currentDifficulty + currentStrain, currentDifficulty * 3);
+            // Strain is at most 2x the difficulty of the note.
+            // We cap notes to this value to prevent jumps into easy bursts from getting too much.
+            return Math.Min(currentDifficulty + currentStrain, currentDifficulty * 2);
         }
 
         private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1);
