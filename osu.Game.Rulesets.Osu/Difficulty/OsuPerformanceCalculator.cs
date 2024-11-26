@@ -140,7 +140,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
                 aimValue *= calculateAimMissPenalty(effectiveMissCount, attributes.AimMissPenaltyCurve);
@@ -204,7 +203,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            speedValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
                 speedValue *= calculateMissPenalty(effectiveMissCount, attributes.SpeedDifficultStrainCount);
