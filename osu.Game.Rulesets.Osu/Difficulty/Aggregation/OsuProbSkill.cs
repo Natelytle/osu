@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         // Assume players spend 12 minutes retrying a map before they FC
         private const double fc_probability = 0.02;
 
-        private const int difficulty_bin_count = 16;
+        private const int difficulty_bin_count = 32;
 
         private readonly List<double> difficulties = new List<double>();
 
