@@ -20,41 +20,35 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         /// </summary>
         public static DifficultyBins[] CreateBins(List<double> difficulties, int totalBins)
         {
-            if (difficulties.Count == 0)
-                return Array.Empty<DifficultyBins>();
-
-            List<double> ordered = difficulties.OrderBy(d => d).ToList();
+            double maxDifficulty = difficulties.Max();
 
             var bins = new DifficultyBins[totalBins];
 
-            List<double>[] difficultiesPerBin = new List<double>[totalBins];
-
-            int previousIndex = 0;
-
-            for (int i = 1; i < totalBins; i++)
+            for (int i = 0; i < totalBins; i++)
             {
-                int noteIndex = (int)Math.Floor(ordered.Count * (double)i / (totalBins - 1));
-
-                List<double> difficultiesInBin = ordered.Skip(previousIndex).Take(noteIndex - previousIndex).ToList();
-
-                bins[i].Difficulty = difficultiesInBin.Count > 0 ? difficultiesInBin.Max() : bins[i - 1].Difficulty;
-
-                difficultiesPerBin[i] = difficultiesInBin;
-
-                previousIndex = noteIndex;
+                bins[i].Difficulty = maxDifficulty * (i + 1) / totalBins;
             }
 
-            for (int i = 1; i < totalBins; i++)
+            foreach (double d in difficulties)
             {
-                double lowerDifficulty = bins[i - 1].Difficulty;
-                double upperDifficulty = bins[i].Difficulty;
+                double binIndex = totalBins * (d / maxDifficulty) - 1;
 
-                foreach (double d in difficultiesPerBin[i])
+                int lowerBound = (int)Math.Floor(binIndex);
+                double t = binIndex - lowerBound;
+
+                //This can be -1, corresponding to the zero difficulty bucket.
+                //We don't store that since it doesn't contribute to difficulty
+                if (lowerBound >= 0)
                 {
-                    double t = upperDifficulty - lowerDifficulty != 0 ? (d - lowerDifficulty) / (upperDifficulty - lowerDifficulty) : 0;
+                    bins[lowerBound].Count += (1 - t);
+                }
 
-                    bins[i - 1].Count += 1 - t;
-                    bins[i].Count += t;
+                int upperBound = lowerBound + 1;
+
+                // this can be == bin_count for the maximum difficulty object, in which case t will be 0 anyway
+                if (upperBound < totalBins)
+                {
+                    bins[upperBound].Count += t;
                 }
             }
 
