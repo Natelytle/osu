@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double flowDifficulty = AimEvaluator.EvaluateFlowDifficultyOf(current) * flowMultiplier;
 
             double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
-            double priorDifficulty = highestPreviousStrain(previousStrains, current, current.DeltaTime);
+            double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
 
             double currentStrain = getStrainValueOf(currentDifficulty, priorDifficulty);
             previousStrains.Add(currentStrain);
@@ -55,24 +55,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1);
 
-        private double highestPreviousStrain(List<double> previousStrains, DifficultyHitObject current, double time)
+        private double highestPreviousStrain(DifficultyHitObject current, double time)
         {
             double hardestPreviousDifficulty = 0;
-            double cumulativeDeltatime = time;
+            double cumulativeDeltaTime = time;
 
             double timeDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 900, 7));
 
             for (int i = 0; i < previousStrains.Count; i++)
             {
-                if (cumulativeDeltatime > 1200)
+                if (cumulativeDeltaTime > 1200)
                 {
                     previousStrains.RemoveRange(0, i);
                     break;
                 }
 
-                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousStrains[^(i + 1)] * timeDecay(cumulativeDeltatime));
+                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousStrains[^(i + 1)] * timeDecay(cumulativeDeltaTime));
 
-                cumulativeDeltatime += current.Previous(i).DeltaTime;
+                cumulativeDeltaTime += current.Previous(i).DeltaTime;
             }
 
             return hardestPreviousDifficulty;
