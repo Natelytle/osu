@@ -23,9 +23,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> previousStrains = new List<double>();
 
-        private double snapMultiplier => 65;
-        private double flowMultiplier => 150;
-
         private double strainDecayBase => 0.15;
         private double strainIncreaseRate => 10;
 
@@ -39,8 +36,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double snapDifficulty = AimEvaluator.EvaluateSnapDifficultyOf(current) * snapMultiplier;
-            double flowDifficulty = AimEvaluator.EvaluateFlowDifficultyOf(current) * flowMultiplier;
+            double snapDifficulty = AimEvaluator.EvaluateSnapDifficultyOf(current);
+            double flowDifficulty = AimEvaluator.EvaluateFlowDifficultyOf(current);
 
             double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
             double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);

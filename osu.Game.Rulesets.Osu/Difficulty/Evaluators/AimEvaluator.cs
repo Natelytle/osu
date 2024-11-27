@@ -10,6 +10,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class AimEvaluator
     {
+        private static double snapMultiplier => 65;
+        private static double flowMultiplier => 150;
+
         public static double EvaluateSnapDifficultyOf(DifficultyHitObject current)
         {
             if (current.Index <= 2 ||
@@ -58,7 +61,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += velChangeBonus + angleBonus;
 
-            return difficulty;
+            return difficulty * snapMultiplier;
         }
 
         public static double EvaluateFlowDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance = false, double strainDecayBase = 0)
@@ -104,7 +107,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += 0.65 * (velChangeBonus + angleBonus);
 
-            return difficulty;
+            return difficulty * flowMultiplier;
         }
 
         // Adds the vectors of the 2 notes movements.
