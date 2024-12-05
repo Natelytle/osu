@@ -68,8 +68,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
 
             DifficultyHitObject diffObject = difficultyBeatmap.SelectedDifficultyHitObjects.Single();
 
-            addResult("Aim (withSliderTravelDistance = false)", AimEvaluator.EvaluateDifficultyOf(diffObject, false));
-            addResult("Aim (withSliderTravelDistance = true)", AimEvaluator.EvaluateDifficultyOf(diffObject, true));
+            addResult("Snap Aim", SnapAimEvaluator.EvaluateDifficultyOf(diffObject));
+            addResult("Flow Aim", FlowAimEvaluator.EvaluateDifficultyOf(diffObject));
             addResult("Speed", SpeedEvaluator.EvaluateDifficultyOf(diffObject));
             addResult("Rhythm", RhythmEvaluator.EvaluateDifficultyOf(diffObject));
             addResult("Flashlight (hidden = false)", FlashlightEvaluator.EvaluateDifficultyOf(diffObject, false));
