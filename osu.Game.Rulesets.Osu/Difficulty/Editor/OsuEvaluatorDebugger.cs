@@ -13,7 +13,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
         public record Evaluator(string Name, Type Type);
 
         public static Evaluator[] Evaluators { get; } = [
-            new Evaluator("Aim", typeof(AimEvaluator)),
+            new Evaluator("Snap Aim", typeof(SnapAimEvaluator)),
+            new Evaluator("Flow Aim", typeof(FlowAimEvaluator)),
             new Evaluator("Speed", typeof(SpeedEvaluator)),
             new Evaluator("Rhythm", typeof(RhythmEvaluator)),
             new Evaluator("Flashlight", typeof(FlashlightEvaluator))
@@ -24,11 +25,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
             if (!Debugger.IsAttached)
                 throw new InvalidOperationException("Please run osu!lazer with a debugger attached.");
 
-            if (evaluator.Type == typeof(AimEvaluator))
+            if (evaluator.Type == typeof(SnapAimEvaluator))
             {
                 Debugger.Break();
-                bool withSliderTravelDistance = false;
-                AimEvaluator.EvaluateDifficultyOf(obj, withSliderTravelDistance);
+                SnapAimEvaluator.EvaluateDifficultyOf(obj);
+            }
+            else if (evaluator.Type == typeof(FlowAimEvaluator))
+            {
+                Debugger.Break();
+                FlowAimEvaluator.EvaluateDifficultyOf(obj);
             }
             else if (evaluator.Type == typeof(SpeedEvaluator))
             {
@@ -44,7 +49,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
             {
                 Debugger.Break();
                 bool hidden = false;
-                AimEvaluator.EvaluateDifficultyOf(obj, hidden);
+                FlashlightEvaluator.EvaluateDifficultyOf(obj, hidden);
             }
         }
     }
