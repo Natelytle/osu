@@ -55,17 +55,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
             if (difficultyBeatmap.CurrentObject is null)
                 return;
 
-            addResult("Snap Aim", SnapAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
-            addResult("Flow Aim", FlowAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
+            addResult("Snap Aim", SnapAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject), Math.Pow(SnapAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject), 0.6) / 3.9);
+            addResult("Flow Aim", FlowAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject), Math.Pow(FlowAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject), 0.6) / 3.9);
             addResult("Speed", SpeedEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
             addResult("Rhythm", RhythmEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
             addResult("Flashlight (hidden = false)", FlashlightEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject, false));
             addResult("Flashlight (hidden = true)", FlashlightEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject, true));
         }
 
-        private void addResult(string name, double value, int decimals = 5)
+        private void addResult(string name, double value, double? valueHumanlyReadable = null, int decimals = 5)
         {
-            value = Math.Round(value, decimals);
+            string valueStr = Math.Round(value, decimals).ToString();
+
+            if (valueHumanlyReadable is not null)
+            {
+                valueStr += $" ({Math.Round(valueHumanlyReadable.Value, 2)})";
+            }
 
             text.AddParagraph($"{name}:", s =>
             {
@@ -74,7 +79,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
                 s.Colour = colourProvider.Content2;
             });
 
-            text.AddParagraph(value.ToString(), s =>
+            text.AddParagraph(valueStr, s =>
             {
                 s.Font = s.Font.With(weight: FontWeight.SemiBold);
                 s.Colour = colourProvider.Content1;
