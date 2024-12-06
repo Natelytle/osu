@@ -26,6 +26,7 @@ using osu.Game.Rulesets.Osu.Difficulty.Editor;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.UI;
 using osu.Game.Rulesets.UI;
+using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Components.TernaryButtons;
 using osu.Game.Screens.Edit.Compose.Components;
 using osuTK;
@@ -73,7 +74,7 @@ namespace osu.Game.Rulesets.Osu.Edit
         protected readonly FreehandSliderToolboxGroup FreehandSliderToolboxGroup = new FreehandSliderToolboxGroup();
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(Editor editor)
         {
             AddInternal(DistanceSnapProvider);
             RightToolbox.Add(new OsuDifficultyEvaluatorInspector());
@@ -101,19 +102,26 @@ namespace osu.Game.Rulesets.Osu.Edit
 
             OsuGridToolboxGroup.GridType.BindValueChanged(updatePositionSnapGrid, true);
 
-            RightToolbox.AddRange(new Drawable[]
+            Drawable[] drawables = new Drawable[]
+            {
+                OsuGridToolboxGroup,
+                new TransformToolboxGroup
                 {
-                    OsuGridToolboxGroup,
-                    new TransformToolboxGroup
-                    {
-                        RotationHandler = BlueprintContainer.SelectionHandler.RotationHandler,
-                        ScaleHandler = (OsuSelectionScaleHandler)BlueprintContainer.SelectionHandler.ScaleHandler,
-                        GridToolbox = OsuGridToolboxGroup,
-                    },
-                    new GenerateToolboxGroup(),
-                    FreehandSliderToolboxGroup
-                }
-            );
+                    RotationHandler = BlueprintContainer.SelectionHandler.RotationHandler,
+                    ScaleHandler = (OsuSelectionScaleHandler)BlueprintContainer.SelectionHandler.ScaleHandler,
+                    GridToolbox = OsuGridToolboxGroup,
+                },
+                new GenerateToolboxGroup(),
+                FreehandSliderToolboxGroup
+            };
+
+            editor.HideAdvancedEditorTools.BindValueChanged(hide =>
+            {
+                if (hide.NewValue)
+                    RightToolbox.RemoveRange(drawables, false);
+                else
+                    RightToolbox.AddRange(drawables);
+            }, true);
         }
 
         private void updatePositionSnapGrid(ValueChangedEvent<PositionSnapGridType> obj)

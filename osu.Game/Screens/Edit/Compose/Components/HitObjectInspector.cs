@@ -1,10 +1,12 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Linq;
+using osu.Framework.Allocation;
 using osu.Framework.Extensions.TypeExtensions;
 using osu.Framework.Threading;
+using osu.Game.Rulesets.Difficulty.Editor;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
 
@@ -12,24 +14,18 @@ namespace osu.Game.Screens.Edit.Compose.Components
 {
     public partial class HitObjectInspector : EditorInspector
     {
-        protected override void LoadComplete()
+        [Resolved]
+        private DifficultyEditorBeatmap difficultyBeatmap { get; set; } = null!;
+
+        [BackgroundDependencyLoader]
+        private void load()
         {
-            base.LoadComplete();
-
-            EditorBeatmap.SelectedHitObjects.CollectionChanged += (_, _) => updateInspectorText();
-            EditorBeatmap.PlacementObject.BindValueChanged(_ => updateInspectorText());
-            EditorBeatmap.TransactionBegan += updateInspectorText;
-            EditorBeatmap.TransactionEnded += updateInspectorText;
-            updateInspectorText();
+            Scheduler.AddDelayed(updateInspectorText, 20, true);
         }
-
-        private ScheduledDelegate? rollingTextUpdate;
 
         private void updateInspectorText()
         {
             InspectorText.Clear();
-            rollingTextUpdate?.Cancel();
-            rollingTextUpdate = null;
 
             HitObject[] objects;
 
@@ -38,14 +34,9 @@ namespace osu.Game.Screens.Edit.Compose.Components
             else if (EditorBeatmap.PlacementObject.Value != null)
                 objects = new[] { EditorBeatmap.PlacementObject.Value };
             else
-                objects = Array.Empty<HitObject>();
+                objects = difficultyBeatmap.CurrentObject is DifficultyHitObject o ? [o.BaseObject] : [];
 
             AddInspectorValues(objects);
-
-            // I'd hope there's a better way to do this, but I don't want to bind to each and every property above to watch for changes.
-            // This is a good middle-ground for the time being.
-            if (objects.Length > 0)
-                rollingTextUpdate ??= Scheduler.AddDelayed(updateInspectorText, 20);
         }
 
         protected virtual void AddInspectorValues(HitObject[] objects)

@@ -1,21 +1,22 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Graphics.Containers;
 using osuTK;
 using osu.Game.Overlays;
 using osu.Game.Graphics;
 using osu.Game.Rulesets.Edit;
+using System.Reflection;
+using Humanizer;
 using System;
-using osu.Game.Rulesets.Difficulty.Editor;
 
-namespace osu.Game.Rulesets.Osu.Difficulty.Editor
+namespace osu.Game.Rulesets.Difficulty.Editor
 {
-    internal partial class OsuDifficultyEvaluatorInspector : EditorToolboxGroup
+    internal partial class DifficultyAttributesInspector : EditorToolboxGroup
     {
         [Resolved]
         private DifficultyEditorBeatmap difficultyBeatmap { get; set; } = null!;
@@ -25,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
 
         private OsuTextFlowContainer text = null!;
 
-        public OsuDifficultyEvaluatorInspector() : base("Evaluators", true) { }
+        public DifficultyAttributesInspector() : base("Attributes", true) { }
 
         [BackgroundDependencyLoader]
         private void load()
@@ -52,20 +53,32 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
         {
             text.Clear();
 
-            if (difficultyBeatmap.CurrentObject is null)
+            if (difficultyBeatmap.CurrentDifficultyAttributes is null)
                 return;
 
-            addResult("Snap Aim", SnapAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
-            addResult("Flow Aim", FlowAimEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
-            addResult("Speed", SpeedEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
-            addResult("Rhythm", RhythmEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject));
-            addResult("Flashlight (hidden = false)", FlashlightEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject, false));
-            addResult("Flashlight (hidden = true)", FlashlightEvaluator.EvaluateDifficultyOf(difficultyBeatmap.CurrentObject, true));
+            text.AddParagraph("Difficulty Attributes", s =>
+            {
+                s.Font = s.Font.With(weight: FontWeight.SemiBold);
+                s.Font = s.Font.With(size: 16);
+                s.Colour = colourProvider.Colour0;
+            });
+
+            foreach (PropertyInfo property in difficultyBeatmap.CurrentDifficultyAttributes.Attributes.GetType().GetProperties())
+                addResult(property.Name.Titleize(), property.GetValue(difficultyBeatmap.CurrentDifficultyAttributes.Attributes));
         }
 
-        private void addResult(string name, double value, int decimals = 5)
+        private void addResult(string name, object? value)
         {
-            value = Math.Round(value, decimals);
+            string valueStr = value switch
+            {
+                null => "null",
+                int i => i.ToString("N0"),
+                double d => Math.Round(d, 5).ToString("N"),
+                _ => null!
+            };
+
+            if (valueStr is null)
+                return;
 
             text.AddParagraph($"{name}:", s =>
             {
@@ -74,7 +87,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
                 s.Colour = colourProvider.Content2;
             });
 
-            text.AddParagraph(value.ToString(), s =>
+            text.AddParagraph(valueStr, s =>
             {
                 s.Font = s.Font.With(weight: FontWeight.SemiBold);
                 s.Colour = colourProvider.Content1;

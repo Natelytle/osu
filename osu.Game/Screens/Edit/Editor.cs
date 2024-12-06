@@ -42,7 +42,7 @@ using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.OSD;
 using osu.Game.Rulesets;
-using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.Editor;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
@@ -205,7 +205,7 @@ namespace osu.Game.Screens.Edit
         public readonly EditorClipboard Clipboard = new EditorClipboard();
 
         [Cached]
-        private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Aquamarine);
+        private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Plum);
 
         [Resolved(canBeNull: true)]
         private OnScreenDisplay onScreenDisplay { get; set; }
@@ -218,6 +218,9 @@ namespace osu.Game.Screens.Edit
         private Bindable<bool> editorTimelineShowBreaks;
         private Bindable<bool> editorTimelineShowTicks;
         private Bindable<bool> editorContractSidebars;
+        public Bindable<bool> HideBasicEditorTools { get; } = new Bindable<bool>(false);
+        public Bindable<bool> HideAdvancedEditorTools { get; } = new Bindable<bool>(true);
+        public Bindable<bool> UseTimelineIfNoSelection { get; } = new Bindable<bool>(true);
 
         /// <summary>
         /// This controls the opacity of components like the timelines, sidebars, etc.
@@ -427,6 +430,24 @@ namespace osu.Game.Screens.Edit
                                         Items = new MenuItem[]
                                         {
                                             new EditorMenuItem(EditorStrings.SetPreviewPointToCurrent, MenuItemType.Standard, SetPreviewPointToCurrentTime),
+                                        }
+                                    },
+                                    new MenuItem("PP Development")
+                                    {
+                                        Items = new MenuItem[]
+                                        {
+                                            new ToggleMenuItem("Hide Basic Editor Tools", MenuItemType.Highlighted)
+                                            {
+                                                State = { BindTarget = HideBasicEditorTools },
+                                            },
+                                            new ToggleMenuItem("Hide Advanced Editor Tools", MenuItemType.Highlighted)
+                                            {
+                                                State = { BindTarget = HideAdvancedEditorTools },
+                                            },
+                                            new ToggleMenuItem("Use Timeline If No Selection", MenuItemType.Highlighted)
+                                            {
+                                                State = { BindTarget = UseTimelineIfNoSelection },
+                                            },
                                         }
                                     }
                                 }

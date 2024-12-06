@@ -9,11 +9,10 @@ using osu.Game.Graphics.Containers;
 using osuTK;
 using osu.Game.Overlays;
 using osu.Game.Graphics;
-using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Edit;
 using System.Reflection;
-using osu.Game.Rulesets.Difficulty.Preprocessing;
 using Humanizer;
+using System;
 
 namespace osu.Game.Rulesets.Difficulty.Editor
 {
@@ -25,16 +24,13 @@ namespace osu.Game.Rulesets.Difficulty.Editor
         [Resolved]
         private OverlayColourProvider colourProvider { get; set; } = null!;
 
-        private OsuTextFlowContainer evaluatorText = null!;
-        private OsuSpriteText selectNoteHint = null!;
+        private OsuTextFlowContainer text = null!;
 
         public DifficultyHitObjectInspector() : base("Difficulty Hit Object", true) { }
 
         [BackgroundDependencyLoader]
         private void load()
         {
-            difficultyBeatmap.DifficultyHitObjects.ValueChanged += _ => update();
-
             Child = new FillFlowContainer
             {
                 RelativeSizeAxes = Axes.X,
@@ -42,49 +38,57 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                 Spacing = new Vector2(5),
                 Children =
                 [
-                    selectNoteHint = new OsuSpriteText
-                    {
-                        Text = "Please select a note.",
-                        RelativeSizeAxes = Axes.X
-                    },
-                    evaluatorText = new OsuTextFlowContainer
+                    text = new OsuTextFlowContainer
                     {
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y
                     }
                 ]
             };
+
+            Scheduler.AddDelayed(update, 20, true);
         }
 
         private void update()
         {
-            evaluatorText.Clear();
-            selectNoteHint.Show();
+            text.Clear();
 
-            if (difficultyBeatmap.SelectedDifficultyHitObjects.Length != 1)
+            if (difficultyBeatmap.CurrentObject is null)
                 return;
 
-            selectNoteHint.Hide();
+            foreach (PropertyInfo property in difficultyBeatmap.CurrentObject.GetType().GetProperties())
+                addResult(property.Name.Titleize(), property.GetValue(difficultyBeatmap.CurrentObject));
 
-            DifficultyHitObject diffObject = difficultyBeatmap.SelectedDifficultyHitObjects.Single();
-
-            foreach (PropertyInfo property in diffObject.GetType().GetProperties().Where(x => new[] { typeof(double), typeof(double?) }.Contains(x.PropertyType)))
-                addResult(property.Name.Titleize(), (double?)property.GetValue(diffObject));
-
-            foreach (FieldInfo field in diffObject.GetType().GetFields().Where(x => new[] { typeof(double), typeof(double?) }.Contains(x.FieldType)))
-                addResult(field.Name.Titleize(), (double?)field.GetValue(diffObject));
+            // Ignore fields where the name is all uppercase, as per naming convention their constants and it's the only way to identify them.
+            foreach (FieldInfo field in difficultyBeatmap.CurrentObject.GetType().GetFields().Where(x => x.Name.Any(x => char.IsLetter(x) && !char.IsUpper(x))))
+                addResult(field.Name.Titleize(), field.GetValue(difficultyBeatmap.CurrentObject));
         }
 
-        private void addResult(string name, double? value)
+        private void addResult(string name, object? value)
         {
-            evaluatorText.AddParagraph($"{name}:", s =>
+            string valueStr = value switch
+            {
+                null => "null",
+                int i => i.ToString("N0"),
+                float f => Math.Round(f, 5).ToString("N"),
+                double d => Math.Round(d, 5).ToString("N"),
+                bool b => b ? "Yes" : "No",
+                Vector2 v => $"{v.X} ; {v.Y} ({v.Length})",
+                Vector3 v => $"{v.X} ; {v.Y} ; {v.Z} ({v.Length})",
+                _ => null!
+            };
+
+            if (valueStr is null)
+                return;
+
+            text.AddParagraph($"{name}:", s =>
             {
                 s.Padding = new MarginPadding { Top = 2 };
                 s.Font = s.Font.With(size: 12);
                 s.Colour = colourProvider.Content2;
             });
 
-            evaluatorText.AddParagraph(value?.ToString() ?? "null", s =>
+            text.AddParagraph(valueStr, s =>
             {
                 s.Font = s.Font.With(weight: FontWeight.SemiBold);
                 s.Colour = colourProvider.Content1;

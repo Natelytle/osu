@@ -55,6 +55,9 @@ namespace osu.Game.Rulesets.Edit
         private EditorBeatmap editorBeatmap { get; set; } = null!;
 
         [Resolved]
+        private Editor editor { get; set; } = null!;
+
+        [Resolved]
         private IBeatSnapProvider beatSnapProvider { get; set; } = null!;
 
         [Resolved]
@@ -72,7 +75,7 @@ namespace osu.Game.Rulesets.Edit
             if (toolboxGroup != null)
                 throw new InvalidOperationException($"{nameof(AttachToToolbox)} may be called only once for a single {nameof(ComposerDistanceSnapProvider)} instance.");
 
-            toolboxContainer.Add(toolboxGroup = new EditorToolboxGroup("snapping")
+            toolboxGroup = new EditorToolboxGroup("snapping")
             {
                 Name = "snapping",
                 Alpha = DistanceSpacingMultiplier.Disabled ? 0 : 1,
@@ -98,7 +101,15 @@ namespace osu.Game.Rulesets.Edit
                         RelativeSizeAxes = Axes.X,
                     }
                 }
-            });
+            };
+
+            editor.HideAdvancedEditorTools.BindValueChanged(hide =>
+            {
+                if (hide.NewValue)
+                    toolboxContainer.Remove(toolboxGroup, false);
+                else
+                    toolboxContainer.Add(toolboxGroup);
+            }, true);
 
             DistanceSpacingMultiplier.Value = editorBeatmap.DistanceSpacing;
             DistanceSpacingMultiplier.BindValueChanged(multiplier =>

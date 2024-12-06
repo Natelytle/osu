@@ -85,10 +85,7 @@ namespace osu.Game.Screens.Edit
                 // Transforms should be kept in sync with other usages of composer focus mode.
                 foreach (var c in this.ChildrenOfType<BottomBarContainer>())
                 {
-                    if (!composerFocusMode.Value)
-                        c.Background.FadeIn(750, Easing.OutQuint);
-                    else
-                        c.Background.Delay(600).FadeTo(0.5f, 4000, Easing.OutQuint);
+                    c.Background.FadeTo(0.5f, 0, Easing.OutQuint);
                 }
             }, true);
         }

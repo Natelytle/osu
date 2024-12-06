@@ -11,12 +11,16 @@ using osu.Framework.Input.Events;
 using osu.Framework.Utils;
 using osu.Game.Extensions;
 using osu.Game.Graphics.UserInterface;
+using osu.Game.Rulesets.Difficulty.Editor;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
 using osu.Game.Rulesets.Osu.Beatmaps;
+using osu.Game.Rulesets.Osu.Difficulty.Editor;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.UI;
+using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Compose.Components;
 using osu.Game.Utils;
 using osuTK;
@@ -28,6 +32,9 @@ namespace osu.Game.Rulesets.Osu.Edit
     {
         [Resolved]
         private OsuGridToolboxGroup gridToolbox { get; set; } = null!;
+
+        [Resolved]
+        private DifficultyEditorBeatmap difficultyBeatmap { get; set; } = null!;
 
         protected override void OnSelectionChanged()
         {
@@ -311,6 +318,18 @@ namespace osu.Game.Rulesets.Osu.Edit
 
         protected override IEnumerable<MenuItem> GetContextMenuItemsForSelection(IEnumerable<SelectionBlueprint<HitObject>> selection)
         {
+            if (selection.Count() == 1)
+            {
+                DifficultyHitObject? difficultyHitObject = difficultyBeatmap.FromBaseObject(selection.Single().Item);
+                if (difficultyHitObject is not null)
+                    yield return new OsuMenuItem("Debug Evaluator", MenuItemType.Highlighted)
+                    {
+                        Items = OsuEvaluatorDebugger.Evaluators
+                            .Select(x => new OsuMenuItem(x.Name, MenuItemType.Standard, () => OsuEvaluatorDebugger.DebugObject(x, difficultyHitObject)))
+                            .ToArray()
+                    };
+            }
+
             foreach (var item in base.GetContextMenuItemsForSelection(selection))
                 yield return item;
 
