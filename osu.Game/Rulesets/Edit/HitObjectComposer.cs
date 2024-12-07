@@ -135,10 +135,6 @@ namespace osu.Game.Rulesets.Edit
 
             dependencies.CacheAs(Playfield);
 
-            EditorToolboxGroup compositionToolbox;
-            EditorToolboxGroup togglesToolbox;
-            EditorToolboxGroup hitsoundsToolbox;
-
             InternalChildren = new[]
             {
                 PlayfieldContentContainer = new Container
@@ -170,13 +166,16 @@ namespace osu.Game.Rulesets.Edit
                         {
                             Children = new Drawable[]
                             {
-                                compositionToolbox = new EditorToolboxGroup("toolbox (1-9)")
+                                new EditorToolboxGroup("toolbox (1-9)")
                                 {
                                     Child = toolboxCollection = new EditorRadioButtonCollection { RelativeSizeAxes = Axes.X }
                                 },
+                                // ========== PP EDITOR ==========
+                                // Add the difficulty attributes & difficulty hit objet inspector
                                 new DifficultyAttributesInspector(),
                                 new DifficultyHitObjectInspector(),
-                                togglesToolbox = new EditorToolboxGroup("toggles (Q~P)")
+                                // ========== PP EDITOR ==========
+                                new EditorToolboxGroup("toggles (Q~P)")
                                 {
                                     Child = togglesCollection = new FillFlowContainer
                                     {
@@ -186,7 +185,7 @@ namespace osu.Game.Rulesets.Edit
                                         Spacing = new Vector2(0, 5),
                                     },
                                 },
-                                hitsoundsToolbox = new EditorToolboxGroup("bank (Shift/Alt-Q~R)")
+                                new EditorToolboxGroup("bank (Shift/Alt-Q~R)")
                                 {
                                     Child = new FillFlowContainer
                                     {
@@ -264,30 +263,31 @@ namespace osu.Game.Rulesets.Edit
                 },
             };
 
+            // ========== PP EDITOR ==========
+            // Hide the composition or other advanced edior tools if the corresponding setting is enabled
+            Drawable compositionToolbox = LeftToolbox[0];
+            Drawable[] advancedToolboxes = [LeftToolbox[^2], LeftToolbox[^1]];
             editor.HideBasicEditorTools.BindValueChanged(hide =>
             {
                 if (hide.NewValue)
                     LeftToolbox.Remove(compositionToolbox, false);
-                else
+                else if (!LeftToolbox.Contains(compositionToolbox))
                 {
                     Drawable[] current = LeftToolbox.Children.ToArray();
                     LeftToolbox.RemoveRange(current, false);
                     LeftToolbox.Add(compositionToolbox);
                     LeftToolbox.AddRange(current);
                 }
-            });
-            if (editor.HideBasicEditorTools.Value)
-                LeftToolbox.Remove(compositionToolbox, false);
+            }, true);
 
             editor.HideAdvancedEditorTools.BindValueChanged(hide =>
             {
                 if (hide.NewValue)
-                    LeftToolbox.RemoveRange([togglesToolbox, hitsoundsToolbox], false);
+                    LeftToolbox.RemoveRange(advancedToolboxes, false);
                 else
-                    LeftToolbox.AddRange([togglesToolbox, hitsoundsToolbox]);
+                    LeftToolbox.AddRange(advancedToolboxes);
             }, true);
-            if (editor.HideAdvancedEditorTools.Value)
-                LeftToolbox.RemoveRange([togglesToolbox, hitsoundsToolbox], false);
+            // ========== PP EDITOR ==========
 
             toolboxCollection.Items = (CompositionTools.Prepend(new SelectTool()))
                                       .Select(t => new HitObjectCompositionToolButton(t, () => toolSelected(t)))

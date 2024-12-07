@@ -11,12 +11,9 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Screens.Edit;
 
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
-// See the LICENCE file in the repository root for full licence text.
-
 namespace osu.Game.Rulesets.Difficulty.Editor
 {
-    public partial class DifficultyEditorBeatmap : Component
+    public partial class EditorDifficultyProvider : Component
     {
         [Resolved]
         private Screens.Edit.Editor editor { get; set; } = null!;

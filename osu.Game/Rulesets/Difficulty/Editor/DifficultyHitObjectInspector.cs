@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Difficulty.Editor
     internal partial class DifficultyHitObjectInspector : EditorToolboxGroup
     {
         [Resolved]
-        private DifficultyEditorBeatmap difficultyBeatmap { get; set; } = null!;
+        private EditorDifficultyProvider difficultyProvider { get; set; } = null!;
 
         [Resolved]
         private OverlayColourProvider colourProvider { get; set; } = null!;
@@ -53,33 +53,40 @@ namespace osu.Game.Rulesets.Difficulty.Editor
         {
             text.Clear();
 
-            if (difficultyBeatmap.CurrentObject is null)
+            if (difficultyProvider.CurrentObject is null)
                 return;
 
-            foreach (PropertyInfo property in difficultyBeatmap.CurrentObject.GetType().GetProperties())
-                addResult(property.Name.Titleize(), property.GetValue(difficultyBeatmap.CurrentObject));
+            foreach (PropertyInfo property in difficultyProvider.CurrentObject.GetType().GetProperties())
+                addValue(property.Name.Titleize(), property.GetValue(difficultyProvider.CurrentObject));
 
             // Ignore fields where the name is all uppercase, as per naming convention their constants and it's the only way to identify them.
-            foreach (FieldInfo field in difficultyBeatmap.CurrentObject.GetType().GetFields().Where(x => x.Name.Any(x => char.IsLetter(x) && !char.IsUpper(x))))
-                addResult(field.Name.Titleize(), field.GetValue(difficultyBeatmap.CurrentObject));
+            static bool isConst(FieldInfo field) => field.Name.All(x => !char.IsLetter(x) || char.IsUpper(x));
+            foreach (FieldInfo field in difficultyProvider.CurrentObject.GetType().GetFields().Where(isConst))
+                addValue(field.Name.Titleize(), field.GetValue(difficultyProvider.CurrentObject));
         }
 
-        private void addResult(string name, object? value)
+        private void addValue(string name, object? value)
         {
             string valueStr = value switch
             {
                 null => "null",
                 int i => i.ToString("N0"),
-                float f => Math.Round(f, 5).ToString("N"),
-                double d => Math.Round(d, 5).ToString("N"),
+                float f => f.ToString("#,#0.#####"),
+                double d => d.ToString("#,#0.#####"),
                 bool b => b ? "Yes" : "No",
-                Vector2 v => $"{v.X} ; {v.Y} ({v.Length})",
-                Vector3 v => $"{v.X} ; {v.Y} ; {v.Z} ({v.Length})",
+                Vector2 v => $"{v.X} {v.Y} ({v.Length:#,#0.#})",
                 _ => null!
             };
 
             if (valueStr is null)
                 return;
+
+            valueStr += name switch
+            {
+                string s when s.EndsWith("Distance") => "px",
+                string s when s.EndsWith("Time") => "ms",
+                _ => ""
+            };
 
             text.AddParagraph($"{name}:", s =>
             {

@@ -15,7 +15,7 @@ namespace osu.Game.Screens.Edit.Compose.Components
     public partial class HitObjectInspector : EditorInspector
     {
         [Resolved]
-        private DifficultyEditorBeatmap difficultyBeatmap { get; set; } = null!;
+        private EditorDifficultyProvider difficultyProvider { get; set; } = null!;
 
         [BackgroundDependencyLoader]
         private void load()
@@ -34,7 +34,7 @@ namespace osu.Game.Screens.Edit.Compose.Components
             else if (EditorBeatmap.PlacementObject.Value != null)
                 objects = new[] { EditorBeatmap.PlacementObject.Value };
             else
-                objects = difficultyBeatmap.CurrentObject is DifficultyHitObject o ? [o.BaseObject] : [];
+                objects = difficultyProvider.CurrentObject is DifficultyHitObject o ? [o.BaseObject] : [];
 
             AddInspectorValues(objects);
         }

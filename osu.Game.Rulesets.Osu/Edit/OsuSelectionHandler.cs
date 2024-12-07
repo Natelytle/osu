@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Osu.Edit
         private OsuGridToolboxGroup gridToolbox { get; set; } = null!;
 
         [Resolved]
-        private DifficultyEditorBeatmap difficultyBeatmap { get; set; } = null!;
+        private EditorDifficultyProvider difficultyProvider { get; set; } = null!;
 
         protected override void OnSelectionChanged()
         {
@@ -318,9 +318,11 @@ namespace osu.Game.Rulesets.Osu.Edit
 
         protected override IEnumerable<MenuItem> GetContextMenuItemsForSelection(IEnumerable<SelectionBlueprint<HitObject>> selection)
         {
+            // ========== PP EDITOR ==========
+            // Add context menu items for debugging a specific difficulty hit object in different evaluators
             if (selection.Count() == 1)
             {
-                DifficultyHitObject? difficultyHitObject = difficultyBeatmap.FromBaseObject(selection.Single().Item);
+                DifficultyHitObject? difficultyHitObject = difficultyProvider.FromBaseObject(selection.Single().Item);
                 if (difficultyHitObject is not null)
                     yield return new OsuMenuItem("Debug Evaluator", MenuItemType.Highlighted)
                     {
@@ -329,6 +331,7 @@ namespace osu.Game.Rulesets.Osu.Edit
                             .ToArray()
                     };
             }
+            // ========== PP EDITOR ==========
 
             foreach (var item in base.GetContextMenuItemsForSelection(selection))
                 yield return item;

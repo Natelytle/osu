@@ -75,7 +75,7 @@ namespace osu.Game.Rulesets.Edit
             if (toolboxGroup != null)
                 throw new InvalidOperationException($"{nameof(AttachToToolbox)} may be called only once for a single {nameof(ComposerDistanceSnapProvider)} instance.");
 
-            toolboxGroup = new EditorToolboxGroup("snapping")
+            toolboxContainer.Add(toolboxGroup = new EditorToolboxGroup("snapping")
             {
                 Name = "snapping",
                 Alpha = DistanceSpacingMultiplier.Disabled ? 0 : 1,
@@ -101,15 +101,7 @@ namespace osu.Game.Rulesets.Edit
                         RelativeSizeAxes = Axes.X,
                     }
                 }
-            };
-
-            editor.HideAdvancedEditorTools.BindValueChanged(hide =>
-            {
-                if (hide.NewValue)
-                    toolboxContainer.Remove(toolboxGroup, false);
-                else
-                    toolboxContainer.Add(toolboxGroup);
-            }, true);
+            });
 
             DistanceSpacingMultiplier.Value = editorBeatmap.DistanceSpacing;
             DistanceSpacingMultiplier.BindValueChanged(multiplier =>
@@ -132,6 +124,17 @@ namespace osu.Game.Rulesets.Edit
                 DistanceSnapToggle.Value = TernaryState.True;
             });
             DistanceSpacingMultiplier.BindValueChanged(spacing => distanceSpacingSlider.Current.Value = spacing.NewValue);
+
+            // ========== PP EDITOR ==========
+            // Hide the distance snap toolbox if advanced editor tools are hidden
+            editor.HideAdvancedEditorTools.BindValueChanged(hide =>
+            {
+                if (hide.NewValue)
+                    toolboxContainer.Remove(toolboxGroup, false);
+                else if (!toolboxContainer.Contains(toolboxGroup))
+                    toolboxContainer.Add(toolboxGroup);
+            }, true);
+            // ========== PP EDITOR ==========
         }
 
         private (HitObject before, HitObject after)? getObjectsOnEitherSideOfCurrentTime()
