@@ -67,7 +67,12 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                     s.Colour = colourProvider.Content2;
                 });
 
-                text.AddParagraph(Math.Round(eval.EvaluateDifficultyOf(difficultyProvider.CurrentObject), 5).ToString(), s =>
+                string evalOutput = Math.Round(eval.EvaluateDifficultyOf(difficultyProvider.CurrentObject), 5).ToString();
+
+                if (eval.Name is "Snap Aim" or "Flow Aim")
+                    evalOutput += $" ({Math.Round(Math.Pow(eval.EvaluateDifficultyOf(difficultyProvider.CurrentObject), 0.6) / 3.9, 2)})";
+
+                text.AddParagraph(evalOutput, s =>
                 {
                     s.Font = s.Font.With(weight: FontWeight.SemiBold);
                     s.Colour = colourProvider.Content1;
