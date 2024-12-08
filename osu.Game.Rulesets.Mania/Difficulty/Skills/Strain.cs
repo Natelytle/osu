@@ -18,13 +18,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Strain : Skill
     {
+        // Star rating for a map is the difficulty of achieving 95% accuracy.
         private const double star_rating_accuracy = 0.95;
 
         // The player has a 2% chance of achieving the score's accuracy.
         private const double accuracy_prob = 0.02;
 
-        private double strainMultiplier => 0.05;
         private double strainDecayBase => 0.15;
+        private double accuracyExponent => 1.5;
         private double tailDeviationMultiplier => 1.8;
 
         // To calculate accuracy at a skill level correctly, we need this information.
@@ -35,15 +36,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private readonly List<double> noteDifficulties = new List<double>();
         private readonly List<(double Head, double Tail)> longNoteDifficulties = new List<(double, double)>();
 
-        private BinNote[]? binNotes;
+        private List<BinNote>? binNotes;
 
         // Lazer mechanics let us split heads and tails and treat them like notes.
-        private BinNote[]? binHeads;
-        private BinNote[]? binTails;
+        private List<BinNote>? binHeads;
+        private List<BinNote>? binTails;
 
         // Stable mechanics depend on having both heads and tails available at the same time, so we must bin them together.
         // Since this is slower, we only do it when necessary.
-        private BinLongNote[]? binLongNotes;
+        private List<BinLongNote>? binLongNotes;
 
         private double currChordStrain;
         private double prevChordStrain;
@@ -97,7 +98,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             }
             else
             {
-                binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 8);
+                binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 32);
             }
 
             return RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2);
@@ -177,11 +178,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double sum = 0;
             double varSum = 0;
 
-            for (int i = 0; i < binNotes!.Length; i++)
+            for (int i = 0; i < binNotes!.Count; i++)
             {
-                if (binNotes[i].Count == 0)
-                    continue;
-
                 var noteProbs = getNoteProbs(binNotes[i].Difficulty, skill);
 
                 sum += binNotes[i].Count * noteProbs.Score;
@@ -192,13 +190,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             {
                 count += longNoteDifficulties.Count * 2;
 
-                for (int i = 0; i < binHeads!.Length; i++)
+                for (int i = 0; i < binHeads!.Count; i++)
                 {
                     var noteProbs = getNoteProbs(binHeads[i].Difficulty, skill);
 
                     sum += binHeads[i].Count * noteProbs.Score;
                     varSum += binHeads[i].Count * noteProbs.Variance;
+                }
 
+                for (int i = 0; i < binTails!.Count; i++)
+                {
                     var tailProbs = getTailProbs(binTails![i].Difficulty, skill);
 
                     sum += binTails[i].Count * tailProbs.Score;
@@ -209,7 +210,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             {
                 count += longNoteDifficulties.Count;
 
-                for (int i = 0; i < binLongNotes!.Length; i++)
+                for (int i = 0; i < binLongNotes!.Count; i++)
                 {
                     var longNoteProbs = getLongNoteProbs((binLongNotes[i].HeadDifficulty, binLongNotes[i].TailDifficulty), skill);
 
@@ -266,9 +267,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             return new JudgementProbs(pMax, p300, p200, p100, p50);
         }
 
-        // This formula ensure that when your skill equals the note difficulty, you get around 99%, and when your skill level is 0 (mashing), you get around 80%.
-        private double skillToUr(double skill, double d) => d != 0 ? 50 * Math.Pow(12 / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
-        private double skillToUrTail(double skill, double d) => d != 0 ? 50 * Math.Pow(12 * tailDeviationMultiplier / 50.0, Math.Pow(skill / d, BalancingConstants.ACC)) : 0;
+        // This formula ensure that when your skill equals the note difficulty, you get around 99%, and when your skill level is 0 (mashing), you get around 50%.
+        private double skillToUr(double skill, double d) => d != 0 ? 70 * Math.Pow(12 / 70.0, Math.Pow(skill / d, accuracyExponent)) : 0;
+        private double skillToUrTail(double skill, double d) => d != 0 ? 70 * Math.Pow(12 * tailDeviationMultiplier / 70.0, Math.Pow(skill / d, accuracyExponent)) : 0;
 
         /* /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                                                       PROCESSING BEGINS HERE
@@ -281,11 +282,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             switch (current.BaseObject)
             {
                 case not (HeadNote or TailNote):
-                    noteDifficulties.Add(strainValueNote(current));
+                    noteDifficulties.Add(strainValueOf(current));
                     break;
 
                 case HeadNote:
-                    longNoteDifficulties.Add((strainValueNote(current), 0));
+                    longNoteDifficulties.Add((strainValueOf(current), 0));
                     break;
 
                 case TailNote:
@@ -293,7 +294,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
                     int headIndex = prevInColumn.LongNoteIndex;
                     var tuple = longNoteDifficulties[headIndex];
-                    tuple.Tail = strainValueTail(current);
+                    tuple.Tail = strainValueOf(current);
                     longNoteDifficulties[headIndex] = tuple;
                     break;
             }
@@ -301,16 +302,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
-        private double strainValueNote(DifficultyHitObject current)
+        private double strainValueOf(DifficultyHitObject current)
         {
             currChordStrain *= strainDecay(current.StartTime - current.Previous(0)?.StartTime ?? 0);
 
-            double speedDifficulty = SpeedEvaluator.EvaluateDifficultyOf(current);
-            double sameColumnDifficulty = SameColumnEvaluator.EvaluateDifficultyOf(current);
-            double crossColumnDifficulty = CrossColumnEvaluator.EvaluateDifficultyOf(current);
-            double chordDifficulty = ChordEvaluator.EvaluateDifficultyOf(current);
+            double difficulty = TotalEvaluator.EvaluateTotalDifficultyOf(current);
 
-            double totalDifficulty = combinedValue(speedDifficulty, sameColumnDifficulty, crossColumnDifficulty, chordDifficulty);
+            /*
 
             currChordStrain = norm(BalancingConstants.STRAIN, currChordStrain, totalDifficulty);
 
@@ -321,44 +319,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 prevChordStrain = currChordStrain;
             }
 
-            return totalDifficulty;
+            */
+
+            return difficulty;
         }
-
-        private double combinedValue(double speedValue, double sameColumnDifficulty, double crossColumnDifficulty, double chordDifficulty)
-        {
-            double combinedValue = norm(BalancingConstants.COLUMN, sameColumnDifficulty, crossColumnDifficulty);
-            combinedValue = norm(BalancingConstants.SPEED, combinedValue, speedValue);
-            combinedValue = norm(BalancingConstants.CHORD, combinedValue, chordDifficulty);
-
-            return combinedValue;
-        }
-
-        private double strainValueTail(DifficultyHitObject current)
-        {
-            currChordStrain *= strainDecay(current.StartTime - current.Previous(0).StartTime);
-
-            double holdingDifficulty = HoldingEvaluator.EvaluateDifficultyOf(current);
-            double releaseDifficulty = ReleaseEvaluator.EvaluateDifficultyOf(current);
-
-            double totalDifficulty = norm(BalancingConstants.HOLD, holdingDifficulty, releaseDifficulty);
-
-            currChordStrain = norm(BalancingConstants.STRAIN, currChordStrain, totalDifficulty);
-
-            totalDifficulty = norm(BalancingConstants.STRAIN, prevChordStrain * strainMultiplier, totalDifficulty);
-
-            if (current.StartTime != current.Next(0)?.StartTime)
-            {
-                prevChordStrain = currChordStrain;
-            }
-
-            return totalDifficulty;
-        }
-
-        /// <summary>
-        /// Returns the <i>p</i>-norm of an <i>n</i>-dimensional vector.
-        /// </summary>
-        /// <param name="p">The value of <i>p</i> to calculate the norm for.</param>
-        /// <param name="values">The coefficients of the vector.</param>
-        private double norm(double p, params double[] values) => Math.Pow(values.Sum(x => Math.Pow(x, p)), 1 / p);
     }
 }
