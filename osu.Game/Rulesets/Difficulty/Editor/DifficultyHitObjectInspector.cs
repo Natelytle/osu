@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                 addValue(property.Name.Titleize(), property.GetValue(difficultyProvider.CurrentObject));
 
             // Ignore fields where the name is all uppercase, as per naming convention their constants and it's the only way to identify them.
-            static bool isConst(FieldInfo field) => field.Name.All(x => !char.IsLetter(x) || char.IsUpper(x));
+            static bool isConst(FieldInfo field) => field.Name.Any(x => char.IsLetter(x) && !char.IsUpper(x));
             foreach (FieldInfo field in difficultyProvider.CurrentObject.GetType().GetFields().Where(isConst))
                 addValue(field.Name.Titleize(), field.GetValue(difficultyProvider.CurrentObject));
         }

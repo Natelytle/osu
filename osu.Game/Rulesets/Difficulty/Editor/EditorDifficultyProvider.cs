@@ -1,12 +1,15 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
+using osu.Game.IO.Serialization;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Screens.Edit;
@@ -24,6 +27,7 @@ namespace osu.Game.Rulesets.Difficulty.Editor
         [Resolved]
         private EditorBeatmap editorBeatmap { get; set; } = null!;
 
+        private Ruleset ruleset = null!;
         private DifficultyCalculator diffCalc = null!;
         private DifficultyHitObject[] difficultyHitObjects = [];
         private TimedDifficultyAttributes[] timedDifficultyAttributes = [];
@@ -71,25 +75,30 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                 if (!editor.UseTimelineIfNoSelection.Value)
                     return null;
 
-                return timedDifficultyAttributes.LastOrDefault(x => x.Time < editorClock.CurrentTime);
+                return timedDifficultyAttributes.LastOrDefault(x => x.Time <= editorClock.CurrentTime);
             }
         }
-
         [BackgroundDependencyLoader]
         private void load(Bindable<RulesetInfo> rulesetInfo)
         {
-            Ruleset ruleset = rulesetInfo.Value.CreateInstance();
+            ruleset = rulesetInfo.Value.CreateInstance();
             diffCalc = ruleset.CreateDifficultyCalculator(new FlatWorkingBeatmap(editorBeatmap.PlayableBeatmap));
 
-            Scheduler.AddDelayed(() =>
-            {
-                difficultyHitObjects = diffCalc.CreateDifficultyHitObjects(editorBeatmap.PlayableBeatmap, 1).ToArray();
-            }, 20, true);
+            Scheduler.AddDelayed(createDifficultyHitObjects, 20, true);
+            Scheduler.Add(calculateTimedDifficultyAttributes);
+        }
 
-            Scheduler.AddDelayed(() =>
+        private void createDifficultyHitObjects() => difficultyHitObjects = diffCalc.CreateDifficultyHitObjects(editorBeatmap.PlayableBeatmap, 1).ToArray();
+
+        private void calculateTimedDifficultyAttributes()
+        {
+            Task.Factory.StartNew(() =>
             {
-                //timedDifficultyAttributes = diffCalc.CalculateTimed().ToArray();
-            }, 1000, true);
+                Beatmap clonedBeatmap = editorBeatmap.PlayableBeatmap.Serialize().Deserialize<Beatmap>();
+                DifficultyCalculator diffCalc = ruleset.CreateDifficultyCalculator(new FlatWorkingBeatmap(clonedBeatmap));
+                timedDifficultyAttributes = diffCalc.CalculateTimed([], default).ToArray();
+                Scheduler.AddDelayed(calculateTimedDifficultyAttributes, 500);
+            });
         }
 
         /// <summary>
