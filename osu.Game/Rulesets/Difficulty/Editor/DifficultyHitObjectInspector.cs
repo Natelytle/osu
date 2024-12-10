@@ -13,6 +13,7 @@ using osu.Game.Rulesets.Edit;
 using System.Reflection;
 using Humanizer;
 using System;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Difficulty.Editor
 {
@@ -53,16 +54,18 @@ namespace osu.Game.Rulesets.Difficulty.Editor
         {
             text.Clear();
 
-            if (difficultyProvider.CurrentObject is null)
+            DifficultyHitObject? obj = difficultyProvider.GetCurrentObject();
+
+            if (obj is null)
                 return;
 
-            foreach (PropertyInfo property in difficultyProvider.CurrentObject.GetType().GetProperties())
-                addValue(property.Name.Titleize(), property.GetValue(difficultyProvider.CurrentObject));
+            foreach (PropertyInfo property in obj.GetType().GetProperties())
+                addValue(property.Name.Titleize(), property.GetValue(obj));
 
             // Ignore fields where the name is all uppercase, as per naming convention their constants and it's the only way to identify them.
             static bool isConst(FieldInfo field) => field.Name.Any(x => char.IsLetter(x) && !char.IsUpper(x));
-            foreach (FieldInfo field in difficultyProvider.CurrentObject.GetType().GetFields().Where(isConst))
-                addValue(field.Name.Titleize(), field.GetValue(difficultyProvider.CurrentObject));
+            foreach (FieldInfo field in obj.GetType().GetFields().Where(isConst))
+                addValue(field.Name.Titleize(), field.GetValue(obj));
         }
 
         private void addValue(string name, object? value)

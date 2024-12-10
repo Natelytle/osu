@@ -51,7 +51,9 @@ namespace osu.Game.Rulesets.Difficulty.Editor
         {
             text.Clear();
 
-            if (difficultyProvider.CurrentDifficultyAttributes is null)
+            TimedDifficultyAttributes? attributes = difficultyProvider.GetCurrentDifficultyAttributes();
+
+            if (attributes is null)
                 return;
 
             text.AddParagraph("Difficulty Attributes", s =>
@@ -61,8 +63,8 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                 s.Colour = colourProvider.Colour0;
             });
 
-            foreach (PropertyInfo property in difficultyProvider.CurrentDifficultyAttributes.Attributes.GetType().GetProperties())
-                addResult(property.Name.Titleize(), property.GetValue(difficultyProvider.CurrentDifficultyAttributes.Attributes));
+            foreach (PropertyInfo property in attributes.Attributes.GetType().GetProperties())
+                addResult(property.Name.Titleize(), property.GetValue(attributes.Attributes));
         }
 
         private void addResult(string name, object? value)

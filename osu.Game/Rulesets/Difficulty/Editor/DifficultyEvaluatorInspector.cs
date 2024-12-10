@@ -55,7 +55,9 @@ namespace osu.Game.Rulesets.Difficulty.Editor
         {
             text.Clear();
 
-            if (difficultyProvider.CurrentObject is null)
+            DifficultyHitObject? obj = difficultyProvider.GetCurrentObject();
+
+            if (obj is null)
                 return;
 
             foreach (Evaluator eval in Evaluators)
@@ -67,10 +69,10 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                     s.Colour = colourProvider.Content2;
                 });
 
-                string evalOutput = Math.Round(eval.EvaluateDifficultyOf(difficultyProvider.CurrentObject), 5).ToString();
+                string evalOutput = Math.Round(eval.EvaluateDifficultyOf(obj), 5).ToString();
 
                 if (eval.Name is "Snap Aim" or "Flow Aim")
-                    evalOutput += $" ({Math.Round(Math.Pow(eval.EvaluateDifficultyOf(difficultyProvider.CurrentObject), 0.6) / 3.9, 2)})";
+                    evalOutput += $" ({Math.Round(Math.Pow(eval.EvaluateDifficultyOf(obj), 0.6) / 3.9, 2)})";
 
                 text.AddParagraph(evalOutput, s =>
                 {
