@@ -278,7 +278,16 @@ namespace osu.Game.Rulesets.Difficulty
         /// <param name="beatmap">The <see cref="IBeatmap"/> providing the <see cref="HitObject"/>s to enumerate.</param>
         /// <param name="clockRate">The rate at which the gameplay clock is run at.</param>
         /// <returns>The enumerated <see cref="DifficultyHitObject"/>s.</returns>
-        public abstract IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate);
+        protected abstract IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate);
+
+        /// <summary>
+        /// Enumerates <see cref="DifficultyHitObject"/>s to be processed from <see cref="HitObject"/>s in the <see cref="IBeatmap"/>.
+        /// </summary>
+        /// <param name="beatmap">The <see cref="IBeatmap"/> providing the <see cref="HitObject"/>s to enumerate.</param>
+        /// <param name="clockRate">The rate at which the gameplay clock is run at.</param>
+        /// <returns>The enumerated <see cref="DifficultyHitObject"/>s.</returns>
+        public IEnumerable<DifficultyHitObject> CreateDifficultyHitObjectsPublic(IBeatmap beatmap, double clockRate)
+            => CreateDifficultyHitObjects(beatmap, clockRate);
 
         /// <summary>
         /// Creates the <see cref="Skill"/>s to calculate the difficulty of an <see cref="IBeatmap"/>.

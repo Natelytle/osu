@@ -49,7 +49,7 @@ namespace osu.Game.Rulesets.Catch.Difficulty
             return attributes;
         }
 
-        public override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
+        protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
             CatchHitObject? lastObject = null;
 

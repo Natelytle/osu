@@ -83,8 +83,8 @@ namespace osu.Game.Rulesets.Difficulty.Editor
 
             valueStr += name switch
             {
-                string s when s.EndsWith("Distance") => "px",
-                string s when s.EndsWith("Time") => "ms",
+                string s when s.EndsWith("Distance", StringComparison.InvariantCultureIgnoreCase) => "px",
+                string s when s.EndsWith("Time", StringComparison.InvariantCultureIgnoreCase) => "ms",
                 _ => ""
             };
 

@@ -67,7 +67,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return 1;
         }
 
-        public override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
+        protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
             var sortedObjects = beatmap.HitObjects.ToArray();
 
