@@ -307,10 +307,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         // Due to the unavailability of miss location in PP, the following formulas assume that a player will miss on the hardest parts of a map.
 
-        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.8 as
-        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
-        // As a result, this exponent is not subject to balance.
-        private double calculateCurveFittedMissPenalty(double missCount, ExpPolynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(missCount), 2.1);
+        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the total power from skill to performance points.
+        private double calculateCurveFittedMissPenalty(double missCount, ExpPolynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(missCount), OsuDifficultyCalculator.AIM_EXPONENT * 3.0);
 
         // With the strain count miss penalty, we use the amount of relatively difficult sections to adjust the miss penalty,
         // to make it more punishing on maps with lower amount of hard sections. This formula is subject to balance.
