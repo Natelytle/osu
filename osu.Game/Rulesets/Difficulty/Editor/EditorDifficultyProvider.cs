@@ -35,25 +35,31 @@ namespace osu.Game.Rulesets.Difficulty.Editor
 
             Task.Factory.StartNew(async () =>
             {
-                difficultyHitObjects = diffCalc.CreateDifficultyHitObjectsPublic(editorBeatmap.PlayableBeatmap, 1).ToArray();
-                await Task.Delay(20).ConfigureAwait(true);
+                while (true)
+                {
+                    difficultyHitObjects = diffCalc.CreateDifficultyHitObjectsPublic(editorBeatmap.PlayableBeatmap, 1).ToArray();
+                    await Task.Delay(20).ConfigureAwait(true);
+                }
             }, TaskCreationOptions.LongRunning);
 
             Task.Factory.StartNew(async () =>
             {
                 while (true)
                 {
-                    long start = Stopwatch.GetTimestamp();
+                    if (!editor.CalculateDifficultyAttributes.Value)
+                        continue;
+
+                    //long start = Stopwatch.GetTimestamp();
                     IBeatmap clonedBeatmap = DifficultyEditorUtils.CloneBeatmap(editorBeatmap.PlayableBeatmap);
                     DifficultyCalculator diffCalc = ruleset.CreateDifficultyCalculator(new FlatWorkingBeatmap(clonedBeatmap));
-                    long afterClone = Stopwatch.GetTimestamp();
+                    //long afterClone = Stopwatch.GetTimestamp();
                     timedDifficultyAttributes = diffCalc.CalculateTimed([], default).ToArray();
-                    long afterCalc = Stopwatch.GetTimestamp();
-                    timedDifficultyAttributes = [new TimedDifficultyAttributes(0, new DifficultyAttributes()
-                        {
-                        StarRating = (afterClone - start) / TimeSpan.TicksPerMillisecond,
-                        MaxCombo = (int)((afterCalc - afterClone) / TimeSpan.TicksPerMillisecond)
-                    })];
+                    //long afterCalc = Stopwatch.GetTimestamp();
+                    //timedDifficultyAttributes = [new TimedDifficultyAttributes(0, new DifficultyAttributes()
+                    //    {
+                    //    StarRating = (afterClone - start) / TimeSpan.TicksPerMillisecond,
+                    //    MaxCombo = (int)((afterCalc - afterClone) / TimeSpan.TicksPerMillisecond)
+                    //})];
                     await Task.Delay(1000).ConfigureAwait(true);
                 }
             }, TaskCreationOptions.LongRunning);

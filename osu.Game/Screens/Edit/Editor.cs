@@ -223,6 +223,7 @@ namespace osu.Game.Screens.Edit
         public Bindable<bool> HideBasicEditorTools { get; } = new Bindable<bool>(false);
         public Bindable<bool> HideAdvancedEditorTools { get; } = new Bindable<bool>(true);
         public Bindable<bool> UseTimelineIfNoSelection { get; } = new Bindable<bool>(true);
+        public Bindable<bool> CalculateDifficultyAttributes { get; } = new Bindable<bool>(false);
         // ========== PP EDITOR ==========
 
         /// <summary>
@@ -455,6 +456,10 @@ namespace osu.Game.Screens.Edit
                                             new ToggleMenuItem("Use Timeline If No Selection", MenuItemType.Highlighted)
                                             {
                                                 State = { BindTarget = UseTimelineIfNoSelection },
+                                            },
+                                            new ToggleMenuItem("Calculate Difficulty Attributes", MenuItemType.Highlighted)
+                                            {
+                                                State = { BindTarget = CalculateDifficultyAttributes },
                                             },
                                         }
                                     }
