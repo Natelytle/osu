@@ -10,7 +10,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class SnapAimEvaluator
     {
-        private static double multiplier => 25.2;
+        private static double multiplier => 38.5;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -39,7 +39,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double difficulty = currVelocity;
 
             // Add a bonus for agility.
-            difficulty += 4500 / (Math.Max(25, Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime) - 50) * Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime));
+            difficulty += 5500 / (Math.Max(25, Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime) - 50) * Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime));
 
             double angleBonus = 0;
 

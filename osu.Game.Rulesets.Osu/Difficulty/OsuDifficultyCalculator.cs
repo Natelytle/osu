@@ -25,6 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
         private const double difficulty_multiplier = 0.0675;
+        public const double AIM_EXPONENT = 0.65;
 
         public override int Version => 20241007;
 
@@ -38,8 +39,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
 
-            double aimRating = Math.Pow(skills[0].DifficultyValue(), 0.7) * difficulty_multiplier;
-            double aimRatingNoSliders = Math.Pow(skills[1].DifficultyValue(), 0.7) * difficulty_multiplier;
+            double aimRating = Math.Pow(skills[0].DifficultyValue(), AIM_EXPONENT) * difficulty_multiplier;
+            double aimRatingNoSliders = Math.Pow(skills[1].DifficultyValue(), AIM_EXPONENT) * difficulty_multiplier;
             double speedRating = Math.Sqrt(skills[2].DifficultyValue()) * difficulty_multiplier;
             double speedNotes = ((Speed)skills[2]).RelevantNoteCount();
 
