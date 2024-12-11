@@ -72,7 +72,7 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                 string evalOutput = Math.Round(eval.EvaluateDifficultyOf(obj), 5).ToString();
 
                 if (eval.Name is "Snap Aim" or "Flow Aim")
-                    evalOutput += $" ({Math.Round(Math.Pow(eval.EvaluateDifficultyOf(obj), 0.7) / 3.9, 2)})";
+                    evalOutput += $" ({Math.Round(Math.Pow(eval.EvaluateDifficultyOf(obj), 0.65) / 3.9, 2)})";
 
                 text.AddParagraph(evalOutput, s =>
                 {
