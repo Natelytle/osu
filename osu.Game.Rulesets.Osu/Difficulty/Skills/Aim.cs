@@ -25,6 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecayBase => 0.15;
         private double strainIncreaseRate => 10;
+        private double strainInfluence => 1 / 4.0;
 
         protected override double HitProbability(double skill, double difficulty)
         {
@@ -45,7 +46,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double currentStrain = getStrainValueOf(currentDifficulty, priorDifficulty);
             previousStrains.Add(currentStrain);
 
-            return currentDifficulty + currentStrain;
+            // Strain contributing at most 1/4th the difficulty for consistent strain awards around 1 extra star for consistent 7-star gameplay.
+            return currentDifficulty + currentStrain * strainInfluence;
         }
 
         private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1);
