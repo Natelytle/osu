@@ -5,6 +5,7 @@ using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
+using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
@@ -39,7 +40,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double difficulty = currVelocity;
 
             // Add a bonus for agility.
-            difficulty += 5500 / (Math.Max(25, Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime) - 50) * Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime));
+            difficulty += Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / 285, 3);
 
             double angleBonus = 0;
 
