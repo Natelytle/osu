@@ -272,5 +272,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                     slider.LazyEndPosition = currCursorPosition;
             }
         }
+
+        public static bool IsValid(DifficultyHitObject current, int notesBackward)
+        {
+            if (current.Index < notesBackward || current.BaseObject is Spinner)
+                return false;
+
+            for (int i = 0; i < notesBackward; i++)
+            {
+                if (current.Previous(i).BaseObject is Spinner)
+                    return false;
+            }
+
+            return true;
+        }
     }
 }
