@@ -4,21 +4,17 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Osu.Objects;
+using static osu.Game.Rulesets.Osu.Difficulty.Preprocessing.OsuDifficultyHitObject;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-        private static double multiplier => 45.5;
+        private static double multiplier => 50.0;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            if (current.Index <= 2 ||
-                current.BaseObject is Spinner ||
-                current.Previous(0).BaseObject is Spinner ||
-                current.Previous(1).BaseObject is Spinner ||
-                current.Previous(2).BaseObject is Spinner)
+            if (!IsValid(current, 3))
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
