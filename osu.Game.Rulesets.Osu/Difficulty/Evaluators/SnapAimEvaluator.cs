@@ -11,7 +11,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class SnapAimEvaluator
     {
-        private static double multiplier => 58.65;
+        private static double multiplier => 61.0;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {

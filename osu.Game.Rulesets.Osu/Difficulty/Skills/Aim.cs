@@ -25,6 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecayBase => 0.15;
         private double strainIncreaseRate => 10;
+        private double strainDecreaseRate => 3;
         private double strainInfluence => 1 / 4.0;
 
         protected override double HitProbability(double skill, double difficulty)
@@ -50,14 +51,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return currentDifficulty + currentStrain * strainInfluence;
         }
 
-        private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1);
+        private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => currentDifficulty > priorDifficulty
+            ? (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1)
+            : (priorDifficulty * strainDecreaseRate + currentDifficulty) / (strainDecreaseRate + 1);
 
         private double highestPreviousStrain(DifficultyHitObject current, double time)
         {
             double hardestPreviousDifficulty = 0;
             double cumulativeDeltaTime = time;
 
-            double timeDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 900, 7));
+            double timeDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 400, 7));
 
             for (int i = 0; i < previousStrains.Count; i++)
             {
