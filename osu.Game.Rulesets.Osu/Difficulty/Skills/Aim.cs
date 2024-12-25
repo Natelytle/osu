@@ -2,7 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Generic;
+// using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
@@ -21,11 +21,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
         }
 
-        private readonly List<double> previousStrains = new List<double>();
+        private double currentStrain;
 
         private double strainDecayBase => 0.15;
-        private double strainIncreaseRate => 10;
-        private double strainDecreaseRate => 3;
+
         private double strainInfluence => 1 / 4.0;
 
         protected override double HitProbability(double skill, double difficulty)
@@ -36,46 +35,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return SpecialFunctions.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
+        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+
         protected override double StrainValueAt(DifficultyHitObject current)
         {
+            currentStrain *= strainDecay(current.DeltaTime);
+
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current);
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current);
 
             double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
-            double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
+            currentStrain += currentDifficulty / 4.0;
 
-            double currentStrain = getStrainValueOf(currentDifficulty, priorDifficulty);
-            previousStrains.Add(currentStrain);
-
-            // Strain contributing at most 1/4th the difficulty for consistent strain awards around 1 extra star for consistent 7-star gameplay.
+            // Strain contributes around 1 extra star for consistent 7-star gameplay at 200bpm, and 1.75 extra stars for consistent 7-star gameplay at 300bpm.
             return currentDifficulty + currentStrain * strainInfluence;
-        }
-
-        private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => currentDifficulty > priorDifficulty
-            ? (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1)
-            : (priorDifficulty * strainDecreaseRate + currentDifficulty) / (strainDecreaseRate + 1);
-
-        private double highestPreviousStrain(DifficultyHitObject current, double time)
-        {
-            double hardestPreviousDifficulty = 0;
-            double cumulativeDeltaTime = time;
-
-            double timeDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 400, 7));
-
-            for (int i = 0; i < previousStrains.Count; i++)
-            {
-                if (cumulativeDeltaTime > 1200)
-                {
-                    previousStrains.RemoveRange(0, i);
-                    break;
-                }
-
-                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousStrains[^(i + 1)] * timeDecay(cumulativeDeltaTime));
-
-                cumulativeDeltaTime += current.Previous(i).DeltaTime;
-            }
-
-            return hardestPreviousDifficulty;
         }
     }
 }
