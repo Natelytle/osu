@@ -10,6 +10,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Editor
     {
         protected override Evaluator[] Evaluators => [
             new("Snap Aim", obj => SnapAimEvaluator.EvaluateDifficultyOf(obj)),
+            new("Distance (Snap)", SnapAimEvaluator.EvaluateDistanceBonus),
+            new("Agility (Snap)", SnapAimEvaluator.EvaluateAgilityBonus),
+            new("Angle (Snap)", SnapAimEvaluator.EvaluateAngleBonus),
+            new("Vel Change (Snap)", SnapAimEvaluator.EvaluateVelocityChangeBonus),
             new("Flow Aim", obj => FlowAimEvaluator.EvaluateDifficultyOf(obj)),
             new("Speed", SpeedEvaluator.EvaluateDifficultyOf),
             new("Rhythm", RhythmEvaluator.EvaluateDifficultyOf),
