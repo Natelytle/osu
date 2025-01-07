@@ -54,6 +54,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public double? Angle { get; private set; }
 
         /// <summary>
+        /// Angle the player has to take to hit this <see cref="OsuDifficultyHitObject"/>.
+        /// Calculated as the angle between the circles (current-2, current-1, current).
+        /// </summary>
+        public double? AngleDegrees => Angle * 180 / Math.PI;
+
+        /// <summary>
         /// Retrieves the full hit window for a Great <see cref="HitResult"/>.
         /// </summary>
         public double HitWindowGreat { get; private set; }

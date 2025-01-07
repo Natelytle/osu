@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += EvaluateAgilityBonus(current);
             difficulty += EvaluateAngleBonus(current);
-            difficulty += EvaluateVelocityChangeBonus(current);
+            // difficulty += EvaluateVelocityChangeBonus(current);
 
             return difficulty;
         }
@@ -55,42 +55,49 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)
         {
-            if (!IsValid(current, 4))
-                return 0;
+            if (!IsValid(current, 3, 1))
+                return 1;
 
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj0 = (OsuDifficultyHitObject)current.Previous(0);
-            var osuPrevObj1 = (OsuDifficultyHitObject)current.Previous(1);
+            OsuDifficultyHitObject osuCurrObj = (OsuDifficultyHitObject)current;
+            OsuDifficultyHitObject osuPrev0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            OsuDifficultyHitObject osuPrev1Obj = (OsuDifficultyHitObject)current.Previous(1);
+            OsuDifficultyHitObject osuNextObj = (OsuDifficultyHitObject)current.Next(0);
 
-            double currTime = osuCurrObj.StrainTime;
-            double prevTime = osuPrevObj0.StrainTime;
+            double currAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
+            double prev0Angle = osuPrev0Obj.Angle!.Value * 180 / Math.PI;
+            double nextAngle = osuNextObj.Angle!.Value * 180 / Math.PI;
 
-            double currAngle = osuCurrObj.Angle!.Value;
-            double lastAngle = osuPrevObj0.Angle!.Value;
-            double lastLastAngle = osuPrevObj1.Angle!.Value;
+            double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            double prev0Velocity = osuPrev0Obj.Movement.Length / osuPrev0Obj.StrainTime;
+            double prev1Velocity = osuPrev1Obj.Movement.Length / osuPrev1Obj.StrainTime;
+            double nextVelocity = osuNextObj.Movement.Length / osuNextObj.StrainTime;
 
-            var currMovement = osuCurrObj.Movement;
-            var prevMovement = osuPrevObj0.Movement;
+            const double curr_multiplier = 1.0;
+            const double prev_multiplier = 0.5;
+            const double next_multiplier = 0.3;
+            const double curr_prev_multiplier = 0.5;
+            const double curr_next_multiplier = 0.0;
 
-            double currVelocity = currMovement.Length / currTime;
-            double prevVelocity = prevMovement.Length / prevTime;
-            double minVelocity = Math.Min(currVelocity, prevVelocity);
+            double currAngleBonus = CurveBuilder.BuildLerp(currAngle, (35, 0), (45, 0.015), (60, 0.3), (90, 0.8), (105, 0.975), (115, 1)) * Math.Min(currVelocity, prev0Velocity);
+            double prevAngleBonus = CurveBuilder.BuildLerp(prev0Angle, (35, 0), (45, 0.015), (60, 0.3), (90, 0.8), (105, 0.975), (115, 1)) * Math.Min(prev0Velocity, prev1Velocity);
+            double nextAngleBonus = CurveBuilder.BuildLerp(nextAngle, (35, 0), (45, 0.015), (60, 0.2), (90, 0.8), (105, 0.975), (115, 1)) * Math.Min(currVelocity, nextVelocity);
+            double currPrevAngleBonus = CurveBuilder.BuildLerp(currAngle + prev0Angle, (70, 0), (120, 0.3), (150, 0.5), (240, 1)) * Math.Min(Math.Min(currVelocity, prev0Velocity), prev1Velocity);
+            double currNextAngleBonus = CurveBuilder.BuildLerp(nextAngle + currAngle, (35, 0), (45, 0.015), (60, 0.2), (90, 0.8), (105, 0.975), (115, 1)) * Math.Min(Math.Min(currVelocity, prev0Velocity), nextVelocity);
 
-            // We give a bonus to the width of the angle.
-            double angleBonus = calculateAngleSpline(Math.Abs(currAngle), false) * Math.Min(minVelocity, (currMovement + prevMovement).Length / Math.Max(currTime, prevTime));
+            double totalAngleBonus = currAngleBonus * curr_multiplier
+                                     + prevAngleBonus * prev_multiplier
+                                     + nextAngleBonus * next_multiplier
+                                     + currPrevAngleBonus * curr_prev_multiplier
+                                     + currNextAngleBonus * curr_next_multiplier;
 
-            // Slightly nerf the wide angle buff if there is a sharp angle in between 2 wide angles.
-            angleBonus *= 1 - 0.25 * calculateAngleSpline(Math.Abs(lastAngle), true) * calculateAngleSpline(Math.Abs(lastLastAngle), false);
-
-            return angleBonus * multiplier;
+            return totalAngleBonus * multiplier;
         }
 
         public static double EvaluateVelocityChangeBonus(DifficultyHitObject current)
         {
-            if (!IsValid(current, 3, 1))
+            if (!IsValid(current, 3))
                 return 0;
 
-            var osuNextObj = (OsuDifficultyHitObject)current.Next(0);
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
