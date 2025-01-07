@@ -42,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             if (x > points[^1].x)
                 return points[^1].y;
 
-            int i = Array.FindIndex(points, p => p.x < x);
+            int i = Array.FindLastIndex(points, p => p.x < x);
 
             if (i == -1)
                 return 0;

@@ -422,6 +422,12 @@ namespace osu.Game.Rulesets.Difficulty
                 set => baseBeatmap.CountdownOffset = value;
             }
 
+            public int[] Bookmarks
+            {
+                get => baseBeatmap.Bookmarks;
+                set => baseBeatmap.Bookmarks = value;
+            }
+
             #endregion
         }
     }
