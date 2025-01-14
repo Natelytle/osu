@@ -151,8 +151,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate)
         {
-            double greatHitWindow = 80 - 6 * beatmap.Difficulty.OverallDifficulty;
-            double mehHitWindow = 200 - 10 * beatmap.Difficulty.OverallDifficulty;
+            double greatHitWindow = (80 - 6 * beatmap.Difficulty.OverallDifficulty) / clockRate;
+            double mehHitWindow = (200 - 10 * beatmap.Difficulty.OverallDifficulty) / clockRate;
 
             var skills = new List<Skill>
             {
