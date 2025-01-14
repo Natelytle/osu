@@ -13,6 +13,7 @@ using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.Scoring;
@@ -40,11 +41,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRatingNoSliders = Math.Sqrt(skills[1].DifficultyValue()) * difficulty_multiplier;
             double speedRating = Math.Sqrt(skills[2].DifficultyValue()) * difficulty_multiplier;
             double speedNotes = ((Speed)skills[2]).RelevantNoteCount();
+            double perfectAccuracyRating = ((Accuracy)skills[3]).DifficultyValue();
+            ExpPolynomial accuracyCurve = ((Accuracy)skills[3]).GetMissPenaltyCurve();
             double difficultSliders = ((Aim)skills[0]).GetDifficultSliders();
             double flashlightRating = 0.0;
 
             if (mods.Any(h => h is OsuModFlashlight))
-                flashlightRating = Math.Sqrt(skills[3].DifficultyValue()) * difficulty_multiplier;
+                flashlightRating = Math.Sqrt(skills[4].DifficultyValue()) * difficulty_multiplier;
 
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
 
@@ -110,6 +113,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                PerfectAccuracyDifficulty = perfectAccuracyRating,
+                AccuracyCurve = accuracyCurve,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
                 AimDifficultStrainCount = aimDifficultyStrainCount,
@@ -146,11 +151,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate)
         {
+            double greatHitWindow = 80 - 6 * beatmap.Difficulty.OverallDifficulty;
+            double mehHitWindow = 200 - 10 * beatmap.Difficulty.OverallDifficulty;
+
             var skills = new List<Skill>
             {
                 new Aim(mods, true),
                 new Aim(mods, false),
-                new Speed(mods)
+                new Speed(mods),
+                new Accuracy(mods, greatHitWindow, mehHitWindow)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))

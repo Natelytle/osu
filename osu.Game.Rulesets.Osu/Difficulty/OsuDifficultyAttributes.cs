@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
@@ -38,6 +39,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         [JsonProperty("speed_note_count")]
         public double SpeedNoteCount { get; set; }
+
+        /// <summary>
+        /// The difficulty of getting an SS on the current map.
+        /// Related to <see cref="SpeedDifficulty"/>
+        /// </summary>
+        [JsonProperty("perfect_accuracy_difficulty")]
+        public double PerfectAccuracyDifficulty { get; set; }
+
+        /// <summary>
+        /// The difficulty of getting an SS on the current map.
+        /// Related to <see cref="SpeedDifficulty"/>
+        /// </summary>
+        [JsonProperty("accuracy_curve")]
+        public ExpPolynomial AccuracyCurve { get; set; }
 
         /// <summary>
         /// The difficulty corresponding to the flashlight skill.
