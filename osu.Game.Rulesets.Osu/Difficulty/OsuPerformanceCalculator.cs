@@ -260,10 +260,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 return 0.0;
 
             // Convert 50s to 100s through judgements => accuracy => judgements.
-            double accuracyPercentage = ((countGreat - totalHits) * 6 + countOk * 2 + countMeh) / (double)(totalHits * 6);
+            double accuracyPercentage = (countGreat * 6 + countOk * 2 + countMeh) / (double)(totalSuccessfulHits * 6);
             double effective100Count = Math.Clamp(DifficultyCalculationUtils.ReverseLerp(accuracyPercentage, 1, 1 / 3.0), 0, 1) * totalHits;
 
-            double accuracyValue = attributes.PerfectAccuracyDifficulty * attributes.AccuracyCurve.GetPenaltyAt(effective100Count);
+            double accuracyValue = attributes.PerfectAccuracyDifficulty * (1 - attributes.AccuracyCurve.GetPenaltyAt(effective100Count));
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
