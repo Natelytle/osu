@@ -256,10 +256,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModRelax))
+            if (score.Mods.Any(h => h is OsuModRelax) || totalSuccessfulHits == 0)
                 return 0.0;
 
             // Convert 50s to 100s through judgements => accuracy => judgements.
+            // We divide by totalSuccessfulHits for accuracy, but multiply the accuracy by totalHits to include misses in a less-harsh way.
             double accuracyPercentage = (countGreat * 6 + countOk * 2 + countMeh) / (double)(totalSuccessfulHits * 6);
             double effective100Count = Math.Clamp(DifficultyCalculationUtils.ReverseLerp(accuracyPercentage, 1, 1 / 3.0), 0, 1) * totalHits;
 
