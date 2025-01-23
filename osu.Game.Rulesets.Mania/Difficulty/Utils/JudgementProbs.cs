@@ -29,6 +29,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
                                   (200 - Score) * (200 - Score) * p200 +
                                   (100 - Score) * (100 - Score) * p100 +
                                   (50 - Score) * (50 - Score) * p50 +
-                                  -Score * -Score * p0;
+                                  (0 - Score) * (0 - Score) * p0;
     }
 }

@@ -79,8 +79,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
         public double HitProbabilityLn(double window, double headDeviation, double tailDeviation)
         {
-            double root2 = Math.Sqrt(2);
-
             double pHead = HitProbability(window, headDeviation);
 
             // Calculate the expected value of the distance from 0 of the head hit, given it lands within the current window.
