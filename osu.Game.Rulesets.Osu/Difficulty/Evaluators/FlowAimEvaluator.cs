@@ -5,61 +5,69 @@ using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using static osu.Game.Rulesets.Osu.Difficulty.Preprocessing.OsuDifficultyHitObject;
+using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-        private static double multiplier => 50.0;
+        private static double multiplier => 100.0;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            if (!IsValid(current, 3))
+            // Base snap difficulty is velocity.
+            double difficulty = EvaluateDistanceBonus(current);
+
+            difficulty += EvaluateTappingBonus(current);
+            // difficulty += EvaluateAngleBonus(current);
+
+            return difficulty;
+        }
+
+        public static double EvaluateDistanceBonus(DifficultyHitObject current)
+        {
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+
+            // Base snap difficulty is velocity.
+            double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+
+            return distanceBonus * multiplier;
+        }
+
+        public static double EvaluateTappingBonus(DifficultyHitObject current)
+        {
+            if (!IsValid(current, 2))
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
-
-            var currMovement = osuCurrObj.Movement;
-            var prevMovement = osuPrevObj.Movement;
+            var osuPrevObj0 = (OsuDifficultyHitObject)current.Previous(0);
 
             double currTime = osuCurrObj.StrainTime;
+            double prevTime = osuPrevObj0.StrainTime;
 
-            // Base flow difficulty is distance / time, with a bit of time subtracted to buff speed flow.
-            double difficulty = Math.Pow(currMovement.Length, 1.2) / (currTime - 12.5);
+            // Tapping bonus of 1 at 330 BPM.
+            double tappingBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime)) / 330, 2);
 
-            double currVelocity = currMovement.Length / osuCurrObj.StrainTime;
-            double prevVelocity = prevMovement.Length / osuPrevObj.StrainTime;
-            double minVelocity = Math.Min(currVelocity, prevVelocity);
-
-            double angleBonus = 0;
-
-            if (osuCurrObj.Angle != null && osuPrevObj.Angle != null)
-            {
-                double currAngle = osuCurrObj.Angle.Value;
-                double lastAngle = osuPrevObj.Angle.Value;
-
-                double threeNoteVelocitySub = (currMovement - prevMovement).Length / Math.Max(osuCurrObj.StrainTime, osuPrevObj.StrainTime);
-
-                // We reward for angle changes or the acuteness of the angle, whichever is higher. Possibly a case out there to reward both.
-                angleBonus = Math.Max(
-                    Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * minVelocity,
-                    calculateAngleSpline(Math.Abs(currAngle), true) * Math.Min(minVelocity, threeNoteVelocitySub));
-            }
-
-            double velChangeBonus = Math.Abs(prevVelocity - currVelocity);
-
-            difficulty += 0.65 * (velChangeBonus + angleBonus);
-
-            return difficulty * multiplier;
+            return tappingBonus * multiplier;
         }
 
-        private static double calculateAngleSpline(double angle, bool reversed)
+        public static double EvaluateAngleBonus(DifficultyHitObject current)
         {
-            if (reversed)
-                return 1 - Math.Pow(Math.Sin(Math.Clamp(1.2 * angle - 5.4 * Math.PI / 12.0, 0, Math.PI / 2)), 2);
+            if (!IsValid(current, 3, 1))
+                return 1;
 
-            return Math.Pow(Math.Sin(Math.Clamp(1.2 * angle - Math.PI / 4.0, 0, Math.PI / 2)), 2);
+            OsuDifficultyHitObject osuCurrObj = (OsuDifficultyHitObject)current;
+            OsuDifficultyHitObject osuPrev0Obj = (OsuDifficultyHitObject)current.Previous(0);
+
+            double currAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
+
+            double currDistanceRatio = osuCurrObj.Movement.Length / osuCurrObj.Radius;
+            double prevDistanceRatio = osuPrev0Obj.Movement.Length / osuPrev0Obj.Radius;
+
+            // Provisional angle bonus
+            double angleBonus = Smootherstep(currAngle, 0, 180) * Smootherstep(currDistanceRatio, 0.5, 1) * Smootherstep(prevDistanceRatio, 0.5, 1);
+
+            return angleBonus * multiplier;
         }
     }
 }
