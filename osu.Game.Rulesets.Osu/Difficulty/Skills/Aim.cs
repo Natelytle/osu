@@ -24,7 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecayBase => 0.15;
 
-        private double strainInfluence => 1 / 4.0;
+        private double strainInfluence => 1 / 8.0;
 
         protected override double HitProbability(double skill, double difficulty)
         {
