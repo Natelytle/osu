@@ -14,8 +14,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current) * 100;
-            difficulty += EvaluateTappingBonus(current) * 40;
+            double difficulty = EvaluateDistanceBonus(current) * 105;
+            // difficulty += EvaluateTappingBonus(current) * 10;
             difficulty += EvaluateAngleBonus(current) * 20;
 
             return difficulty;
@@ -25,8 +25,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
 
-            // Distance scales harder on flow aim. Technically incorrect, but I just want to see my family again.
-            double distanceBonus = Math.Pow(osuCurrObj.Movement.Length / osuCurrObj.StrainTime, 2);
+            // Distance scales harder on flow aim, up until an arbitrary point.
+            // VERY incorrect, but I just want to see my family again.
+            double distanceBonus = Math.Min(Math.Pow(osuCurrObj.Movement.Length / osuCurrObj.StrainTime, 2), osuCurrObj.Movement.Length / osuCurrObj.StrainTime * Math.Pow(75.0 / 55, 75.0 / 55));
 
             return distanceBonus;
         }
@@ -43,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevTime = osuPrevObj0.StrainTime;
 
             // Tapping bonus of 1 at 330 BPM.
-            double tappingBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime)) / 330, 2);
+            double tappingBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime)) / 330, 2) * (osuCurrObj.Movement.Length / osuCurrObj.StrainTime);
 
             return tappingBonus;
         }
