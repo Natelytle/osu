@@ -13,15 +13,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class SnapAimEvaluator
     {
-        private static double multiplier => 65.0;
-
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current);
-
-            difficulty += EvaluateAgilityBonus(current);
-            difficulty += EvaluateAngleBonus(current);
+            double difficulty = EvaluateDistanceBonus(current) * 62;
+            difficulty += EvaluateAgilityBonus(current) * 65;
+            difficulty += EvaluateAngleBonus(current) * 65;
+            // difficulty += EvaluateVelocityChangeBonus(current) * 65;
 
             return difficulty;
         }
@@ -33,7 +31,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Base snap difficulty is velocity.
             double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
 
-            return distanceBonus * multiplier;
+            return distanceBonus;
         }
 
         public static double EvaluateAgilityBonus(DifficultyHitObject current)
@@ -48,14 +46,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevTime = osuPrevObj0.StrainTime;
 
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
+            double currDistanceRatio = osuCurrObj.Movement.Length / osuCurrObj.Radius;
 
-            // We reward high bpm more for wider angles.
-            double baseBpm = 320.0 / (1 + Smootherstep(currentAngle, 0, 120) * 0.45);
+            // We reward high bpm more for wider angles, but only when distance is over 0.5 radii.
+            double baseBpm = 320.0 / (1 + 0.45 * Smootherstep(currentAngle, 0, 120) * Smootherstep(currDistanceRatio, 0.5, 1));
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 2.5);
 
-            return agilityBonus * multiplier;
+            return agilityBonus;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)
@@ -68,13 +67,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double currAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
-            double currDistanceRatio = osuCurrObj.Movement.Length / osuCurrObj.Radius;
+            double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
             double prevDistanceRatio = osuPrev0Obj.Movement.Length / osuPrev0Obj.Radius;
 
             // Provisional angle bonus
-            double angleBonus = Smootherstep(currAngle, 0, 180) * Smootherstep(currDistanceRatio, 0.5, 1) * Smootherstep(prevDistanceRatio, 0.5, 1);
+            double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * Smootherstep(prevDistanceRatio, 0.5, 1);
 
-            return angleBonus * multiplier;
+            return angleBonus;
         }
 
         public static double EvaluateVelocityChangeBonus(DifficultyHitObject current)
@@ -102,7 +101,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double velChangeBonus = baseVelocityChange * ((1.3 + angleBonus) * overlapNerf);
 
-            return velChangeBonus * multiplier;
+            return velChangeBonus;
         }
     }
 }
