@@ -11,15 +11,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-        private static double multiplier => 100.0;
-
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current);
-
-            difficulty += EvaluateTappingBonus(current);
-            // difficulty += EvaluateAngleBonus(current);
+            double difficulty = EvaluateDistanceBonus(current) * 100;
+            difficulty += EvaluateTappingBonus(current) * 40;
+            difficulty += EvaluateAngleBonus(current) * 20;
 
             return difficulty;
         }
@@ -28,10 +25,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
 
-            // Base snap difficulty is velocity.
-            double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            // Distance scales harder on flow aim. Technically incorrect, but I just want to see my family again.
+            double distanceBonus = Math.Pow(osuCurrObj.Movement.Length / osuCurrObj.StrainTime, 2);
 
-            return distanceBonus * multiplier;
+            return distanceBonus;
         }
 
         public static double EvaluateTappingBonus(DifficultyHitObject current)
@@ -48,7 +45,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Tapping bonus of 1 at 330 BPM.
             double tappingBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime)) / 330, 2);
 
-            return tappingBonus * multiplier;
+            return tappingBonus;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)
@@ -61,13 +58,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double currAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
-            double currDistanceRatio = osuCurrObj.Movement.Length / osuCurrObj.Radius;
             double prevDistanceRatio = osuPrev0Obj.Movement.Length / osuPrev0Obj.Radius;
 
             // Provisional angle bonus
-            double angleBonus = Smootherstep(currAngle, 0, 180) * Smootherstep(currDistanceRatio, 0.5, 1) * Smootherstep(prevDistanceRatio, 0.5, 1);
+            double angleBonus = Smootherstep(currAngle, 0, 180) * (osuCurrObj.Movement.Length / osuCurrObj.StrainTime) * Smootherstep(prevDistanceRatio, 0.5, 1);
 
-            return angleBonus * multiplier;
+            return angleBonus;
         }
     }
 }
