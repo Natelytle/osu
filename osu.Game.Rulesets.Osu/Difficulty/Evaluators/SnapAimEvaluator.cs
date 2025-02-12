@@ -40,16 +40,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj0 = (OsuDifficultyHitObject)current.Previous(0);
+            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
-            double currTime = osuCurrObj.StrainTime;
-            double prevTime = osuPrevObj0.StrainTime;
+            double currDistanceMultiplier = Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.5, 1);
+            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0.5, 1);
+
+            // If the previous notes are stacked, we add the previous note's strainTime since there was no movement since at least 2 notes earlier.
+            // https://youtu.be/-yJPIk-YSLI?t=186
+            double currTime = osuCurrObj.StrainTime + osuPrevObj.StrainTime * (1 - prevDistanceMultiplier);
+            double prevTime = osuPrevObj.StrainTime;
 
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
-            double currDistanceRatio = osuCurrObj.Movement.Length / osuCurrObj.Radius;
 
-            // We reward high bpm more for wider angles, but only when distance is over 0.5 radii.
-            double baseBpm = 320.0 / (1 + 0.45 * Smootherstep(currentAngle, 0, 120) * Smootherstep(currDistanceRatio, 0.5, 1));
+            // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
+            double baseBpm = 320.0 / (1 + 0.45 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 2.5);
@@ -63,15 +67,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 1;
 
             OsuDifficultyHitObject osuCurrObj = (OsuDifficultyHitObject)current;
-            OsuDifficultyHitObject osuPrev0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            OsuDifficultyHitObject osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
             double currAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
             double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
-            double prevDistanceRatio = osuPrev0Obj.Movement.Length / osuPrev0Obj.Radius;
+            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0.5, 1);
 
             // Provisional angle bonus
-            double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * Smootherstep(prevDistanceRatio, 0.5, 1);
+            double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * prevDistanceMultiplier; // Gengaozo pattern
 
             return angleBonus;
         }
