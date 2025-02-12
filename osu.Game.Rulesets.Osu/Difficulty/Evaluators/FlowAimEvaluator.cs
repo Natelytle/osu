@@ -13,10 +13,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     {
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current) * 105;
+            double difficulty = EvaluateDistanceBonus(current) * 85;
             // difficulty += EvaluateTappingBonus(current) * 10;
-            difficulty += EvaluateAngleBonus(current) * 20;
+            difficulty += EvaluateAngleBonus(current) * 35;
 
             return difficulty;
         }
@@ -27,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Distance scales harder on flow aim, up until an arbitrary point.
             // VERY incorrect, but I just want to see my family again.
-            double distanceBonus = Math.Min(Math.Pow(osuCurrObj.Movement.Length / osuCurrObj.StrainTime, 2), osuCurrObj.Movement.Length / osuCurrObj.StrainTime * Math.Pow(75.0 / 55, 75.0 / 55));
+            double distanceBonus = Math.Min(Math.Pow(osuCurrObj.Movement.Length / osuCurrObj.StrainTime, 2), osuCurrObj.Movement.Length / osuCurrObj.StrainTime * 1.2 * Math.Pow(75.0 / 55, 75.0 / 55));
 
             return distanceBonus;
         }
