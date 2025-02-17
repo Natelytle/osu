@@ -72,9 +72,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
             double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            double prevVelocity = osuPrevObj.Movement.Length / osuPrevObj.StrainTime;
+
+            // We scale angle bonus by the amount of overlap between the previous 2 notes. This addresses cheesable angles
             double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0.5, 1);
 
-            // Provisional angle bonus
+            // We also scale angle bonus by the difference in velocity from prevPrev -> prev and prev -> current. This addresses cut stream patterns.
+            prevDistanceMultiplier *= currVelocity > 0 ? Math.Min(1, prevVelocity * 1.4 / currVelocity) : 1;
+
             double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * prevDistanceMultiplier; // Gengaozo pattern
 
             return angleBonus;
