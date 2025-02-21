@@ -92,7 +92,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new SunnySkill(mods, ((ManiaBeatmap)beatmap).TotalColumns, beatmap.Difficulty.OverallDifficulty, ((ManiaBeatmap)beatmap).HitObjects.Count)
+            new SunnySkill(mods, ((ManiaBeatmap)beatmap).TotalColumns, beatmap.Difficulty.OverallDifficulty, ((ManiaBeatmap)beatmap).HitObjects.Count, Math.Ceiling((int)(getHitWindow300(mods) * clockRate) / clockRate))
         };
 
         protected override Mod[] DifficultyAdjustmentMods

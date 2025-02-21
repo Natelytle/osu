@@ -20,8 +20,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private double od;
         private int totalColumns;
         private double spikiness;
+        private double greatHitWindow;
 
-        public SunnySkill(Mod[] mods, int totalColumns, double od, int objectCount)
+        public SunnySkill(Mod[] mods, int totalColumns, double od, int objectCount, double greatHitWindow)
             : base(mods)
         {
             this.od = od;
@@ -29,6 +30,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             this.totalColumns = totalColumns;
 
             noteSeq = new List<Calculators.Note>(objectCount);
+
+            this.greatHitWindow = greatHitWindow;
         }
 
         // Mania difficulty hit objects are already sorted in the difficulty calculator, we just need to populate the lists.
@@ -48,7 +51,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (noteSeq.Count <= 0)
                 return 0;
 
-            double x = 0.3 * Math.Pow((64.5 - Math.Ceiling(od * 3.0)) / 500.0, 0.5);
+            double x = 0.3 * Math.Pow((2 * greatHitWindow + 1) / 1000.0, 0.5);
             x = Math.Min(x, 0.6 * (x - 0.09) + 0.09);
 
             SRParams srParams = MACalculator.Calculate(noteSeq, totalColumns, x);
