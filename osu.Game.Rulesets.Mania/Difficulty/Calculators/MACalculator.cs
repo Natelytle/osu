@@ -350,6 +350,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                     LN_bodies[i] += 1.0;
             }
 
+            // adjust the LN bodies count - this helps with high key inverse
+            for (int i = 0; i < LN_bodies.Length; i++)
+            {
+                LN_bodies[i] = Math.Min(LN_bodies[i], 2.5 + 0.5 * LN_bodies[i]);
+            }
+
             // Compute cumulative sum over LN_bodies
             double[] cumsum_LN = new double[T + 1];
             cumsum_LN[0] = 0.0;
