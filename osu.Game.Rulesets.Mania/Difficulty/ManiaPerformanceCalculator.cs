@@ -40,19 +40,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             // Arbitrary initial value for scaling pp in order to standardize distributions across game modes.
             // The specific number has no intrinsic meaning and can be adjusted as needed.
-            double multiplier = 8.0;
+            double multiplier = 10.0;
 
             if (score.Mods.Any(m => m is ModNoFail))
                 multiplier *= 0.75;
             if (score.Mods.Any(m => m is ModEasy))
-                multiplier *= 0.5;
+                multiplier *= 0.96;
 
             double difficultyValue = computeDifficultyValue(maniaAttributes);
-            double totalValue = difficultyValue * multiplier;
+            double varietyMultiplier = this.varietyMultiplier(scoreAccuracy, maniaAttributes.Variety);
+            double spikinessMultiplier = this.spikinessMultiplier(scoreAccuracy, maniaAttributes.Spikiness);
+            double totalValue = difficultyValue * multiplier * varietyMultiplier * spikinessMultiplier;
 
             return new ManiaPerformanceAttributes
             {
                 Difficulty = difficultyValue,
+                VarietyMultiplier = varietyMultiplier,
+                SpikinessMultiplier = spikinessMultiplier,
                 Total = totalValue
             };
         }
@@ -64,10 +68,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double difficultyValue = Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
                                      * 1.1 / (1.0 + Math.Sqrt(attributes.StarRating / (2 * totalHits))) // length bonus
-                                     * proportion // scaled by the proportion
-                                     * varietyMultiplier(scoreAccuracy, attributes.Variety)
-                                     * spikinessMultiplier(scoreAccuracy, attributes.Spikiness)
-                                     * 1.25; // arbitrary scaling factor
+                                     * proportion; // scaled by the proportion
 
             return difficultyValue;
         }

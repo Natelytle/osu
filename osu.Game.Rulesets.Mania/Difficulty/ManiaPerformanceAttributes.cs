@@ -12,12 +12,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("difficulty")]
         public double Difficulty { get; set; }
 
+        [JsonProperty("variety_multiplier")]
+        public double VarietyMultiplier { get; set; }
+
+        [JsonProperty("spikiness_multiplier")]
+        public double SpikinessMultiplier { get; set; }
+
         public override IEnumerable<PerformanceDisplayAttribute> GetAttributesForDisplay()
         {
             foreach (var attribute in base.GetAttributesForDisplay())
                 yield return attribute;
 
             yield return new PerformanceDisplayAttribute(nameof(Difficulty), "Difficulty", Difficulty);
+            yield return new PerformanceDisplayAttribute(nameof(VarietyMultiplier), "Variety Multiplier", VarietyMultiplier);
+            yield return new PerformanceDisplayAttribute(nameof(SpikinessMultiplier), "Spikiness Multiplier", SpikinessMultiplier);
         }
     }
 }

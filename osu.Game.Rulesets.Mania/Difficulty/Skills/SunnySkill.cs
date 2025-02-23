@@ -17,6 +17,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
     public class SunnySkill : Skill
     {
         private List<Calculators.Note> noteSeq;
+        private List<List<Calculators.Note>> noteSeqByColumn;
         private double od;
         private int totalColumns;
         private double spikiness;
@@ -32,6 +33,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             noteSeq = new List<Calculators.Note>(objectCount);
 
             this.greatHitWindow = greatHitWindow;
+
+            noteSeqByColumn = new List<List<Calculators.Note>>();
+
+            for (int k = 0; k < totalColumns; k++)
+            {
+                noteSeqByColumn.Add(new List<Calculators.Note>());
+            }
         }
 
         // Mania difficulty hit objects are already sorted in the difficulty calculator, we just need to populate the lists.
@@ -44,6 +52,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             Calculators.Note note = new Calculators.Note(currObj.BaseObject.Column, (int)currObj.StartTime, endTime);
 
             noteSeq.Add(note);
+
+            noteSeqByColumn[note.Column].Add(note);
         }
 
         public override double DifficultyValue()
@@ -54,7 +64,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double x = 0.3 * Math.Pow((2 * greatHitWindow + 1) / 1000.0, 0.5);
             x = Math.Min(x, 0.6 * (x - 0.09) + 0.09);
 
-            SRParams srParams = MACalculator.Calculate(noteSeq, totalColumns, x);
+            SRParams srParams = MACalculator.Calculate(noteSeq, noteSeqByColumn, totalColumns, x);
             spikiness = srParams.Spikiness;
 
             return srParams.SR;
@@ -62,7 +72,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         public double VarietyValue()
         {
-            return MACalculator.Variety(noteSeq);
+            return MACalculator.Variety(noteSeq, noteSeqByColumn);
         }
 
         public double SpikinessValue()

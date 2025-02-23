@@ -52,7 +52,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
         /// <param name="noteSeq">List of Note objects.</param>
         /// <param name="keyCount">Number of keys (columns).</param>
         /// <returns>The computed difficulty (Level) as an int.</returns>
-        public static SRParams Calculate(List<Note> noteSeq, int keyCount, double x)
+        public static SRParams Calculate(List<Note> noteSeq, List<List<Note>> noteSeqByColumn, int keyCount, double x)
         {
             // Fixed tuning constants.
             const double lambda_n = 5;
@@ -84,11 +84,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             {
                 noteDict[note.Column].Add(note);
             }
-
-            List<List<Note>> noteSeqByColumn = noteDict
-                .OrderBy(kvp => kvp.Key)
-                .Select(kvp => kvp.Value)
-                .ToList();
 
             foreach (var list in noteDict.Values)
             {
@@ -952,9 +947,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
         }
 
         /// <param name="values">A collection of integer values (treated as categories).</param>
-        /// <param name="logConstant">A constant added inside the logarithm (default is 1.0).</param>
+        /// <param name="logIterations">A constant added inside the logarithm (default is 1.0).</param>
         /// <returns>The Rao Quadratic Entropy Q.</returns>
-        public static double RaoQuadraticEntropyLog(IEnumerable<int> values, double logConstant = 1.0)
+        public static double RaoQuadraticEntropyLog(IEnumerable<int> values, int logIterations = 1)
         {
             // Convert the input values to a list.
             List<int> valList = new List<int>(values);
@@ -983,14 +978,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 index++;
             }
 
+            static double distanceFunc(int x, int y, int logIter)
+            {
+                double acc = Math.Abs(x - y);
+
+                for (int i = 0; i < logIter; i++)
+                {
+                    acc = Math.Log(1 + acc);
+                }
+
+                return acc;
+            }
+
             // Compute the distance (dissimilarity) matrix for the unique values.
-            // The distance between two categories is: log(logConstant + |x - y|).
             double[,] distMatrix = new double[nUnique, nUnique];
             for (int i = 0; i < nUnique; i++)
             {
                 for (int j = 0; j < nUnique; j++)
                 {
-                    distMatrix[i, j] = Math.Log(logConstant + Math.Abs(unique[i] - unique[j]));
+                    distMatrix[i, j] = distanceFunc(unique[i], unique[j], logIterations);
                 }
             }
 
@@ -1010,7 +1016,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
         /// <param name="noteSeq">A list of notes (each note is an array of integers).</param>
         /// <returns>The variety measure computed from the head gaps and tail gaps.</returns>
-        public static double Variety(List<Note> noteSeq)
+        public static double Variety(List<Note> noteSeq, List<List<Note>> noteSeqByColumn)
         {
             // Extract heads and tails.
             List<Note> tailSeq = new List<Note>();
@@ -1034,8 +1040,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             double headVariety = RaoQuadraticEntropyLog(headGaps);
             double tailVariety = RaoQuadraticEntropyLog(tailGaps);
 
-            // Combine the two measures (note the tail variety is scaled by 0.13).
-            return headVariety + 0.13 * tailVariety;
+            List<int> headGapsNew = new List<int>();
+            for (int k = 0; k < noteSeqByColumn.Count; k++)
+            {
+                List<Note> heads = noteSeqByColumn[k];
+
+                List<int> headGapsColumn = new List<int>();
+                for (int i = 0; i < heads.Count - 1; i++)
+                {
+                    headGapsColumn.Add(heads[i + 1].Head - heads[i].Head);
+                }
+
+                headGapsNew.AddRange(headGapsColumn);
+            }
+
+            double colVariety = 2.5 * RaoQuadraticEntropyLog(headGapsNew, 2);
+
+            return 0.5 * headVariety + 0.11 * tailVariety + 0.45 * colVariety;
         }
 
         #endregion
