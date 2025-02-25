@@ -25,10 +25,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         private const int difficulty_bin_count = 8;
         private const int time_bin_count = 16;
 
-        // used to send timestamps to osu!tools
-        private double totalElapsedTime = 0;
-        private readonly List<double> timestamps = new List<double>();
-
         private readonly List<double> difficulties = new List<double>();
         private readonly List<double> times = new List<double>();
 
@@ -39,21 +35,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
         public override void Process(DifficultyHitObject current)
         {
-            //used to send timestamps to osu!tools
-            timestamps.Add(totalElapsedTime);
             difficulties.Add(StrainValueAt(current));
-            totalElapsedTime += current.DeltaTime;
             // Cap the delta time of a given note at 5 seconds to not reward absurdly long breaks
             times.Add(times.LastOrDefault() + Math.Min(current.DeltaTime, 5000));
         }
 
         protected abstract double HitProbability(double skill, double difficulty);
-
-        // used to send timestamps and difficulty information to osu!tools
-        public IEnumerable<(double Timestamp, double Value)> GetCurrentStrainPeaks()
-        {
-            return timestamps.Zip(difficulties, (timestamp, value) => (timestamp, value));
-        }
 
         public double DifficultyValueExact()
         {
