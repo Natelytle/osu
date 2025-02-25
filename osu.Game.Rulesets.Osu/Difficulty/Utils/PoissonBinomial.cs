@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using osu.Game.Rulesets.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 {
@@ -71,7 +70,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
         /// <param name="bins">The bins of difficulties in the map.</param>
         /// <param name="skill">The skill level to get the miss probabilities with.</param>
         /// /// <param name="hitProbability">Converts difficulties and skill to miss probabilities.</param>
-        public PoissonBinomial(List<Bin> bins, double skill, Func<double, double, double> hitProbability)
+        public PoissonBinomial(Bin[] bins, double skill, Func<double, double, double> hitProbability)
         {
             double variance = 0;
             double gamma = 0;
@@ -112,7 +111,48 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
             double k = (count + 0.5 - mu) / sigma;
 
             // see equation (14) of the cited paper
-            double result = DifficultyCalculationUtils.NormalCdf(0, 1, k) + v * (1 - k * k) * DifficultyCalculationUtils.NormalPdf(0, 1, k);
+            double result = SpecialFunctions.NormalCdf(0, 1, k) + v * (1 - k * k) * SpecialFunctions.NormalPdf(0, 1, k);
+
+            return Math.Clamp(result, 0, 1);
+        }
+    }
+
+    public class IterativePoissonBinomial
+    {
+        private double mu, var, gamma;
+
+        public void Reset()
+        {
+            mu = 0;
+            var = 0;
+            gamma = 0;
+        }
+
+        public void AddProbability(double p)
+        {
+            mu += p;
+            var += p * (1 - p);
+            gamma += p * (1 - p) * (1 - 2 * p);
+        }
+
+        public void AddBinnedProbabilities(double p, double count)
+        {
+            mu += p * count;
+            var += p * (1 - p) * count;
+            gamma += p * (1 - p) * (1 - 2 * p) * count;
+        }
+
+        // ReSharper disable once InconsistentNaming
+        public double CDF(double count)
+        {
+            if (var == 0)
+                return mu <= count ? 1 : 0;
+
+            double sigma = Math.Sqrt(var);
+            double v = gamma / (6 * Math.Pow(sigma, 3));
+            double k = (count + 0.5 - mu) / sigma;
+
+            double result = SpecialFunctions.NormalCdf(0, 1, k) + v * (1 - k * k) * SpecialFunctions.NormalPdf(0, 1, k);
 
             return Math.Clamp(result, 0, 1);
         }
