@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
         private const double difficulty_multiplier = 0.0675;
-        public const double AIM_EXPONENT = 0.65;
+        public const double AIM_EXPONENT = 0.55;
 
         public override int Version => 20241007;
 
@@ -51,7 +51,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
 
-            ExpPolynomial aimMissPenaltyCurve = ((OsuProbabilitySkill)skills[0]).GetMissPenaltyCurve();
+            ExpPolynomial aimMissPenaltyCurve = ((OsuTimeSkill)skills[0]).GetMissCountPolynomial();
             double speedDifficultyStrainCount = ((OsuStrainSkill)skills[2]).CountTopWeightedStrains();
 
             if (mods.Any(m => m is OsuModTouchDevice))

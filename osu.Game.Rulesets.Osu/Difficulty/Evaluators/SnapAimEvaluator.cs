@@ -16,10 +16,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current) * 62;
-            difficulty += EvaluateAgilityBonus(current) * 65;
-            difficulty += EvaluateAngleBonus(current) * 65;
-            // difficulty += EvaluateVelocityChangeBonus(current) * 65;
+            double difficulty = EvaluateDistanceBonus(current) * 225;
+            //difficulty += EvaluateAgilityBonus(current) * 65;
+            difficulty += EvaluateAngleBonus(current) * 95;
+            difficulty += EvaluateVelocityChangeBonus(current) * 20;
 
             return difficulty;
         }
@@ -53,12 +53,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 320.0 / (1 + 0.45 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 240.0 / (1 + 0.45 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 2.5);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4) - 1);
 
-            return agilityBonus;
+            return agilityBonus * 28;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)
@@ -99,7 +99,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currTime = osuCurrObj.StrainTime;
             double prevTime = osuPrevObj.StrainTime;
 
-            double baseVelocityChange = Math.Max(0, Math.Abs(prevMovement.Length / prevTime - currMovement.Length / currTime) - currMovement.Length / currTime);
+            double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            double prevVelocity = osuPrevObj.Movement.Length / osuPrevObj.StrainTime;
+
+            double baseVelocityChange = Math.Max(0, Math.Min(Math.Abs(prevVelocity - currVelocity) - Math.Min(currVelocity, prevVelocity), Math.Max(osuCurrObj.Radius / Math.Max(osuCurrObj.StrainTime, osuPrevObj.StrainTime), Math.Min(currVelocity, prevVelocity))));
 
             double prevAngleBonus = CurveBuilder.BuildSmootherStep(osuPrevObj.Angle!.Value, (0, 0.4), (1.04, 0), (2.62, 1));
             double currAngleBonus = CurveBuilder.BuildSmootherStep(osuCurrObj.Angle!.Value, (0.52, 1), (2.09, 0), (3.14, 0.4));
