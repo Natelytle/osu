@@ -205,7 +205,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                     if (poiBin.CDF(missCount) < 1e-10)
                         return double.PositiveInfinity;
 
-                    return (totalTime / poiBin.CDF(missCount) - totalTime) / 60000;
+                    return (totalTime / poiBin.CDF(missCount) - endTime) / 60000;
                 }
                 else
                 {
@@ -213,16 +213,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
                     for (int i = 0; i < difficulties.Count; i++)
                     {
-                        double hitProb = HitProbability(skill, difficulties[i]);
-                        poiBin.AddProbability(hitProb);
+                        double deltaTime = i > 0 ? times[i] - times[i - 1] : times[i];
 
-                        totalTime += times[i] * poiBin.CDF(missCount);
+                        double missProb = 1 - HitProbability(skill, difficulties[i]);
+                        poiBin.AddProbability(missProb);
+
+                        totalTime += deltaTime * poiBin.CDF(missCount);
                     }
 
                     if (poiBin.CDF(missCount) < 1e-10)
                         return double.PositiveInfinity;
 
-                    return (totalTime / poiBin.CDF(missCount) - totalTime) / 60000;
+                    return (totalTime / poiBin.CDF(missCount) - endTime) / 60000;
                 }
             }
 
