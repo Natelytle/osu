@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
         public override void Process(DifficultyHitObject current)
         {
-            var prevInColumn = (ManiaDifficultyHitObject?)((ManiaDifficultyHitObject)current).PrevInColumn(0);
+            var prevInColumn = ((ManiaDifficultyHitObject)current).PrevInColumn(0);
 
             switch (current.BaseObject)
             {
@@ -89,7 +89,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
         protected abstract double StrainValueOf(DifficultyHitObject current);
 
-        public override double DifficultyValue() => skillLevelAtAccuracy(star_rating_accuracy);
+        public override double DifficultyValue()
+        {
+            binNotes = null;
+            binHeads = null;
+            binTails = null;
+            binLongNotes = null;
+
+            return skillLevelAtAccuracy(star_rating_accuracy);
+        }
 
         public double[] AccuracyCurve()
         {

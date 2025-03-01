@@ -1,7 +1,6 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Utils;
@@ -37,9 +36,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countOk = score.Statistics.GetValueOrDefault(HitResult.Ok);
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
+
             scoreAccuracy = calculateCustomAccuracy();
 
-            double multiplier = 2.0;
+            double multiplier = 100;
 
             if (score.Mods.Any(m => m is ModNoFail))
                 multiplier *= 0.75;
@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             double skill = accuracyAdjustedSkillLevel(attributes);
 
-            double difficultyValue = Math.Pow(skill, 2);
+            double difficultyValue = skill; // Math.Pow(skill, 2);
 
             // It's easy to spam retry short maps for a high accuracy value.
             // double shortMapNerf = 2 / (1 + Math.Exp(-totalHits / 20)) - 1;
@@ -86,7 +86,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 double lowAccBound = accuracies[i];
                 double lowAccSkill = skillLevels[i];
 
-                double penalty = Interpolation.Lerp(highAccSkill, lowAccSkill, (scoreAccuracy - lowAccBound) / (highAccBound - lowAccBound));
+                double penalty = Interpolation.Lerp(lowAccSkill, highAccSkill, (scoreAccuracy - lowAccBound) / (highAccBound - lowAccBound));
 
                 return penalty;
             }

@@ -19,13 +19,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             int jackCount = 0;
 
-            double chordDelta = mCurrent.StartTime - mCurrent.PrevHitObjects.ToList().ConvertAll(obj => obj?.StartTime ?? double.PositiveInfinity + grace_note_tolerance).Min();
+            double chordDelta = mCurrent.StartTime - mCurrent.PreviousHitObjects.ToList().ConvertAll(obj => obj?.StartTime ?? double.PositiveInfinity + grace_note_tolerance).Min();
             if (chordDelta == 0) chordDelta = double.PositiveInfinity;
 
-            int chordSize = mCurrent.CurrHitObjects.Count(obj => obj is not null);
+            int chordSize = mCurrent.ConcurrentHitObjects.Count(obj => obj is not null);
 
             // Find amount of jacks
-            foreach (ManiaDifficultyHitObject? note in mCurrent.CurrHitObjects)
+            foreach (ManiaDifficultyHitObject? note in mCurrent.ConcurrentHitObjects)
             {
                 if (note?.PrevInColumn(0) == null) continue;
 
@@ -43,11 +43,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double jackVal = jackDensity * jackCount * scaledChordBpmFactor;
             double trillVal = (1 - jackDensity) * (chordSize - jackCount) * scaledTrillBpmFactor;
 
-            return chord_scale_factor * (jackVal + trillVal);
+            return 0; // return chord_scale_factor * (jackVal + trillVal);
         }
 
         public static int FindJackCountInChord(ManiaDifficultyHitObject note, double deltaTime, double tolerance)
-            => note.CurrHitObjects
+            => note.ConcurrentHitObjects
                    .Where(obj => obj is not null)
                    .Where(obj => obj!.PrevInColumn(0) is not null)
                    .Count(obj => obj!.StartTime - obj.PrevInColumn(0)!.StartTime <= deltaTime + tolerance);

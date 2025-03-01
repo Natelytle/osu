@@ -21,6 +21,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// </summary>
         public static List<BinLongNote> CreateBins(List<(double head, double tail)> difficulties, int dimensionLength)
         {
+            if (difficulties.Count == 0)
+                return new List<BinLongNote>();
+
             var headDifficulties = difficulties.ConvertAll(d => d.head);
             var tailDifficulties = difficulties.ConvertAll(d => d.tail);
 

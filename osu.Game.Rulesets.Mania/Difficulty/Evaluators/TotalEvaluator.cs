@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
 using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
@@ -38,7 +39,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             totalDifficulty = LpNorm(speed, totalDifficulty, speedDifficulty);
             totalDifficulty = LpNorm(chord, totalDifficulty, chordDifficulty);
 
-            return totalDifficulty;
+            return Math.Max(totalDifficulty, 2.0);
         }
 
         private static double evaluateTotalDifficultyTail(DifficultyHitObject current)
@@ -48,7 +49,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double totalDifficulty = LpNorm(hold, holdingDifficulty, releaseDifficulty);
 
-            return totalDifficulty;
+            return Math.Max(totalDifficulty, 2.0);
         }
     }
 }

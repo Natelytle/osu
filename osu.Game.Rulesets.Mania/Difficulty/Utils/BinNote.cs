@@ -19,6 +19,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// </summary>
         public static List<BinNote> CreateBins(List<double> difficulties, int totalBins)
         {
+            if (difficulties.Count == 0)
+                return new List<BinNote>();
+
             double maxDifficulty = difficulties.Max();
 
             var binsArray = new BinNote[totalBins];

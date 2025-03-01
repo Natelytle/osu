@@ -89,7 +89,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             }
 
             // Order notes by start time, then by column left to right.
-            var sortedObjects = nestedHitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToArray();
+            var sortedObjects = nestedHitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToList();
 
             int columns = ((ManiaBeatmap)beatmap).TotalColumns;
 
@@ -99,31 +99,43 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             for (int column = 0; column < columns; column++)
                 perColumnObjects[column] = new List<DifficultyHitObject>();
 
+            // Since we can only view previous objects, we need to temporarily store objects when we want to edit a property to be a next object.
             List<ManiaDifficultyHitObject> currentTimeObjects = new List<ManiaDifficultyHitObject>();
+            // List<ManiaDifficultyHitObject> notesSinceLastLongNote = new List<ManiaDifficultyHitObject>();
 
             int longNoteIndex = 0;
 
-            for (int i = 1; i < sortedObjects.Length; i++)
+            for (int i = 1; i < sortedObjects.Count; i++)
             {
                 var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count, longNoteIndex);
                 objects.Add(currentObject);
                 currentTimeObjects.Add(currentObject);
+                // notesSinceLastLongNote.Add(currentObject);
                 perColumnObjects[currentObject.Column].Add(currentObject);
 
                 if (currentObject.BaseObject is HeadNote)
+                {
                     longNoteIndex += 1;
 
-                if (i + 1 != sortedObjects.Length && sortedObjects[i].StartTime == sortedObjects[i + 1].StartTime)
-                    continue;
+                    /* foreach (ManiaDifficultyHitObject previousNote in notesSinceLastLongNote)
+                    {
+                        previousNote.NextLongNote = currentObject;
+                    }
 
-                // Update the current objects of every note once we've processed every note in this chord.
-                foreach (ManiaDifficultyHitObject currentObj in currentTimeObjects)
-                {
-                    foreach (var concurrentObj in currentTimeObjects)
-                        currentObj.CurrHitObjects[concurrentObj.Column] = concurrentObj;
+                    notesSinceLastLongNote.Clear();*/
                 }
 
-                currentTimeObjects.Clear();
+                // Update the current objects of every note once we've processed every note in this chord.
+                if (i + 1 == sortedObjects.Count || sortedObjects[i].StartTime != sortedObjects[i + 1].StartTime)
+                {
+                    foreach (ManiaDifficultyHitObject previousNote in currentTimeObjects)
+                    {
+                        foreach (ManiaDifficultyHitObject concurrentObj in currentTimeObjects)
+                            previousNote.ConcurrentHitObjects[concurrentObj.Column] = concurrentObj;
+                    }
+
+                    currentTimeObjects.Clear();
+                }
             }
 
             return objects;

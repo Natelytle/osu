@@ -20,11 +20,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         // The number of long notes before this note.
         public readonly int LongNoteIndex;
 
+        public ManiaDifficultyHitObject?[] AllCurrentHitObjects => ConcurrentHitObjects.Concat(PreviousHitObjects).ToArray();
+
         // The hit object earlier in time than this note in each column
-        public readonly ManiaDifficultyHitObject?[] PrevHitObjects;
-        public ManiaDifficultyHitObject?[] CurrHitObjects { get; set; }
+        public readonly ManiaDifficultyHitObject?[] PreviousHitObjects;
+
+        // Every concurrent note, aka chord notes.
+        public ManiaDifficultyHitObject?[] ConcurrentHitObjects { get; }
 
         public int Column;
+
+        // Previous and next long notes relative to the current object.
+        // Prev can be the current note.
+        public readonly ManiaDifficultyHitObject? PrevLongNote;
+        public ManiaDifficultyHitObject? NextLongNote;
 
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index, int longNoteIndex)
             : base(hitObject, lastObject, clockRate, objects, index)
@@ -34,27 +43,34 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             Column = BaseObject.Column;
             columnIndex = this.perColumnObjects[Column].Count;
             LongNoteIndex = longNoteIndex;
-            PrevHitObjects = new ManiaDifficultyHitObject[totalColumns];
-            CurrHitObjects = new ManiaDifficultyHitObject[totalColumns];
+            PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
+            ConcurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
 
-            double adjustedStartTime = hitObject.StartTime / clockRate;
-
-            for (int i = 0; i < totalColumns; i++)
+            if (index > 0)
             {
-                PrevHitObjects[i] = (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault(obj => obj.StartTime < adjustedStartTime);
+                var prevNote = (ManiaDifficultyHitObject)objects[index - 1];
+
+                PrevLongNote = BaseObject is HeadNote ? this : prevNote.PrevLongNote;
+
+                PreviousHitObjects = prevNote.PreviousHitObjects;
+
+                if (prevNote.StartTime < StartTime)
+                {
+                    PreviousHitObjects[prevNote.Column] = prevNote;
+                }
             }
         }
 
-        public DifficultyHitObject? PrevInColumn(int backwardsIndex)
+        public ManiaDifficultyHitObject? PrevInColumn(int backwardsIndex)
         {
             int index = columnIndex - (backwardsIndex + 1);
-            return index >= 0 && index < perColumnObjects[Column].Count ? perColumnObjects[Column][index] : default;
+            return index >= 0 && index < perColumnObjects[Column].Count ? (ManiaDifficultyHitObject)perColumnObjects[Column][index] : null;
         }
 
-        public DifficultyHitObject? NextInColumn(int forwardsIndex)
+        public ManiaDifficultyHitObject? NextInColumn(int forwardsIndex)
         {
             int index = columnIndex + (forwardsIndex + 1);
-            return index >= 0 && index < perColumnObjects[Column].Count ? perColumnObjects[Column][index] : default;
+            return index >= 0 && index < perColumnObjects[Column].Count ? (ManiaDifficultyHitObject)perColumnObjects[Column][index] : null;
         }
     }
 }
