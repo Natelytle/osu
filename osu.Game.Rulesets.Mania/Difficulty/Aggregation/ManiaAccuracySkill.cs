@@ -6,12 +6,12 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 {
@@ -205,7 +205,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             double mean = sum / count / 320;
             double dev = Math.Sqrt(varSum) / count / 320 + 1e-6;
 
-            double p = 1 - SpecialFunctions.NormalCdf(mean, dev, accuracy);
+            double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 
             return p;
         }
@@ -261,7 +261,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             double mean = sum / count / 320;
             double dev = Math.Sqrt(varSum) / count / 320 + 1e-6;
 
-            double p = 1 - SpecialFunctions.NormalCdf(mean, dev, accuracy);
+            double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 
             return p;
         }

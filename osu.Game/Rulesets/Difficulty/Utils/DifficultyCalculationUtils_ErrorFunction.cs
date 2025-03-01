@@ -688,6 +688,80 @@ namespace osu.Game.Rulesets.Difficulty.Utils
             return sum;
         }
 
+        public static double FastErf(double x)
+        {
+            if (x == 0)
+            {
+                return 0;
+            }
+
+            if (double.IsPositiveInfinity(x))
+            {
+                return 1;
+            }
+
+            if (double.IsNegativeInfinity(x))
+            {
+                return -1;
+            }
+
+            if (double.IsNaN(x))
+            {
+                return double.NaN;
+            }
+
+            double a = Math.Abs(x);
+            double c = Math.Min(a, 10.5);
+            double s = -c * c;
+            double e = Math.Exp(s);
+
+            double p = 1.0f + c * (0.89916040490444396641803508 + c * (0.29003254218498800483029800 + c * (-6.039978560295280373180365800e-06)));
+            double q = -0.88612305828107297228444744628522 + c * (-1.5832753114623931686392298767750 + c * (-1.0652172318567498077134599150 + c * (-0.2898382023408970105866028431)));
+            double r = e * (1 + c * p / q);
+
+            if (x < 0.0)
+                r = 2.0 - r;
+
+            return 1 - r;
+        }
+
+        public static double FastErfc(double x)
+        {
+            if (x == 0)
+            {
+                return 0;
+            }
+
+            if (double.IsPositiveInfinity(x))
+            {
+                return 1;
+            }
+
+            if (double.IsNegativeInfinity(x))
+            {
+                return -1;
+            }
+
+            if (double.IsNaN(x))
+            {
+                return double.NaN;
+            }
+
+            double a = Math.Abs(x);
+            double c = Math.Min(a, 10.5);
+            double s = -c * c;
+            double e = Math.Exp(s);
+
+            double p = 1.0f + c * (0.89916040490444396641803508 + c * (0.29003254218498800483029800 + c * (-6.039978560295280373180365800e-06)));
+            double q = -0.88612305828107297228444744628522 + c * (-1.5832753114623931686392298767750 + c * (-1.0652172318567498077134599150 + c * (-0.2898382023408970105866028431)));
+            double r = e * (1 + c * p / q);
+
+            if (x < 0.0)
+                r = 2.0 - r;
+
+            return r;
+        }
+
         /// <summary>
         /// Computes the probability density of the distribution (PDF) at x, i.e. ∂P(X ≤ x)/∂x.
         /// </summary>
@@ -725,7 +799,7 @@ namespace osu.Game.Rulesets.Difficulty.Utils
             if (mean == x && stddev == 0)
                 return 0;
 
-            return 0.5 * Erfc((mean - x) / (stddev * sqrt2));
+            return 0.5 * FastErfc((mean - x) / (stddev * sqrt2));
         }
     }
 }
