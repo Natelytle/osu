@@ -25,7 +25,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
         // The player has a 2% chance of achieving the score's accuracy.
         private const double accuracy_prob = 0.02;
 
+        // The UR a player is expected to get on a note with the same difficulty as their skill level.
+        private const double skill_ur = 12;
+
+        // The UR a player is expected to get when mashing, the very highest their UR can ever be.
+        private const double mash_ur = 100;
+
+        // How much the player's UR should change relative to the note's difficulty, when it is higher or lower.
         private double accuracyExponent => 1.5;
+
+        // How much long note tails should increase the player's UR.
         private double tailDeviationMultiplier => 1.8;
 
         // To calculate accuracy at a skill level correctly, we need this information.
@@ -290,7 +299,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
         }
 
         // When your skill equals the note difficulty, you get around 99%, and when your skill level is 0 (mashing), you get around 50%.
-        private double skillToUr(double skill, double d) => d != 0 ? 70 * Math.Pow(12 / 70.0, Math.Pow(skill / d, accuracyExponent)) : 0;
-        private double skillToUrTail(double skill, double d) => d != 0 ? 70 * Math.Pow(12 * tailDeviationMultiplier / 70.0, Math.Pow(skill / d, accuracyExponent)) : 0;
+        private double skillToUr(double skill, double d) => d != 0 ? mash_ur * Math.Pow(skill_ur / mash_ur, Math.Pow(skill / d, accuracyExponent)) : 0;
+        private double skillToUrTail(double skill, double d) => d != 0 ? mash_ur * Math.Pow(skill_ur * tailDeviationMultiplier / mash_ur, Math.Pow(skill / d, accuracyExponent)) : 0;
     }
 }
