@@ -135,7 +135,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             }
             else
             {
-                binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 32);
+                binLongNotes ??= BinLongNote.CreateBins(longNoteDifficulties, 8);
             }
 
             double skill = RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2);

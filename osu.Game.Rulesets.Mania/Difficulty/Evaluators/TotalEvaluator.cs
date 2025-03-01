@@ -32,8 +32,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             double sameColumnDifficulty = SameColumnEvaluator.EvaluateDifficultyOf(current);
             double crossColumnDifficulty = CrossColumnEvaluator.EvaluateDifficultyOf(current);
-            double chordDifficulty = ChordEvaluator.EvaluateDifficultyOf(current);
-            double speedDifficulty = SpeedEvaluator.EvaluateDifficultyOf(current);
+            double chordDifficulty = 0; // ChordEvaluator.EvaluateDifficultyOf(current);
+            double speedDifficulty = 0; // SpeedEvaluator.EvaluateDifficultyOf(current);
 
             double totalDifficulty = Norm(column, sameColumnDifficulty, crossColumnDifficulty);
             totalDifficulty = Norm(speed, totalDifficulty, speedDifficulty);
