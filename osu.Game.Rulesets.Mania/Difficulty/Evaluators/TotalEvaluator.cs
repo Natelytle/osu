@@ -35,9 +35,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double chordDifficulty = ChordEvaluator.EvaluateDifficultyOf(current);
             double speedDifficulty = SpeedEvaluator.EvaluateDifficultyOf(current);
 
-            double totalDifficulty = LpNorm(column, sameColumnDifficulty, crossColumnDifficulty);
-            totalDifficulty = LpNorm(speed, totalDifficulty, speedDifficulty);
-            totalDifficulty = LpNorm(chord, totalDifficulty, chordDifficulty);
+            double totalDifficulty = Norm(column, sameColumnDifficulty, crossColumnDifficulty);
+            totalDifficulty = Norm(speed, totalDifficulty, speedDifficulty);
+            totalDifficulty = Norm(chord, totalDifficulty, chordDifficulty);
 
             return Math.Max(totalDifficulty, 2.0);
         }
@@ -47,7 +47,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double holdingDifficulty = HoldingEvaluator.EvaluateDifficultyOf(current);
             double releaseDifficulty = ReleaseEvaluator.EvaluateDifficultyOf(current);
 
-            double totalDifficulty = LpNorm(hold, holdingDifficulty, releaseDifficulty);
+            double totalDifficulty = Norm(hold, holdingDifficulty, releaseDifficulty);
 
             return Math.Max(totalDifficulty, 2.0);
         }
