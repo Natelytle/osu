@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double skill = accuracyAdjustedSkillLevel(attributes);
+            double skill = attributes.StarRating;
 
             double difficultyValue = skill; // Math.Pow(skill, 2);
 

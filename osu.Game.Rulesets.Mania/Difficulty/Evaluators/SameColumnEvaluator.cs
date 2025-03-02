@@ -4,7 +4,6 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Mania.Objects;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
@@ -15,9 +14,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             var maniaCurrObj = (ManiaDifficultyHitObject)current;
 
             var maniaPrevObj = maniaCurrObj.PrevInColumn(0);
-
-            if (maniaPrevObj?.BaseObject is TailNote)
-                maniaPrevObj = maniaPrevObj.PrevInColumn(0);
 
             if (maniaPrevObj is null)
                 return 0;

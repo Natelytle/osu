@@ -45,12 +45,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             var strain = (Strain)skills[0];
 
             double starRating = strain.DifficultyValue();
-            double[] accuracySkillLevels = strain.AccuracyCurve();
+            // double[] accuracySkillLevels = strain.AccuracyCurve();
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
-                AccuracySkillLevels = accuracySkillLevels,
+                AccuracySkillLevels = null!, // accuracySkillLevels,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -89,35 +89,31 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
             List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[columns];
+            List<DifficultyHitObject>[] perColumnNestedObjects = new List<DifficultyHitObject>[columns];
 
             for (int column = 0; column < columns; column++)
+            {
                 perColumnObjects[column] = new List<DifficultyHitObject>();
+                perColumnNestedObjects[column] = new List<DifficultyHitObject>();
+            }
 
             // Since we can only view previous objects, we need to temporarily store objects when we want to edit a property to be a next object.
             List<ManiaDifficultyHitObject> currentTimeObjects = new List<ManiaDifficultyHitObject>();
-            // List<ManiaDifficultyHitObject> notesSinceLastLongNote = new List<ManiaDifficultyHitObject>();
 
             int longNoteIndex = 0;
 
             for (int i = 1; i < sortedObjects.Count; i++)
             {
-                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count, longNoteIndex);
+                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, perColumnNestedObjects, objects.Count, longNoteIndex);
                 objects.Add(currentObject);
                 currentTimeObjects.Add(currentObject);
-                // notesSinceLastLongNote.Add(currentObject);
-                perColumnObjects[currentObject.Column].Add(currentObject);
+                perColumnNestedObjects[currentObject.Column].Add(currentObject);
+
+                if (currentObject.BaseObject is not TailNote)
+                    perColumnObjects[currentObject.Column].Add(currentObject);
 
                 if (currentObject.BaseObject is HeadNote)
-                {
                     longNoteIndex += 1;
-
-                    /* foreach (ManiaDifficultyHitObject previousNote in notesSinceLastLongNote)
-                    {
-                        previousNote.NextLongNote = currentObject;
-                    }
-
-                    notesSinceLastLongNote.Clear();*/
-                }
 
                 // Update the current objects of every note once we've processed every note in this chord.
                 if (i + 1 == sortedObjects.Count || sortedObjects[i].StartTime != sortedObjects[i + 1].StartTime)
@@ -125,12 +121,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                     foreach (ManiaDifficultyHitObject previousNote in currentTimeObjects)
                     {
                         foreach (ManiaDifficultyHitObject concurrentObj in currentTimeObjects)
+                        {
+                            previousNote.CurrentHitObjects[concurrentObj.Column] = concurrentObj;
                             previousNote.ConcurrentHitObjects[concurrentObj.Column] = concurrentObj;
+                        }
                     }
 
                     currentTimeObjects.Clear();
                 }
             }
+
+            // Pass through objects a second time to update information we need all objects in the list for.
+            foreach (var obj in objects)
+                ((ManiaDifficultyHitObject)obj).UpdateFutureNotes();
 
             return objects;
         }
