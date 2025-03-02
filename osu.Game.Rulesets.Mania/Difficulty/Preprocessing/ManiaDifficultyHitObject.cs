@@ -90,7 +90,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// The previous object in the same column as this <see cref="ManiaDifficultyHitObject"/>, exclusive of Long Note tails.
         /// </summary>
         /// <param name="backwardsIndex">The number of notes to go back.</param>
-        /// <returns>The object in this column <see cref="backwardsIndex"/> notes back, or null if this is the first note in the column.</returns>
+        /// <returns>The object in this column <paramref name="backwardsIndex"/> notes back, or null if this is the first note in the column.</returns>
         public ManiaDifficultyHitObject? PrevInColumn(int backwardsIndex)
         {
             int index = columnIndex - (backwardsIndex + 1);
@@ -101,7 +101,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// The next object in the same column as this <see cref="ManiaDifficultyHitObject"/>, exclusive of Long Note tails.
         /// </summary>
         /// <param name="forwardsIndex">The number of notes to go forward.</param>
-        /// <returns>The object in this column <see cref="forwardsIndex"/> notes forward, or null if this is the last note in the column.</returns>
+        /// <returns>The object in this column <paramref name="forwardsIndex"/> notes forward, or null if this is the last note in the column.</returns>
         public ManiaDifficultyHitObject? NextInColumn(int forwardsIndex)
         {
             int index = columnIndex + (forwardsIndex + 1);
