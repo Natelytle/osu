@@ -51,6 +51,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             LongNoteIndex = longNoteIndex;
             PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
             ConcurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
+            CurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
 
             StartTime = base.StartTime;
             EndTime = base.EndTime;
@@ -73,12 +74,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                     PreviousHitObjects[prevNote.Column] = prevNote;
                 }
             }
-
-            // We set it to previous hit objects temporarily, as we re-update the list after every note is processed to include current hit objects.
-            CurrentHitObjects = PreviousHitObjects;
         }
 
-        public void UpdateFutureNotes()
+        // Should only run after perColumnObjects is fully constructed with all details
+        public void InitializeNextHitObjects()
         {
             if (BaseObject is HeadNote)
             {

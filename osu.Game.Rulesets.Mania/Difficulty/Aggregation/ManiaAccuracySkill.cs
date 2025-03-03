@@ -19,6 +19,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
     {
         protected abstract double DifficultyMultiplier { get; }
 
+        // The value of the max judgement. Increasing this value increases the value of high ratios.
+        public const double MAX_JUDGEMENT_WEIGHT = 305;
+
         // Star rating for a map is the difficulty of achieving 95% accuracy.
         private const double star_rating_accuracy = 0.95;
 
@@ -32,7 +35,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
         private const double mash_ur = 100;
 
         // How much the player's UR should change relative to the note's difficulty, when it is higher or lower.
-        private double accuracyExponent => 1.5;
+        private double accuracyExponent => 1.8;
 
         // How much long note tails should increase the player's UR.
         private double tailDeviationMultiplier => 1.8;
@@ -202,8 +205,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                 }
             }
 
-            double mean = sum / count / 320;
-            double dev = Math.Sqrt(varSum) / count / 320 + 1e-6;
+            double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
+            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
 
             double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 
@@ -258,8 +261,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                 }
             }
 
-            double mean = sum / count / 320;
-            double dev = Math.Sqrt(varSum) / count / 320 + 1e-6;
+            double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
+            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
 
             double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 

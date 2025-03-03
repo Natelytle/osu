@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Mania.Difficulty.Aggregation;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
@@ -58,7 +59,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double skill = attributes.StarRating;
+            double skill = accuracyAdjustedSkillLevel(attributes);
 
             double difficultyValue = skill; // Math.Pow(skill, 2);
 
@@ -104,7 +105,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (totalHits == 0)
                 return 0;
 
-            return (countPerfect * 320 + countGreat * 300 + countGood * 200 + countOk * 100 + countMeh * 50) / (totalHits * 320);
+            return (countPerfect * ManiaAccuracySkill.MAX_JUDGEMENT_WEIGHT + countGreat * 300 + countGood * 200 + countOk * 100 + countMeh * 50) / (totalHits * ManiaAccuracySkill.MAX_JUDGEMENT_WEIGHT);
         }
     }
 }

@@ -1,6 +1,8 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using osu.Game.Rulesets.Mania.Difficulty.Aggregation;
+
 namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public readonly struct JudgementProbs
@@ -22,9 +24,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         private readonly double p50;
         private readonly double p0;
 
-        public double Score => 320 * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50;
+        public double Score => ManiaAccuracySkill.MAX_JUDGEMENT_WEIGHT * pMax + 300 * p300 + 200 * p200 + 100 * p100 + 50 * p50;
 
-        public double Variance => (320 - Score) * (320 - Score) * pMax +
+        public double Variance => (ManiaAccuracySkill.MAX_JUDGEMENT_WEIGHT - Score) * (ManiaAccuracySkill.MAX_JUDGEMENT_WEIGHT - Score) * pMax +
                                   (300 - Score) * (300 - Score) * p300 +
                                   (200 - Score) * (200 - Score) * p200 +
                                   (100 - Score) * (100 - Score) * p100 +

@@ -45,12 +45,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             var strain = (Strain)skills[0];
 
             double starRating = strain.DifficultyValue();
-            // double[] accuracySkillLevels = strain.AccuracyCurve();
+            double[] accuracySkillLevels = strain.AccuracyCurve();
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
-                AccuracySkillLevels = null!, // accuracySkillLevels,
+                AccuracySkillLevels = accuracySkillLevels,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -120,6 +120,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 {
                     foreach (ManiaDifficultyHitObject previousNote in currentTimeObjects)
                     {
+                        // We set the current hit objects to the previous hit objects, and then we overwrite columns that have a more recent note in the current chord.
+                        previousNote.CurrentHitObjects = previousNote.PreviousHitObjects;
+
                         foreach (ManiaDifficultyHitObject concurrentObj in currentTimeObjects)
                         {
                             previousNote.CurrentHitObjects[concurrentObj.Column] = concurrentObj;
@@ -133,7 +136,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             // Pass through objects a second time to update information we need all objects in the list for.
             foreach (var obj in objects)
-                ((ManiaDifficultyHitObject)obj).UpdateFutureNotes();
+                ((ManiaDifficultyHitObject)obj).InitializeNextHitObjects();
 
             return objects;
         }
