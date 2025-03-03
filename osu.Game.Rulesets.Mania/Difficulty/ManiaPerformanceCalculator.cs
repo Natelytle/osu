@@ -72,7 +72,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private double accuracyAdjustedSkillLevel(ManiaDifficultyAttributes attributes)
         {
             double[] skillLevels = attributes.AccuracySkillLevels!;
-            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.88, 0.86, 0.84, 0.82, 0.80, 0.75, 0.70 };
+            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95, 0.90, 0.80, 0.70 };
 
             if (scoreAccuracy == 1)
                 return skillLevels[0];

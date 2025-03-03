@@ -105,7 +105,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
         public double[] AccuracyCurve()
         {
             double[] skillLevels = new double[20];
-            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.88, 0.86, 0.84, 0.82, 0.80, 0.75, 0.70 };
+            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95, 0.90, 0.80, 0.70 };
 
             // If there are no notes, we just return the empty polynomial.
             if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
