@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Utils;
@@ -92,7 +93,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 return penalty;
             }
 
-            return 0;
+            // 5% under the lowest skill level is always zero pp.
+            return Math.Max(Interpolation.Lerp(0, skillLevels.Last(), (scoreAccuracy - (accuracies.Last() - 0.05)) / 0.05), 0);
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;
