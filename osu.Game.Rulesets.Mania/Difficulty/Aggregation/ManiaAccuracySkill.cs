@@ -208,6 +208,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
             double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
 
+            // Due to real world factors, deviation is actually a bit higher than the model says.
+            // 2.5 is chosen to bring the variance at 96% up from 0.2% to 0.5%.
+            dev *= 2.5;
+
             double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 
             return p;
@@ -263,6 +267,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
             double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
             double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
+
+            // Due to real world factors, deviation is actually a bit higher than the model says.
+            // 2.5 is chosen to bring the variance at 96% up from 0.2% to 0.5%.
+            // dev *= 2.5;
 
             double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 
