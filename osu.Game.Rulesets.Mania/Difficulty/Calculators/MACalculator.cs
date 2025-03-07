@@ -159,6 +159,130 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             double[] baseCorners = cornersBaseList.Select(val => (double)val).ToArray();
             double[] ACorners = cornersAList.Select(val => (double)val).ToArray();
 
+            // Calculate KU
+            // Allocate a boolean active–flag array per key over baseCorners.
+            // (New bool arrays are false by default; no need to loop and set to false.)
+            Dictionary<int, bool[]> key_usage = new Dictionary<int, bool[]>();
+            for (int k = 0; k < keyCount; k++)
+            {
+                key_usage[k] = new bool[baseCorners.Length];
+            }
+
+            // For each key, mark baseCorners that lie within the “active” interval for each note.
+            // The active interval for a note is [max(note.Head - 150, 0), (note.Tail < 0 ? note.Head + 150 : min(note.Tail + 150, T - 1))).
+            for (int k = 0; k < keyCount; k++)
+            {
+                // Get the note sequence for key k.
+                List<Note> notes = noteSeqByColumn[k];
+                foreach (var note in notes)
+                {
+                    int activeStart = Math.Max(note.Head - 150, 0);
+                    int activeEnd = (note.Tail < 0) ? (note.Head + 150) : Math.Min(note.Tail + 150, T - 1);
+                    // Use binary search to find the first baseCorner >= activeStart.
+                    int startIdx = Array.BinarySearch(baseCorners, (double)activeStart);
+                    if (startIdx < 0)
+                        startIdx = ~startIdx;
+                    // Advance pointer until the base corner is no longer less than activeEnd.
+                    int idx = startIdx;
+                    while (idx < baseCorners.Length && baseCorners[idx] < activeEnd)
+                    {
+                        key_usage[k][idx] = true;
+                        idx++;
+                    }
+                }
+            }
+
+            // For each baseCorner, build a list of active keys.
+            List<List<int>> KU_s_cols = new List<List<int>>(baseCorners.Length);
+            for (int i = 0; i < baseCorners.Length; i++)
+            {
+                List<int> activeCols = new List<int>();
+                for (int k = 0; k < keyCount; k++)
+                {
+                    if (key_usage[k][i])
+                        activeCols.Add(k);
+                }
+                KU_s_cols.Add(activeCols);
+            }
+
+            Dictionary<int, double[]> key_usage_400 = new Dictionary<int, double[]>();
+            for (int k = 0; k < keyCount; k++)
+            {
+                key_usage_400[k] = new double[baseCorners.Length];
+            }
+
+            for (int k = 0; k < keyCount; k++)
+            {
+                // Get the note sequence for key k.
+                List<Note> notes = noteSeqByColumn[k];
+                foreach (var note in notes)
+                {
+                    int activeStart = Math.Max(note.Head, 0);
+                    int activeEnd = (note.Tail < 0) ? note.Head : Math.Min(note.Tail, T - 1);
+                    // Use binary search to find the first baseCorner >= activeStart.
+                    int start400Idx = Array.BinarySearch(baseCorners, (double)activeStart - 400);
+                    int startIdx = Array.BinarySearch(baseCorners, (double)activeStart);
+                    int end400Idx = Array.BinarySearch(baseCorners, (double)activeEnd + 400);
+                    int endIdx = Array.BinarySearch(baseCorners, (double)activeEnd);
+
+                    if (start400Idx < 0)
+                        start400Idx = ~start400Idx;
+                    if (startIdx < 0)
+                        startIdx = ~startIdx;
+                    if (end400Idx < 0)
+                        end400Idx = ~end400Idx;
+                    if (endIdx < 0)
+                        endIdx = ~endIdx;
+
+                    for (int i = startIdx; i < endIdx; i++)
+                        key_usage_400[k][i] += 3.75 + Math.Min(activeEnd - activeStart, 1500) / 150;
+
+                    for (int i = start400Idx; i < startIdx; i++)
+                        key_usage_400[k][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(baseCorners[i] - activeStart, 2);
+
+                    for (int i = endIdx; i < end400Idx; i++)
+                        key_usage_400[k][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(Math.Abs(baseCorners[i] - activeEnd), 2);
+                }
+            }
+
+            double[] anchor = new double[baseCorners.Length];
+            for (int i = 0; i < baseCorners.Length; i++)
+            {
+                double[] counts = new double[keyCount];
+                for (int k = 0; k < keyCount; k++)
+                {
+                    counts[k] = key_usage_400[k][i];
+                }
+
+                Array.Sort(counts);
+                Array.Reverse(counts);
+
+                double[] nonZeroCounts = counts.Where(c => c > 0).ToArray();
+                int countLength = nonZeroCounts.Length;
+
+                if (countLength > 1)
+                {
+                    double walk = Enumerable.Range(0, countLength - 1)
+                        .Select(i => nonZeroCounts[i] * (1 - 4 * Math.Pow(0.5 - (nonZeroCounts[i + 1] / nonZeroCounts[i]), 2)))
+                        .Sum();
+
+                    double maxWalk = Enumerable.Range(0, countLength - 1)
+                        .Select(i => nonZeroCounts[i])
+                        .Sum();
+
+                    anchor[i] = walk / maxWalk;
+                }
+                else
+                {
+                    anchor[i] = 0;
+                }
+            }
+
+            for (int i = 0; i < anchor.Length; i++)
+            {
+                anchor[i] = 1 + Math.Min(anchor[i] - 0.18, 5 * Math.Pow(anchor[i] - 0.22, 3));
+            }
+
             // --- Section 2.3: Compute Jbar ---
             // Console.WriteLine("2.3");
             Func<double, double> jackNerfer = delta =>
@@ -256,6 +380,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 new List<double> { 0.325, 0.55, 0.45, 0.35, 0.25, 0.05, 0.25, 0.35, 0.45, 0.55, 0.325 }
             };
 
+            double[][] fastCross = new double[keyCount + 1][];
+            for (int k = 0; k < fastCross.Length; k++)
+                fastCross[k] = new double[baseCorners.Length];
+
             // Allocate an array for each key pair (for k=0..keyCount, total keyCount+1 arrays).
             Dictionary<int, double[]> X_ks = new Dictionary<int, double[]>();
             for (int k = 0; k <= keyCount; k++)
@@ -298,13 +426,36 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                     {
                         pointer++;
                     }
-                    // Now assign the value for all baseCorners in [start, end)
+
+                    int pointer_start = pointer;
+
+                    // Find the end value
                     while (pointer < baseCorners.Length && baseCorners[pointer] < end)
                     {
-                        X_ks[k][pointer] = val;
                         pointer++;
                     }
-                    // Note: Because note intervals are in increasing order, pointer only moves forward.
+
+                    int pointer_end = pointer;
+
+                    // if ((k - 1) not in KU_s_cols[idx_start] or (k - 1) not in KU_s_cols[idx_end]) or (k not in KU_s_cols[idx_start] or k not in KU_s_cols[idx_end]):
+                        // val*=(1-cross_coeff[k])
+
+                    double crossVal = keyCount < crossMatrix.Count ? crossMatrix[keyCount][k] : 0.4;
+
+                    bool leftKeyNotPresent = !KU_s_cols[pointer_start].Contains(k - 1) && !KU_s_cols[pointer_end].Contains(k - 1);
+                    bool keyNotPresent = !KU_s_cols[pointer_start].Contains(k) && !KU_s_cols[pointer_end].Contains(k);
+
+                    if (leftKeyNotPresent || keyNotPresent)
+                        val *= (1 - crossVal);
+
+
+                    // Now assign the value for all baseCorners in [start, end)
+                    for (int p = pointer_start; p < pointer_end; p++)
+                    {
+                        X_ks[k][p] = val;
+                        fastCross[k][p] = Math.Max(0, 0.4 * Math.Pow(Math.Max(Math.Max(delta, 0.06), 0.75 * x), -2) - 80);
+                    }
+
                 }
             }
 
@@ -313,14 +464,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             double[] X_base = new double[baseCorners.Length];
             for (int i = 0; i < baseCorners.Length; i++)
             {
-                double sum = 0.0;
+                double sum1 = 0.0;
+                double sum2 = 0.0;
                 for (int k = 0; k <= keyCount; k++)
                 {
                     double crossVal = keyCount < crossMatrix.Count ? crossMatrix[keyCount][k] : 0.4;
 
-                    sum += X_ks[k][i] * crossVal;
+                    sum1 += X_ks[k][i] * crossVal;
+
                 }
-                X_base[i] = sum;
+
+                for (int k = 0; k < keyCount; k++)
+                {
+                    double crossVal = keyCount < crossMatrix.Count ? crossMatrix[keyCount][k] : 0.4;
+                    double crossValNext = keyCount < crossMatrix.Count ? crossMatrix[keyCount][k + 1] : 0.4;
+
+                    sum2 += Math.Sqrt(fastCross[k][i] * crossVal * fastCross[k + 1][i] * crossValNext);
+                }
+
+                X_base[i] = sum1 + sum2;
             }
 
             // Smooth and interpolate as in the rest of the algorithm.
@@ -429,7 +591,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 // For every base corner in the interval [h_l, h_r), add the increment.
                 while (pointerP < baseCorners.Length && baseCorners[pointerP] < h_r)
                 {
-                    P_step[pointerP] += inc;
+                    P_step[pointerP] += Math.Min(inc * anchor[pointerP], Math.Max(inc, inc * 2 - 10));
                     pointerP++;
                 }
                 // Since noteSeq is sorted, pointerP never resets backwards.
@@ -442,51 +604,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // --- Section 2.6: Compute Abar ---
             // Console.WriteLine("2.6");
-
-            // Allocate a boolean active–flag array per key over baseCorners.
-            // (New bool arrays are false by default; no need to loop and set to false.)
-            Dictionary<int, bool[]> KU_ks = new Dictionary<int, bool[]>();
-            for (int k = 0; k < keyCount; k++)
-            {
-                KU_ks[k] = new bool[baseCorners.Length];
-            }
-
-            // For each key, mark baseCorners that lie within the “active” interval for each note.
-            // The active interval for a note is [max(note.Head - 150, 0), (note.Tail < 0 ? note.Head + 150 : min(note.Tail + 150, T - 1))).
-            for (int k = 0; k < keyCount; k++)
-            {
-                // Get the note sequence for key k.
-                List<Note> notes = noteSeqByColumn[k];
-                foreach (var note in notes)
-                {
-                    int activeStart = Math.Max(note.Head - 150, 0);
-                    int activeEnd = (note.Tail < 0) ? (note.Head + 150) : Math.Min(note.Tail + 150, T - 1);
-                    // Use binary search to find the first baseCorner >= activeStart.
-                    int startIdx = Array.BinarySearch(baseCorners, (double)activeStart);
-                    if (startIdx < 0)
-                        startIdx = ~startIdx;
-                    // Advance pointer until the base corner is no longer less than activeEnd.
-                    int idx = startIdx;
-                    while (idx < baseCorners.Length && baseCorners[idx] < activeEnd)
-                    {
-                        KU_ks[k][idx] = true;
-                        idx++;
-                    }
-                }
-            }
-
-            // For each baseCorner, build a list of active keys.
-            List<List<int>> KU_s_cols = new List<List<int>>(baseCorners.Length);
-            for (int i = 0; i < baseCorners.Length; i++)
-            {
-                List<int> activeCols = new List<int>();
-                for (int k = 0; k < keyCount; k++)
-                {
-                    if (KU_ks[k][i])
-                        activeCols.Add(k);
-                }
-                KU_s_cols.Add(activeCols);
-            }
 
             // Compute dks: For each baseCorner, for each adjacent pair of active keys,
             // compute the difference measure: |delta_ks[k0] - delta_ks[k1]| + max(0, max(delta_ks[k0], delta_ks[k1]) - 0.3).
@@ -653,7 +770,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 int cntActive = 0;
                 for (int k = 0; k < keyCount; k++)
                 {
-                    if (KU_ks[k][i])
+                    if (key_usage[k][i])
                         cntActive++;
                 }
                 Ks_step[i] = Math.Max(cntActive, 1);
@@ -768,11 +885,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             SR = Math.Pow(SR, p0) / Math.Pow(8, p0) * 8;
 
             // length weighting
-            double totalNotes = noteSeq.Count + 0.5 * LNSeq.Count;
+            double totalNotes = noteSeq.Count + 0.5 * LNSeq.Sum(ln => Math.Min(ln.Tail - ln.Head, 1000) / 200.0);
             SR *= totalNotes / (totalNotes + 60);
 
             SR = rescaleHigh(SR);
-            SR *= 0.97;
+            SR *= 0.975;
 
             double variance_sum_top = 0;
             double variance_sum_bottom = denWeighted;

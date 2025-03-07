@@ -25,6 +25,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("spikiness")]
         public double Spikiness { get; set; }
 
+        [JsonProperty("total_notes")]
+        public double TotalNotes { get; set; }
+
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {
             foreach (var v in base.ToDatabaseAttributes())

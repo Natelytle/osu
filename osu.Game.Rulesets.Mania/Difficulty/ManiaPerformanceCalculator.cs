@@ -48,15 +48,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 multiplier *= 0.96;
 
             double difficultyValue = computeDifficultyValue(maniaAttributes);
-            double varietyMultiplier = this.varietyMultiplier(scoreAccuracy, maniaAttributes.Variety);
+            double varietyMultiplier = this.varietyMultiplier(maniaAttributes.Variety);
             double spikinessMultiplier = this.spikinessMultiplier(scoreAccuracy, maniaAttributes.Spikiness);
-            double totalValue = difficultyValue * multiplier * varietyMultiplier * spikinessMultiplier;
+            double lengthMultiplier = this.lengthMultiplier(maniaAttributes.TotalNotes, attributes.StarRating);
+            double totalValue = difficultyValue * multiplier * varietyMultiplier * spikinessMultiplier * lengthMultiplier;
 
             return new ManiaPerformanceAttributes
             {
                 Difficulty = difficultyValue,
                 VarietyMultiplier = varietyMultiplier,
                 SpikinessMultiplier = spikinessMultiplier,
+                LengthMultiplier = lengthMultiplier,
                 Total = totalValue
             };
         }
@@ -67,7 +69,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double proportion = calculatePerformanceProportion(scoreAccuracy);
 
             double difficultyValue = Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
-                                     * 1.1 / (1.0 + Math.Sqrt(attributes.StarRating / (2 * totalHits))) // length bonus
                                      * proportion; // scaled by the proportion
 
             return difficultyValue;
@@ -100,22 +101,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return 0;
         }
 
-        private double varietyMultiplier(double acc, double variety)
+        private double varietyMultiplier(double variety)
         {
-            double floor = 0.89;
-            double cap = 1.11;
+            double floor = 0.945;
+            double cap = 1.055;
             double L = cap - floor;
             double v0 = 3.25;
             double k = 3;
 
             double sigmoidVariety = floor + L / (1 + Math.Exp(-k * (variety - v0)));
-            return 1 + 0.1 * (sigmoidVariety - 1) * (5 + Math.Max(0, acc - 95));
+            return sigmoidVariety;
         }
 
         private double spikinessMultiplier(double acc, double spikiness)
         {
             double sigmoid_spikiness = 0.94 + 0.12 / (1.0 + Math.Exp(-20 * (spikiness - 1)));
             return sigmoid_spikiness * (2 * Math.Pow(acc, 20) - 1) + 2 - 2 * Math.Pow(acc, 20);
+        }
+
+        private double lengthMultiplier(double totalNotes, double starRating)
+        {
+            return 1.1 / (1.0 + Math.Sqrt(starRating / (2 * totalNotes)));
         }
     }
 }

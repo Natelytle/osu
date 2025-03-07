@@ -49,6 +49,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 StarRating = skills[0].DifficultyValue(),
                 Variety = ((SunnySkill)skills[0]).VarietyValue(),
                 Spikiness = ((SunnySkill)skills[0]).SpikinessValue(),
+                TotalNotes = beatmap.HitObjects.Count,
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.
