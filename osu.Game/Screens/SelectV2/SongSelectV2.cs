@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Cursor;
 using osu.Framework.Screens;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Mods;
@@ -23,6 +22,8 @@ namespace osu.Game.Screens.SelectV2
     /// </summary>
     public partial class SongSelectV2 : OsuScreen
     {
+        private const float logo_scale = 0.4f;
+
         private readonly ModSelectOverlay modSelectOverlay = new SoloModSelectOverlay();
 
         [Cached]
@@ -30,14 +31,25 @@ namespace osu.Game.Screens.SelectV2
 
         public override bool ShowFooter => true;
 
+        [Resolved]
+        private OsuLogo? logo { get; set; }
+
         [BackgroundDependencyLoader]
         private void load()
         {
             AddRangeInternal(new Drawable[]
             {
-                new PopoverContainer
+                new Container
                 {
                     RelativeSizeAxes = Axes.Both,
+                    Padding = new MarginPadding { Bottom = ScreenFooter.HEIGHT },
+                    Child = new BeatmapCarousel
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        RelativeSizeAxes = Axes.Both,
+                        Width = 0.6f,
+                    },
                 },
                 modSelectOverlay,
             });
@@ -50,21 +62,43 @@ namespace osu.Game.Screens.SelectV2
             new ScreenFooterButtonOptions(),
         };
 
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            modSelectOverlay.State.BindValueChanged(v =>
+            {
+                logo?.ScaleTo(v.NewValue == Visibility.Visible ? 0f : logo_scale, 400, Easing.OutQuint)
+                    .FadeTo(v.NewValue == Visibility.Visible ? 0f : 1f, 200, Easing.OutQuint);
+            }, true);
+        }
+
         public override void OnEntering(ScreenTransitionEvent e)
         {
             this.FadeIn();
+
+            modSelectOverlay.SelectedMods.BindTo(Mods);
+
             base.OnEntering(e);
         }
 
         public override void OnResuming(ScreenTransitionEvent e)
         {
             this.FadeIn();
+
+            // required due to https://github.com/ppy/osu-framework/issues/3218
+            modSelectOverlay.SelectedMods.Disabled = false;
+            modSelectOverlay.SelectedMods.BindTo(Mods);
+
             base.OnResuming(e);
         }
 
         public override void OnSuspending(ScreenTransitionEvent e)
         {
             this.Delay(400).FadeOut();
+
+            modSelectOverlay.SelectedMods.UnbindFrom(Mods);
+
             base.OnSuspending(e);
         }
 
@@ -72,17 +106,6 @@ namespace osu.Game.Screens.SelectV2
         {
             this.Delay(400).FadeOut();
             return base.OnExiting(e);
-        }
-
-        public override bool OnBackButton()
-        {
-            if (modSelectOverlay.State.Value == Visibility.Visible)
-            {
-                modSelectOverlay.Hide();
-                return true;
-            }
-
-            return false;
         }
 
         protected override void LogoArriving(OsuLogo logo, bool resuming)
@@ -99,7 +122,7 @@ namespace osu.Game.Screens.SelectV2
             }
 
             logo.FadeIn(240, Easing.OutQuint);
-            logo.ScaleTo(0.4f, 240, Easing.OutQuint);
+            logo.ScaleTo(logo_scale, 240, Easing.OutQuint);
 
             logo.Action = () =>
             {
@@ -122,14 +145,9 @@ namespace osu.Game.Screens.SelectV2
             logo.FadeOut(120, Easing.Out);
         }
 
-        private partial class SoloModSelectOverlay : ModSelectOverlay
+        private partial class SoloModSelectOverlay : UserModSelectOverlay
         {
             protected override bool ShowPresets => true;
-
-            public SoloModSelectOverlay()
-                : base(OverlayColourScheme.Aquamarine)
-            {
-            }
         }
 
         private partial class PlayerLoaderV2 : PlayerLoader
