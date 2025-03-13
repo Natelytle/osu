@@ -49,15 +49,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double difficultyValue = computeDifficultyValue(maniaAttributes);
             double varietyMultiplier = this.varietyMultiplier(maniaAttributes.Variety);
-            double spikinessMultiplier = this.spikinessMultiplier(scoreAccuracy, maniaAttributes.Spikiness);
+            double accMultiplier = this.accMultiplier(scoreAccuracy, maniaAttributes.AccScalar);
             double lengthMultiplier = this.lengthMultiplier(maniaAttributes.TotalNotes, attributes.StarRating);
-            double totalValue = difficultyValue * multiplier * varietyMultiplier * spikinessMultiplier * lengthMultiplier;
+            double totalValue = difficultyValue * multiplier * varietyMultiplier * accMultiplier * lengthMultiplier;
 
             return new ManiaPerformanceAttributes
             {
                 Difficulty = difficultyValue,
                 VarietyMultiplier = varietyMultiplier,
-                SpikinessMultiplier = spikinessMultiplier,
+                AccMultiplier = accMultiplier,
                 LengthMultiplier = lengthMultiplier,
                 Total = totalValue
             };
@@ -89,14 +89,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double calculatePerformanceProportion(double acc)
         {
-            if (acc > 0.99)
-                return (1.00 - 0.85) * (acc - 0.99) / 0.01 + 0.85;
-
-            if (acc > 0.96)
-                return (0.85 - 0.64) * (acc - 0.96) / 0.03 + 0.64;
 
             if (acc > 0.80)
-                return (0.64 - 0.00) * (acc - 0.8) / 0.16;
+                return 4.5 * (acc-0.8) / Math.Pow(100*(1-acc)+Math.Pow(0.9, 20), 0.05);
 
             return 0;
         }
@@ -113,10 +108,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return sigmoidVariety;
         }
 
-        private double spikinessMultiplier(double acc, double spikiness)
+        private double accMultiplier(double acc, double acc_scalar)
         {
-            double sigmoid_spikiness = 0.94 + 0.12 / (1.0 + Math.Exp(-20 * (spikiness - 1)));
-            return sigmoid_spikiness * (2 * Math.Pow(acc, 20) - 1) + 2 - 2 * Math.Pow(acc, 20);
+            double sigmoid_scaler = 0.87 + 0.26 / (1.0 + Math.Exp(-20 * (acc_scalar - 1)));
+            return sigmoid_scaler * (2 * Math.Pow(acc, 20) - 1) + 2 - 2 * Math.Pow(acc, 20);
         }
 
         private double lengthMultiplier(double totalNotes, double starRating)

@@ -21,6 +21,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private double od;
         private int totalColumns;
         private double spikiness;
+        private double switches;
         private double greatHitWindow;
 
         public SunnySkill(Mod[] mods, int totalColumns, double od, int objectCount, double greatHitWindow)
@@ -66,6 +67,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             SRParams srParams = MACalculator.Calculate(noteSeq, noteSeqByColumn, totalColumns, x);
             spikiness = srParams.Spikiness;
+            switches = srParams.Switches;
 
             return srParams.SR;
         }
@@ -75,9 +77,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             return MACalculator.Variety(noteSeq, noteSeqByColumn);
         }
 
-        public double SpikinessValue()
+        public double AccScalarValue()
         {
-            return spikiness;
+            return 0.5*spikiness+0.5*switches;
         }
+
     }
 }

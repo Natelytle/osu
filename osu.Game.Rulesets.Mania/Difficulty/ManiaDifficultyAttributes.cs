@@ -22,8 +22,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("variety")]
         public double Variety { get; set; }
 
-        [JsonProperty("spikiness")]
-        public double Spikiness { get; set; }
+        [JsonProperty("acc_scalar")]
+        public double AccScalar { get; set; }
 
         [JsonProperty("total_notes")]
         public double TotalNotes { get; set; }

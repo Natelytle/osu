@@ -41,6 +41,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
     {
         public double SR;
         public double Spikiness;
+        public double Switches;
     }
 
     /// <summary>
@@ -657,7 +658,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // Finally, smooth A_step on the ACorners with a ±500 window (using average smoothing),
             // then interpolate Abar from the ACorners to the overall grid.
-            double[] Abar_A = SmoothOnCorners(ACorners, A_step, 500, 1.0, "avg");
+            double[] Abar_A = SmoothOnCorners(ACorners, A_step, 250, 1.0, "avg");
             double[] Abar = InterpValues(allCorners, ACorners, Abar_A);
 
 
@@ -902,11 +903,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             double weighted_variance = Math.Pow(variance_sum_top / variance_sum_bottom, 1.0 / 8.0);
 
             double spikiness = Math.Sqrt(weighted_variance) / weightedMean;
-
+            double switches = Switches(noteSeq, tailSeq, allCorners, Ks_arr, D_all);
             SRParams pr = new SRParams
             {
                 SR = SR,
                 Spikiness = spikiness,
+                Switches = switches,
             };
 
             return pr;
@@ -1181,7 +1183,128 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             return 0.5 * headVariety + 0.11 * tailVariety + 0.45 * colVariety;
         }
+        /// <summary>
+        /// Computes the switch measure.
+        /// noteSeq: List of notes used for heads.
+        /// tailSeq: List of notes used for tails.
+        /// allCorners: Sorted list of int values.
+        /// KsArr, weights: Arrays of doubles.
+        /// </summary>
+    public static int LowerBound(double[] sortedArray, double value)
+    {
+        int index = Array.BinarySearch(sortedArray, value);
+        // If not found, BinarySearch returns a negative number which is the bitwise complement of the index of the next element that is larger than value.
+        return index < 0 ? ~index : index;
+    }
 
+    /// <summary>
+    /// Computes the switch measure.
+    /// noteSeq: List of notes used for heads.
+    /// tailSeq: List of notes used for tails.
+    /// allCorners: Sorted array of double values.
+    /// KsArr, weights: Arrays of double values.
+    /// </summary>
+        public static double Switches(List<Note> noteSeq, List<Note> tailSeq, double[] allCorners, double[] KsArr, double[] weights)
+        {
+            // Extract head values.
+            List<int> heads = noteSeq.Select(n => n.Head).ToList();
+
+            // For each head, use LowerBound (which now uses Array.BinarySearch) to get the insertion index.
+            List<int> idxList = heads.Select(h => LowerBound(allCorners, (double)h)).ToList();
+
+            // Use these indices (dropping the last element) to select values from KsArr and weights.
+            List<double> KsArrAtNote = idxList.Take(idxList.Count - 1).Select(i => KsArr[i]).ToList();
+            List<double> weightsAtNote = idxList.Take(idxList.Count - 1).Select(i => weights[i]).ToList();
+
+            // Compute gaps between consecutive head values.
+            List<double> headGaps = new List<double>();
+            for (int i = 0; i < heads.Count - 1; i++)
+            {
+                headGaps.Add((double)(heads[i + 1] - heads[i]));
+            }
+
+            int numHeadGaps = headGaps.Count;
+            // Compute moving averages over a window defined by index offsets (from i-50 to i+50).
+            List<double> avgs = new List<double>();
+            for (int i = 0; i < numHeadGaps; i++)
+            {
+                int start = Math.Max(0, i - 50);
+                int end = Math.Min(i + 50, numHeadGaps - 1);
+                double sum = 0.0;
+                int count = 0;
+                for (int j = start; j <= end; j++)
+                {
+                    sum += headGaps[j];
+                    count++;
+                }
+                avgs.Add(sum / count);
+            }
+
+            // Compute signature for heads.
+            double signatureHead = 0.0;
+            for (int i = 0; i < numHeadGaps; i++)
+            {
+                signatureHead += Math.Sqrt((headGaps[i] / avgs[i] / numHeadGaps) * weightsAtNote[i])
+                                * Math.Pow(KsArrAtNote[i], 0.25);
+            }
+            double sumRefHead = 0.0;
+            for (int i = 0; i < numHeadGaps; i++)
+            {
+                sumRefHead += (headGaps[i] / avgs[i]) * weightsAtNote[i];
+            }
+            double refSignatureHead = Math.Sqrt(sumRefHead);
+
+            // Process tails similarly.
+            List<int> tails = tailSeq.Select(n => n.Tail).ToList();
+            List<int> idxListTails = tails.Select(t => LowerBound(allCorners, (double)t)).ToList();
+            List<double> KsArrAtTail = idxListTails.Take(idxListTails.Count - 1).Select(i => KsArr[i]).ToList();
+            List<double> weightsAtTail = idxListTails.Take(idxListTails.Count - 1).Select(i => weights[i]).ToList();
+
+            List<double> tailGaps = new List<double>();
+            for (int i = 0; i < tails.Count - 1; i++)
+            {
+                tailGaps.Add((double)(tails[i + 1] - tails[i]));
+            }
+
+            double signatureTail = 0.0;
+            double refSignatureTail = 0.0;
+            if (tails.Count > 0 && tails[tails.Count - 1] > tails[0] && tailGaps.Count > 0)
+            {
+                int numTailGaps = tailGaps.Count;
+                List<double> avgsTail = new List<double>();
+                for (int i = 0; i < numTailGaps; i++)
+                {
+                    int start = Math.Max(0, i - 50);
+                    int end = Math.Min(i + 50, numTailGaps - 1);
+                    double sum = 0.0;
+                    int count = 0;
+                    for (int j = start; j <= end; j++)
+                    {
+                        sum += tailGaps[j];
+                        count++;
+                    }
+                    avgsTail.Add(sum / count);
+                }
+                for (int i = 0; i < numTailGaps; i++)
+                {
+                    signatureTail += Math.Sqrt((tailGaps[i] / avgsTail[i] / numTailGaps) * weightsAtTail[i])
+                                    * Math.Pow(KsArrAtTail[i], 0.25);
+                }
+                double sumRefTail = 0.0;
+                for (int i = 0; i < numTailGaps; i++)
+                {
+                    sumRefTail += (tailGaps[i] / avgsTail[i]) * weightsAtTail[i];
+                }
+                refSignatureTail = Math.Sqrt(sumRefTail);
+            }
+
+            // Combine head and tail signatures.
+            double numerator = signatureHead * numHeadGaps + signatureTail * tailGaps.Count;
+            double denominator = refSignatureHead * numHeadGaps + refSignatureTail * tailGaps.Count;
+            double switches = numerator / denominator;
+
+            return switches / 2.0 + 0.5;
+        }
         #endregion
     }
 }
