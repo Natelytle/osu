@@ -121,7 +121,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                     foreach (ManiaDifficultyHitObject previousNote in currentTimeObjects)
                     {
                         // We set the current hit objects to the previous hit objects, and then we overwrite columns that have a more recent note in the current chord.
-                        previousNote.CurrentHitObjects = previousNote.PreviousHitObjects;
+                        previousNote.CurrentHitObjects = previousNote.PreviousHitObjects.ToArray();
 
                         foreach (ManiaDifficultyHitObject concurrentObj in currentTimeObjects)
                         {
