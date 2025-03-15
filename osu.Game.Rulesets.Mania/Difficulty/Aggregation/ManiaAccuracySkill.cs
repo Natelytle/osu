@@ -270,7 +270,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
             // Due to real world factors, deviation is actually a bit higher than the model says.
             // 2.5 is chosen to bring the variance at 96% up from 0.2% to 0.5%.
-            // dev *= 2.5;
+            dev *= 2.5;
 
             double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 
