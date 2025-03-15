@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
-using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
@@ -64,15 +63,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
             if (index > 0)
             {
-                var prevNote = (ManiaDifficultyHitObject)objects[index - 1];
+                ManiaDifficultyHitObject? prevNote = (ManiaDifficultyHitObject)objects[index - 1];
 
-                PrevLongNote = BaseObject is HeadNote ? this : prevNote.PrevLongNote;
+                for (int i = 0; i < prevNote.PreviousHitObjects.Length; i++)
+                    PreviousHitObjects[i] = prevNote.PreviousHitObjects[i];
 
-                PreviousHitObjects = prevNote.PreviousHitObjects.ToArray();
-
-                if (prevNote.StartTime < StartTime)
+                // Add all concurrent notes before this note
+                if (DeltaTime > 0)
                 {
-                    PreviousHitObjects[prevNote.Column] = prevNote;
+                    do
+                    {
+                        PreviousHitObjects[prevNote.Column] = prevNote;
+                        prevNote = (ManiaDifficultyHitObject?)prevNote.Previous(0);
+                    } while (prevNote?.DeltaTime == 0);
                 }
             }
         }
