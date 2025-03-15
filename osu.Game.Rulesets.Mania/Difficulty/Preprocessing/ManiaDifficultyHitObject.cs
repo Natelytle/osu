@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
@@ -67,7 +68,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
                 PrevLongNote = BaseObject is HeadNote ? this : prevNote.PrevLongNote;
 
-                PreviousHitObjects = prevNote.PreviousHitObjects;
+                PreviousHitObjects = prevNote.PreviousHitObjects.ToArray();
 
                 if (prevNote.StartTime < StartTime)
                 {
