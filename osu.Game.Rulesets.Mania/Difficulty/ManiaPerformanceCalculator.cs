@@ -38,14 +38,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
             scoreAccuracy = calculateCustomAccuracy();
 
-            // Arbitrary initial value for scaling pp in order to standardize distributions across game modes.
-            // The specific number has no intrinsic meaning and can be adjusted as needed.
-            double multiplier = 10.0;
+            double multiplier = 1.0;
 
             if (score.Mods.Any(m => m is ModNoFail))
                 multiplier *= 0.75;
             if (score.Mods.Any(m => m is ModEasy))
-                multiplier *= 0.96;
+                multiplier *= 0.90;
 
             double difficultyValue = computeDifficultyValue(maniaAttributes);
             double varietyMultiplier = this.varietyMultiplier(maniaAttributes.Variety);
@@ -65,10 +63,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            // The "proportion" of pp given after the SR to pp curve and length bonus
+            // The "proportion" of pp based on accuracy
             double proportion = calculatePerformanceProportion(scoreAccuracy);
 
-            double difficultyValue = Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
+            double difficultyValue = 9.8 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
                                      * proportion; // scaled by the proportion
 
             return difficultyValue;
@@ -110,8 +108,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double accMultiplier(double acc, double acc_scalar)
         {
-            double sigmoid_scaler = 0.87 + 0.26 / (1.0 + Math.Exp(-20 * (acc_scalar - 1)));
-            return sigmoid_scaler * (2 * Math.Pow(acc, 20) - 1) + 2 - 2 * Math.Pow(acc, 20);
+            double sigmoid_scaler = 0.875 + 0.25 / (1.0 + Math.Exp(-20 * (acc_scalar - 1)));
+            double sigmoid_acc = 1 / (1.0 + Math.Exp(-80 * (acc - 0.96)));
+            return sigmoid_scaler * (2 * sigmoid_acc - 1) + 2 - 2 * sigmoid_acc;
         }
 
         private double lengthMultiplier(double totalNotes, double starRating)
