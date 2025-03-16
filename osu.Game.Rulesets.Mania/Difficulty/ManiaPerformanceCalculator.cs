@@ -108,9 +108,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double accMultiplier(double acc, double acc_scalar)
         {
-            double sigmoid_scaler = 0.875 + 0.25 / (1.0 + Math.Exp(-20 * (acc_scalar - 1)));
-            double sigmoid_acc = 1 / (1.0 + Math.Exp(-80 * (acc - 0.96)));
-            return sigmoid_scaler * (2 * sigmoid_acc - 1) + 2 - 2 * sigmoid_acc;
+            double sigmoid_scaler = 0.87 + 0.26 / (1.0 + Math.Exp(-20 * (acc_scalar - 1)));
+            return sigmoid_scaler * (2 * Math.Pow(acc, 20) - 1) + 2 - 2 * Math.Pow(acc, 20);
         }
 
         private double lengthMultiplier(double totalNotes, double starRating)
