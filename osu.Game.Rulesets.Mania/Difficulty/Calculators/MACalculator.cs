@@ -794,7 +794,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 double C_val = C_arr[i];
                 double Ks_val = Ks_arr[i];
 
-                double term1 = Math.Pow(Math.Pow(A_val, 3.0 / Ks_val) * J_val, 1.5);
+                double term1 = Math.Pow(Math.Pow(A_val, 3.0 / Ks_val) * Math.Min(J_val, 10 + 0.8*J_val), 1.5);
                 double term2 = Math.Pow(Math.Pow(A_val, 2.0 / 3.0) * (0.8 * P_val + R_val * 35.0 / (C_val + 8)), 1.5);
                 double S_val = Math.Pow(w0 * term1 + (1 - w0) * term2, 2.0 / 3.0);
                 S_all[i] = S_val;
@@ -921,13 +921,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             if (sr <= 9)
                 return sr;
 
-            if (sr <= 10.2)
-                return 9 + (sr - 9) * (1.0 / 1.2);
-
-            if (sr <= 11.5)
-                return 10 + (sr - 10.2) * (1.0 / 1.3);
-
-            return 11 + (sr - 11.5) * (2.0 / 3.0);
+            return 9 + (sr - 9) * (1.0 / 1.2);
         }
 
         // Returns the cumulative sum array for f evaluated on x.
