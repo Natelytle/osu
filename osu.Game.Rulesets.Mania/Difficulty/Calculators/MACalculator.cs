@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
         /// <param name="noteSeq">List of Note objects.</param>
         /// <param name="keyCount">Number of keys (columns).</param>
         /// <returns>The computed difficulty (Level) as an int.</returns>
-        public static SRParams Calculate(List<Note> noteSeq, List<List<Note>> noteSeqByColumn, int keyCount, double x)
+        public static SRParams Calculate(List<Note> noteSeq, List<List<Note>> noteSeqByColumn, int keyCount, double x, bool ContainsCL)
         {
             // Fixed tuning constants.
             const double lambda_n = 5;
@@ -749,7 +749,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // --- Section 3: Compute C and Ks ---
             // Console.WriteLine("3");
-            List<int> noteHitTimes = noteSeq.Select(n => n.Head).ToList();
+            List<int> noteHitTimes;
+            if (!ContainsCL)
+            {
+            noteHitTimes = noteSeq.Select(n => n.Head)
+                                .Concat(noteSeq.Where(n => n.Tail >= 0)
+                                                .Select(n => n.Tail))
+                                .ToList();
+            }
+            else
+            {
+                noteHitTimes = noteSeq.Select(n => n.Head).ToList();
+            }
             noteHitTimes.Sort();
             double[] C_step = new double[baseCorners.Length];
             for (int i = 0; i < baseCorners.Length; i++)
