@@ -66,7 +66,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 }
             }
 
-            unevenness = ListUtils.Smooth2(unevenness, (int)(500 / granularity));
+            unevenness = ListUtils.ApplyAdaptiveMovingAverage(unevenness, (int)(500 / granularity));
 
             return unevenness;
         }

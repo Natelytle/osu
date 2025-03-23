@@ -72,7 +72,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             // smooths it out
-            crossColumnPressure = ListUtils.Smooth(crossColumnPressure, (int)(500 / granularity));
+            crossColumnPressure = ListUtils.ApplySymmetricMovingAverage(crossColumnPressure, (int)(500 / granularity));
 
             return crossColumnPressure;
         }

@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     prev = note;
                 }
 
-                perColumnPressure[col] = ListUtils.Smooth(perColumnPressure[col], (int)(500 / granularity));
+                perColumnPressure[col] = ListUtils.ApplySymmetricMovingAverage(perColumnPressure[col], (int)(500 / granularity));
             }
 
             double[] sameColumnPressure = new double[mapLength];

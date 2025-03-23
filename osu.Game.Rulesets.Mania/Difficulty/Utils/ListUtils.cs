@@ -7,8 +7,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public class ListUtils
     {
-        // smoothing function 1
-        public static double[] Smooth(double[] list, int intervalSize)
+        /// <summary>
+        /// Applies a symmetric moving average with a fixed window size (2 * windowRadius + 1).
+        /// </summary>
+        public static double[] ApplySymmetricMovingAverage(double[] list, int intervalSize)
         {
             int length = list.Length;
             double[] smoothedList = new double[length];
@@ -50,7 +52,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             return smoothedList;
         }
 
-        public static double[] Smooth2(double[] list, int intervalSize)
+        /// <summary>
+        /// Applies an adaptive moving average with a growing/shrinking window.
+        /// </summary>
+        public static double[] ApplyAdaptiveMovingAverage(double[] list, int intervalSize)
         {
             int length = list.Length;
             double[] smoothedList = new double[length];

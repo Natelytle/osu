@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 prev = note;
             }
 
-            pressingIntensity = ListUtils.Smooth(pressingIntensity, (int)(500 / granularity));
+            pressingIntensity = ListUtils.ApplySymmetricMovingAverage(pressingIntensity, (int)(500 / granularity));
 
             return pressingIntensity;
         }

@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 prev = note;
             }
 
-            releaseFactor = ListUtils.Smooth(releaseFactor, (int)(500 / granularity));
+            releaseFactor = ListUtils.ApplySymmetricMovingAverage(releaseFactor, (int)(500 / granularity));
 
             return releaseFactor;
         }
