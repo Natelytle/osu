@@ -10,7 +10,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class Unevenness
     {
-        public static double[] EvaluateUnevenness(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, int mapLength, double hitLeniency, double granularity)
+        public static double[] EvaluateUnevenness(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, int mapLength, double hitLeniency)
         {
             // some sort of value representing distance between notes in different columns
             double[][] perColumnUnevenness = new double[totalColumns - 1][];
@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     double delta = 0.001 * (curr.StartTime - prev.StartTime);
 
                     // the variables created earlier are filled with delta/val
-                    for (int t = (int)prev.AdjustedStartTime; t < curr.AdjustedStartTime; t++)
+                    for (int t = (int)prev.StartTime; t < curr.StartTime; t++)
                     {
                         perColumnDeltaTimes[col][t] = delta;
                     }
@@ -66,7 +66,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 }
             }
 
-            unevenness = ListUtils.ApplyAdaptiveMovingAverage(unevenness, (int)(500 / granularity));
+            unevenness = ListUtils.ApplyAdaptiveMovingAverage(unevenness, 500);
 
             return unevenness;
         }

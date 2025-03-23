@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class ReleaseFactor
     {
-        public static double[] EvaluateReleaseFactor(List<ManiaDifficultyHitObject> noteList, int totalColumns, int mapLength, double hitLeniency, double granularity)
+        public static double[] EvaluateReleaseFactor(List<ManiaDifficultyHitObject> noteList, int totalColumns, int mapLength, double hitLeniency)
         {
             List<ManiaDifficultyHitObject> longNoteList = noteList.Where(obj => obj.BaseObject is HoldNote).OrderBy(obj => obj.EndTime).ToList();
 
@@ -49,7 +49,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 {
                     double deltaR = 0.001 * (note.EndTime - prev.EndTime);
 
-                    for (int t = (int)prev.AdjustedEndTime; t < note.AdjustedEndTime; t++)
+                    for (int t = (int)prev.EndTime; t < note.EndTime; t++)
                     {
                         releaseFactor[t] = 0.08 * Math.Pow(deltaR, -1.0 / 2.0) * Math.Pow(hitLeniency, -1.0) * (1 + SunnySkill.LAMBDA_4 * (headSpacingIndex[index - 1] + headSpacingIndex[index]));
                     }
@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 prev = note;
             }
 
-            releaseFactor = ListUtils.ApplySymmetricMovingAverage(releaseFactor, (int)(500 / granularity));
+            releaseFactor = ListUtils.ApplySymmetricMovingAverage(releaseFactor, 500);
 
             return releaseFactor;
         }

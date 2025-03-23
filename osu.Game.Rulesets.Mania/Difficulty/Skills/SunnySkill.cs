@@ -28,18 +28,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double p_1 = 1.5;
 
         private readonly int totalColumns;
-        private readonly double granularity;
         private readonly double hitLeniency;
 
         private readonly List<ManiaDifficultyHitObject> noteList = new List<ManiaDifficultyHitObject>();
         private readonly List<ManiaDifficultyHitObject>[] perColumnNoteList;
 
-        public SunnySkill(Mod[] mods, int totalColumns, double od, double granularity)
+        public SunnySkill(Mod[] mods, int totalColumns, double od)
             : base(mods)
         {
             hitLeniency = 0.3 * Math.Pow((64.5 - Math.Ceiling(od * 3.0)) / 500.0, 0.5);
             this.totalColumns = totalColumns;
-            this.granularity = granularity;
             perColumnNoteList = new List<ManiaDifficultyHitObject>[totalColumns];
 
             for (int i = 0; i < totalColumns; i++)
@@ -63,13 +61,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             int noteCount = noteList.Count;
             int lnCount = noteList.Count(obj => obj.BaseObject is HoldNote);
 
-            int mapLength = (int)noteList.Max(obj => obj.AdjustedEndTime) + 1;
+            int mapLength = (int)noteList.Max(obj => obj.EndTime) + 1;
 
-            double[] j = SameColumnPressure.EvaluateSameColumnPressure(perColumnNoteList, totalColumns, mapLength, hitLeniency, granularity);
-            double[] x = CrossColumnPressure.EvaluateCrossColumnPressure(perColumnNoteList, totalColumns, mapLength, hitLeniency, granularity);
-            double[] p = PressingIntensity.EvaluatePressingIntensity(noteList, totalColumns, mapLength, hitLeniency, granularity);
-            double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, mapLength, hitLeniency, granularity);
-            double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, totalColumns, mapLength, hitLeniency, granularity);
+            double[] j = SameColumnPressure.EvaluateSameColumnPressure(perColumnNoteList, totalColumns, mapLength, hitLeniency);
+            double[] x = CrossColumnPressure.EvaluateCrossColumnPressure(perColumnNoteList, totalColumns, mapLength, hitLeniency);
+            double[] p = PressingIntensity.EvaluatePressingIntensity(noteList, totalColumns, mapLength, hitLeniency);
+            double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, mapLength, hitLeniency);
+            double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, totalColumns, mapLength, hitLeniency);
 
             double sum1 = 0;
             double sum2 = 0;
@@ -86,12 +84,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 a[t] = Math.Max(0, a[t]);
                 r[t] = Math.Max(0, r[t]);
 
-                while (start < noteList.Count && noteList[start].AdjustedStartTime < t - 500)
+                while (start < noteList.Count && noteList[start].StartTime < t - 500)
                 {
                     start += 1;
                 }
 
-                while (end < noteList.Count && noteList[end].AdjustedStartTime < t + 500)
+                while (end < noteList.Count && noteList[end].StartTime < t + 500)
                 {
                     end += 1;
                 }

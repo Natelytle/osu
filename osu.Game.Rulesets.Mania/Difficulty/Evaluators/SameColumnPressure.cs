@@ -11,7 +11,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class SameColumnPressure
     {
-        public static double[] EvaluateSameColumnPressure(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, int mapLength, double hitLeniency, double granularity)
+        public static double[] EvaluateSameColumnPressure(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, int mapLength, double hitLeniency)
         {
             double[][] perColumnPressure = new double[totalColumns][];
             double[][] perColumnDeltaTimes = new double[totalColumns][];
@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                         double val = Math.Pow(delta, -1) * Math.Pow(delta + SunnySkill.LAMBDA_1 * Math.Pow(hitLeniency, 1.0 / 4.0), -1.0);
 
                         // the variables created earlier are filled with delta/val
-                        for (int t = (int)prev.AdjustedStartTime; t < note.AdjustedStartTime; t++)
+                        for (int t = (int)prev.StartTime; t < note.StartTime; t++)
                         {
                             perColumnDeltaTimes[col][t] = delta;
                             perColumnPressure[col][t] = val;
@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     prev = note;
                 }
 
-                perColumnPressure[col] = ListUtils.ApplySymmetricMovingAverage(perColumnPressure[col], (int)(500 / granularity));
+                perColumnPressure[col] = ListUtils.ApplySymmetricMovingAverage(perColumnPressure[col], 500);
             }
 
             double[] sameColumnPressure = new double[mapLength];

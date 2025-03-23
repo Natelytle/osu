@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class PressingIntensity
     {
-        public static double[] EvaluatePressingIntensity(List<ManiaDifficultyHitObject> noteList, int totalColumns, int mapLength, double hitLeniency, double granularity)
+        public static double[] EvaluatePressingIntensity(List<ManiaDifficultyHitObject> noteList, int totalColumns, int mapLength, double hitLeniency)
         {
             double[] pressingIntensity = new double[mapLength];
 
@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     // if notes are less than 1ms apart
                     if (deltaTime < 1e-4)
                     {
-                        pressingIntensity[(int)prev.AdjustedStartTime] += Math.Pow(0.02 * (4 / hitLeniency - SunnySkill.LAMBDA_3), 1.0 / 4.0);
+                        pressingIntensity[(int)prev.StartTime] += Math.Pow(0.02 * (4 / hitLeniency - SunnySkill.LAMBDA_3), 1.0 / 4.0);
                         continue;
                     }
 
@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                     if (deltaTime < 2 * hitLeniency / 3.0)
                     {
-                        for (int t = (int)prev.AdjustedStartTime; t < note.AdjustedStartTime; t++)
+                        for (int t = (int)prev.StartTime; t < note.StartTime; t++)
                         {
                             pressingIntensity[t] = 1 / deltaTime
                                                    * Math.Pow(0.08 * (1 / deltaTime) * (1 - SunnySkill.LAMBDA_3 * (1 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0)
@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     }
                     else
                     {
-                        for (int t = (int)prev.AdjustedStartTime; t < note.AdjustedStartTime; t++)
+                        for (int t = (int)prev.StartTime; t < note.StartTime; t++)
                         {
                             pressingIntensity[t] = 1 / deltaTime
                                                    * Math.Pow(0.08 * (1 / deltaTime) * (1 - SunnySkill.LAMBDA_3 * (1 / hitLeniency) * Math.Pow(hitLeniency / 6, 2)), 1 / 4.0)
@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 prev = note;
             }
 
-            pressingIntensity = ListUtils.ApplySymmetricMovingAverage(pressingIntensity, (int)(500 / granularity));
+            pressingIntensity = ListUtils.ApplySymmetricMovingAverage(pressingIntensity, 500);
 
             return pressingIntensity;
         }
