@@ -84,60 +84,28 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 ManiaDifficultyHitObject? currObj = currentObjects[column];
                 ManiaDifficultyHitObject? nextObj = nextObjects[column];
 
-                lnAmount += processObject(currObj);
-
-                if (nextObj is not null && currObj is not null && nextObj.StartTime != currObj.StartTime)
+                if (currObj is not null && currObj.BaseObject is not Note)
                 {
-                    lnAmount += processObject(nextObj);
+                    double lnEnd = Math.Min(currObj.EndTime, endTime);
+                    double fullLnStart = Math.Max(currObj.StartTime + 80, startTime);
+                    double partialLnStart = Math.Max(currObj.StartTime, startTime);
+                    double partialLnEnd = Math.Min(currObj.StartTime + 80, lnEnd);
+
+                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 0.5 * Math.Max(partialLnEnd - partialLnStart, 0);
+                }
+
+                if (nextObj?.StartTime != currObj?.StartTime && nextObj is not null && nextObj.BaseObject is not Note)
+                {
+                    double lnEnd = Math.Min(nextObj.EndTime, endTime);
+                    double fullLnStart = Math.Max(nextObj.StartTime + 80, startTime);
+                    double partialLnStart = Math.Max(nextObj.StartTime, startTime);
+                    double partialLnEnd = Math.Min(nextObj.StartTime + 80, lnEnd);
+
+                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 0.5 * Math.Max(partialLnEnd - partialLnStart, 0);
                 }
             }
 
             return lnAmount / 1000;
-
-            // local function to find the lnAmount surrounding an object
-            double processObject(ManiaDifficultyHitObject? currObj)
-            {
-                if (currObj is null || currObj.BaseObject is Note)
-                    return 0;
-
-                double currentNoteStartTime = currObj.StartTime;
-                double currentNoteEndTime = currObj.EndTime;
-
-                if (currentNoteEndTime <= startTime)
-                    return 0;
-
-                // All values cropped to within range
-                // The LN end or time range end
-                double lnEnd = Math.Min(currentNoteEndTime, endTime);
-                // 80ms after LN start or time range start
-                double fullLnStart = Math.Max(currentNoteStartTime + 80, startTime);
-                // LN start or time range start
-                double partialLnStart = Math.Max(currentNoteStartTime, startTime);
-                // 80ms after LN start or LN end (if shorter than 80ms)
-                double partialLnEnd = Math.Min(currentNoteStartTime + 80, lnEnd);
-
-                // Calculating the proportion of time the "full LN" takes up
-                double timeTakenFullLn = lnEnd - fullLnStart;
-                // If the above is negative, it means the 'full LN' starts after the LN already ends
-                // Meaning the proportion is 0
-                double proportionFullLn = Math.Max(timeTakenFullLn, 0);
-
-                // Calculating the proportion of time the "partial LN" takes up
-                double timeTakenPartialLn = partialLnEnd - partialLnStart;
-                // If the above is negative, it either means that the LN is entirely outside of the time range
-                // or that all of the LN within the time range is 'full'
-                // Hence a the proportion would be 0
-                double proportionPartialLn = Math.Max(timeTakenPartialLn, 0);
-
-                const double full_ln_scaling_factor = 1;
-                const double partial_ln_scaling_factor = 0.5;
-
-                // Converts the unit to *seconds
-                double fullLNs = full_ln_scaling_factor * proportionFullLn;
-                double partialLNs = partial_ln_scaling_factor * proportionPartialLn;
-
-                return fullLNs + partialLNs;
-            }
         }
     }
 }
