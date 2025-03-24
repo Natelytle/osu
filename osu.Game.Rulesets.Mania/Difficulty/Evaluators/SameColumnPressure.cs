@@ -17,7 +17,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double[] perColumnPressure = new double[mapLength];
             double[] perColumnDeltaTimes = new double[mapLength];
             double[] sumWeights = new double[mapLength];
-            double[] sumValLambdaWeights = new double[mapLength];
 
             for (int col = 0; col < totalColumns; col++)
             {
@@ -35,7 +34,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                         double delta = 0.001 * (note.StartTime - prev.StartTime);
                         double val = Math.Pow(delta, -1) * Math.Pow(delta + SunnySkill.LAMBDA_1 * Math.Pow(hitLeniency, 1.0 / 4.0), -1.0);
 
-                        // the variables created earlier are filled with delta/val
                         for (int t = (int)prev.StartTime; t < note.StartTime; t++)
                         {
                             perColumnPressure[t] = val;
@@ -48,22 +46,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                 perColumnPressure = ListUtils.ApplySymmetricMovingAverage(perColumnPressure, 500);
 
-                // Process and accumulate weighted values directly
+                // Accumulate weighted values directly
                 for (int t = 0; t < mapLength; t++)
                 {
-                    double val = perColumnPressure[t];
                     double weight = perColumnDeltaTimes[t] > 0 ? 1.0 / perColumnDeltaTimes[t] : 0;
-
+                    sameColumnPressure[t] += Math.Pow(perColumnPressure[t], SunnySkill.LAMBDA_N) * weight;
                     sumWeights[t] += weight;
-                    sumValLambdaWeights[t] += Math.Pow(val, SunnySkill.LAMBDA_N) * weight;
                 }
             }
 
             for (int t = 0; t < mapLength; t++)
             {
-                double firstPart = sumWeights[t] > 0 ? sumValLambdaWeights[t] / sumWeights[t] : 0;
-
-                sameColumnPressure[t] = Math.Pow(firstPart, 1.0 / SunnySkill.LAMBDA_N);
+                if (sumWeights[t] > 0)
+                    sameColumnPressure[t] = Math.Pow(sameColumnPressure[t] / sumWeights[t], 1.0 / SunnySkill.LAMBDA_N);
             }
 
             return sameColumnPressure;
