@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
@@ -12,15 +13,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     {
         public static double[] EvaluateUnevenness(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, int mapLength, double hitLeniency)
         {
-            // some sort of value representing distance between notes in different columns
-            double[][] perColumnUnevenness = new double[totalColumns - 1][];
-            double[][] perColumnDeltaTimes = new double[totalColumns][];
+            double[] unevenness = new double[mapLength];
+            double[] currentColumnDeltaTimes = new double[mapLength];
 
-            for (int col = totalColumns - 1; col >= 0; col--)
+            for (int i = 0; i < mapLength; i++)
+                unevenness[i] = 1;
+
+            for (int col = 0; col < totalColumns; col++)
             {
-                List<ManiaDifficultyHitObject> columnNotes = perColumnNoteList[col];
+                double[] previousColumnDeltaTimes = currentColumnDeltaTimes.ToArray();
 
-                perColumnDeltaTimes[col] = new double[mapLength];
+                List<ManiaDifficultyHitObject> columnNotes = perColumnNoteList[col];
 
                 for (int i = 1; i < columnNotes.Count; i++)
                 {
@@ -32,36 +35,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     // the variables created earlier are filled with delta/val
                     for (int t = (int)prev.StartTime; t < curr.StartTime; t++)
                     {
-                        perColumnDeltaTimes[col][t] = delta;
+                        currentColumnDeltaTimes[t] = delta;
                     }
                 }
 
-                if (col == totalColumns - 1)
+                if (col == 0)
                     continue;
-
-                perColumnUnevenness[col] = new double[mapLength];
 
                 for (int t = 0; t < mapLength; t++)
                 {
-                    perColumnUnevenness[col][t] = Math.Abs(perColumnDeltaTimes[col][t] - perColumnDeltaTimes[col + 1][t]) + Math.Max(0, Math.Max(perColumnDeltaTimes[col + 1][t], perColumnDeltaTimes[col][t]) - 0.3);
-                }
-            }
+                    double currColumnUnevenness = Math.Abs(currentColumnDeltaTimes[t] - previousColumnDeltaTimes[t]) + Math.Max(0, Math.Max(previousColumnDeltaTimes[t], currentColumnDeltaTimes[t]) - 0.3);
 
-            double[] unevenness = new double[mapLength];
-
-            for (int t = 0; t < mapLength; t++)
-            {
-                unevenness[t] = 1;
-
-                for (int col = 0; col < totalColumns - 1; col++)
-                {
-                    if (perColumnUnevenness[col][t] < 0.02)
+                    if (currColumnUnevenness < 0.02)
                     {
-                        unevenness[t] *= Math.Min(0.75 + 0.5 * Math.Max(perColumnDeltaTimes[col + 1][t], perColumnDeltaTimes[col][t]), 1);
+                        unevenness[t] *= Math.Min(0.75 + 0.5 * Math.Max(previousColumnDeltaTimes[t], currentColumnDeltaTimes[t]), 1);
                     }
-                    else if (perColumnUnevenness[col][t] < 0.07)
+                    else if (currColumnUnevenness < 0.07)
                     {
-                        unevenness[t] *= Math.Min(0.65 + 5 * perColumnUnevenness[col][t] + 0.5 * Math.Max(perColumnDeltaTimes[col + 1][t], perColumnDeltaTimes[col][t]), 1);
+                        unevenness[t] *= Math.Min(0.65 + 5 * currColumnUnevenness + 0.5 * Math.Max(previousColumnDeltaTimes[t], currentColumnDeltaTimes[t]), 1);
                     }
                 }
             }
