@@ -16,15 +16,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
     public class SunnySkill : Skill
     {
         // Balancing constants
-        public const double LAMBDA_N = 4.0;
+        public const double LAMBDA_N = 5.0;
         public const double LAMBDA_1 = 0.11;
-        public const double LAMBDA_2 = 5.0;
-        public const double LAMBDA_3 = 8.0;
-        public const double LAMBDA_4 = 0.1;
-        private const double w_0 = 0.37;
+        public const double LAMBDA_2 = 6.0;
+        public const double LAMBDA_3 = 24.0;
+        public const double LAMBDA_4 = 0.8;
+        private const double w_0 = 0.4;
         private const double w_1 = 2.7;
         private const double w_2 = 0.27;
-        private const double p_0 = 1.2;
+        private const double p_0 = 1.0;
         private const double p_1 = 1.5;
 
         private readonly int totalColumns;
