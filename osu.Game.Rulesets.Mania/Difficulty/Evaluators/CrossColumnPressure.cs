@@ -83,7 +83,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                             // fastCross only applies to n columns, since we're iterating over n+1 we ignore the first column.
                             if (col != 0)
-                                crossColumnPressure[t] += Math.Sqrt(prevFastCross[t] + fastCross);
+                                crossColumnPressure[t] += Math.Sqrt(prevFastCross[t] * fastCross);
 
                             prevFastCross[t] = fastCross;
                         }
