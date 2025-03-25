@@ -67,9 +67,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                             val *= 1 - crossVal;
                         else
                         {
-                            // We provide a nerf to the value if either the adjacent and current columns dont any notes within the past 150 milliseconds.
-                            bool adjacentKeyUsed = prev.CurrentHitObjects[col - 1]?.StartTime - prev.StartTime < 150 || prevPrev.CurrentHitObjects[col - 1]?.StartTime - prevPrev.StartTime < 150;
-                            bool currentKeyUsed = prev.CurrentHitObjects[col]?.StartTime - prev.StartTime < 150 || prevPrev.CurrentHitObjects[col]?.StartTime - prevPrev.StartTime < 150;
+                            // We provide a nerf to the value if either the adjacent and current columns don't include any notes within the past 150 milliseconds.
+                            bool adjacentKeyUsed = prev.StartTime - prev.CurrentHitObjects[col - 1]?.EndTime < 150 || prevPrev.StartTime - prevPrev.CurrentHitObjects[col - 1]?.EndTime < 150;
+                            bool currentKeyUsed = prev.StartTime - prev.CurrentHitObjects[col]?.EndTime < 150 || prevPrev.StartTime - prevPrev.CurrentHitObjects[col]?.EndTime < 150;
 
                             if (!(adjacentKeyUsed && currentKeyUsed))
                                 val *= 1 - crossVal;
