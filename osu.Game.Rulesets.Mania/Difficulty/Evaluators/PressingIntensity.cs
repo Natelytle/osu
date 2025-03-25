@@ -32,26 +32,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     }
 
                     double lnCount = calculateLnAmount(prev.StartTime, note.StartTime, prev.CurrentHitObjects, note.CurrentHitObjects);
-
-                    double v = 1 + SunnySkill.LAMBDA_2 * lnCount;
+                    double val = (1.0 / deltaTime) * (1 + SunnySkill.LAMBDA_2 * lnCount) * streamBooster(deltaTime);
 
                     if (deltaTime < 2 * hitLeniency / 3.0)
-                    {
-                        for (int t = (int)prev.StartTime; t < note.StartTime; t++)
-                        {
-                            pressingIntensity[t] = 1 / deltaTime
-                                                   * Math.Pow(0.08 * (1 / deltaTime) * (1 - SunnySkill.LAMBDA_3 * (1 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0)
-                                                   * streamBooster(deltaTime) * v;
-                        }
-                    }
+                        val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - SunnySkill.LAMBDA_3 * (1.0 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0);
                     else
+                        val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - SunnySkill.LAMBDA_3 * (1.0 / hitLeniency) * Math.Pow(hitLeniency / 6, 2)), 1 / 4.0);
+
+                    val = Math.Min(val * calculateAnchor(), Math.Max(val, val * 2 - 10));
+
+                    for (int t = (int)prev.StartTime; t < note.StartTime; t++)
                     {
-                        for (int t = (int)prev.StartTime; t < note.StartTime; t++)
-                        {
-                            pressingIntensity[t] = 1 / deltaTime
-                                                   * Math.Pow(0.08 * (1 / deltaTime) * (1 - SunnySkill.LAMBDA_3 * (1 / hitLeniency) * Math.Pow(hitLeniency / 6, 2)), 1 / 4.0)
-                                                   * streamBooster(deltaTime) * v;
-                        }
+                        pressingIntensity[t] = val;
                     }
                 }
 
@@ -65,15 +57,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         private static double streamBooster(double delta)
         {
-            double val = 15.0 / delta;
+            double val = 7.5 / delta;
 
-            if (val > 180 && val < 340)
+            if (val > 160 && val < 360)
             {
-                return 1 + 0.2 * Math.Pow(val - 180, 3) * Math.Pow(val - 340, 6) * Math.Pow(10, -18);
+                return 1 + 1.7e-7 * (val - 160) * Math.Pow(val - 360, 2);
             }
 
             return 1;
         }
+
+        private static double calculateAnchor() => 0;
 
         private static double calculateLnAmount(double startTime, double endTime, ManiaDifficultyHitObject?[] currentObjects, ManiaDifficultyHitObject?[] nextObjects)
         {
@@ -87,21 +81,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 if (currObj is not null && currObj.BaseObject is not Note)
                 {
                     double lnEnd = Math.Min(currObj.EndTime, endTime);
-                    double fullLnStart = Math.Max(currObj.StartTime + 80, startTime);
-                    double partialLnStart = Math.Max(currObj.StartTime, startTime);
-                    double partialLnEnd = Math.Min(currObj.StartTime + 80, lnEnd);
+                    double fullLnStart = Math.Max(currObj.StartTime + 120, startTime);
+                    double partialLnStart = Math.Max(currObj.StartTime + 60, startTime);
+                    double partialLnEnd = Math.Min(currObj.StartTime + 120, lnEnd);
 
-                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 0.5 * Math.Max(partialLnEnd - partialLnStart, 0);
+                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 1.3 * Math.Max(partialLnEnd - partialLnStart, 0);
                 }
 
                 if (nextObj?.StartTime != currObj?.StartTime && nextObj is not null && nextObj.BaseObject is not Note)
                 {
                     double lnEnd = Math.Min(nextObj.EndTime, endTime);
-                    double fullLnStart = Math.Max(nextObj.StartTime + 80, startTime);
-                    double partialLnStart = Math.Max(nextObj.StartTime, startTime);
-                    double partialLnEnd = Math.Min(nextObj.StartTime + 80, lnEnd);
+                    double fullLnStart = Math.Max(nextObj.StartTime + 120, startTime);
+                    double partialLnStart = Math.Max(nextObj.StartTime + 60, startTime);
+                    double partialLnEnd = Math.Min(nextObj.StartTime + 120, lnEnd);
 
-                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 0.5 * Math.Max(partialLnEnd - partialLnStart, 0);
+                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 1.3 * Math.Max(partialLnEnd - partialLnStart, 0);
                 }
             }
 
