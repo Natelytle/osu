@@ -32,7 +32,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     if (prev is not null && prev.StartTime < note.StartTime)
                     {
                         double delta = 0.001 * (note.StartTime - prev.StartTime);
-                        double val = Math.Pow(delta, -1) * Math.Pow(delta + SunnySkill.LAMBDA_1 * Math.Pow(hitLeniency, 1.0 / 4.0), -1.0);
+                        double val = (1.0 / delta) * (1.0 / (delta + SunnySkill.LAMBDA_1 * Math.Pow(hitLeniency, 1.0 / 4.0)));
+                        val *= jackNerfer(delta);
 
                         for (int t = (int)prev.StartTime; t < note.StartTime; t++)
                         {
@@ -63,5 +64,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             return sameColumnPressure;
         }
+
+        private static double jackNerfer(double delta) => 1 - 7e-5 * Math.Pow(0.15 + Math.Abs(delta - 0.08), -4);
     }
 }
