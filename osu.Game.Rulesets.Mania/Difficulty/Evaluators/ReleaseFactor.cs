@@ -15,48 +15,34 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     {
         public static double[] EvaluateReleaseFactor(List<ManiaDifficultyHitObject> noteList, int totalColumns, int mapLength, double hitLeniency)
         {
-            List<ManiaDifficultyHitObject> longNoteList = noteList.Where(obj => obj.BaseObject is HoldNote).OrderBy(obj => obj.EndTime).ToList();
-
-            // some value calculated from LN spacing within the same column
-            double[] headSpacingIndex = new double[longNoteList.Count];
-
-            for (int note = 0; note < longNoteList.Count; note++)
-            {
-                ManiaDifficultyHitObject currentNote = longNoteList[note];
-                ManiaDifficultyHitObject? nextNote = (ManiaDifficultyHitObject?)currentNote.NextInColumn(0);
-
-                double currentI = 0.001 * Math.Abs(currentNote.EndTime - currentNote.StartTime - 80.0) / hitLeniency;
-
-                if (nextNote is null)
-                {
-                    headSpacingIndex[note] = 2 / (2 + Math.Exp(-5 * (currentI - 0.75)));
-                    continue;
-                }
-
-                double nextI = 0.001 * Math.Abs(nextNote.StartTime - currentNote.EndTime - 80.0) / hitLeniency;
-
-                headSpacingIndex[note] = 2 / (2 + Math.Exp(-5 * (currentI - 0.75)) + Math.Exp(-5 * (nextI - 0.75)));
-            }
-
             double[] releaseFactor = new double[mapLength];
 
+            List<ManiaDifficultyHitObject> longNoteList = noteList.Where(obj => obj.BaseObject is HoldNote).OrderBy(obj => obj.EndTime).ToList();
+
+            ManiaDifficultyHitObject? curr = null;
             ManiaDifficultyHitObject? prev = null;
-            int index = 0;
 
-            foreach (ManiaDifficultyHitObject note in longNoteList)
+            foreach (ManiaDifficultyHitObject next in longNoteList)
             {
-                if (prev is not null && prev.EndTime < note.EndTime)
-                {
-                    double deltaR = 0.001 * (note.EndTime - prev.EndTime);
+                if (prev is null || curr is null || prev.EndTime >= curr.EndTime)
+                    continue;
 
-                    for (int t = (int)prev.EndTime; t < note.EndTime; t++)
-                    {
-                        releaseFactor[t] = 0.08 * Math.Pow(deltaR, -1.0 / 2.0) * Math.Pow(hitLeniency, -1.0) * (1 + SunnySkill.LAMBDA_4 * (headSpacingIndex[index - 1] + headSpacingIndex[index]));
-                    }
+                double previousI = 0.001 * Math.Abs(prev.EndTime - prev.StartTime - 80.0) / hitLeniency;
+                double currentI = 0.001 * Math.Abs(curr.EndTime - curr.StartTime - 80.0) / hitLeniency;
+                double nextI = 0.001 * Math.Abs(next.StartTime - next.EndTime - 80.0) / hitLeniency;
+
+                double prevHeadSpacingIndex = 2 / (2 + Math.Exp(-5 * (previousI - 0.75)) + Math.Exp(-5 * (currentI - 0.75)));
+                double currHeadSpacingIndex = 2 / (2 + Math.Exp(-5 * (currentI - 0.75)) + Math.Exp(-5 * (nextI - 0.75)));
+
+                double deltaR = 0.001 * (curr.EndTime - prev.EndTime);
+
+                for (int t = (int)prev.EndTime; t < curr.EndTime; t++)
+                {
+                    releaseFactor[t] = 0.08 * Math.Pow(deltaR, -1.0 / 2.0) * (1.0 / hitLeniency) * (1 + SunnySkill.LAMBDA_4 * (prevHeadSpacingIndex + currHeadSpacingIndex));
                 }
 
-                index++;
-                prev = note;
+                prev = curr;
+                curr = next;
             }
 
             releaseFactor = ListUtils.ApplySymmetricMovingAverage(releaseFactor, 500);
