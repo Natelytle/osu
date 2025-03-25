@@ -750,19 +750,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             // --- Section 3: Compute C and Ks ---
             // Console.WriteLine("3");
             List<int> noteHitTimes;
-            if (!ContainsCL)
-            {
-            noteHitTimes = noteSeq.Select(n => n.Head)
+            List<int> noteHitTimesV2;
+            noteHitTimes = noteSeq.Select(n => n.Head).ToList();
+            noteHitTimesV2 = noteSeq.Select(n => n.Head)
                                 .Concat(noteSeq.Where(n => n.Tail >= 0)
                                                 .Select(n => n.Tail))
                                 .ToList();
-            }
-            else
-            {
-                noteHitTimes = noteSeq.Select(n => n.Head).ToList();
-            }
             noteHitTimes.Sort();
+            noteHitTimesV2.Sort();
             double[] C_step = new double[baseCorners.Length];
+            double[] C_stepV2 = new double[baseCorners.Length];
             for (int i = 0; i < baseCorners.Length; i++)
             {
                 double s = baseCorners[i];
@@ -773,8 +770,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 int cnt = cntHigh - cntLow;
                 C_step[i] = cnt;
             }
-            double[] C_base = C_step;
-            double[] C_arr = StepInterp(allCorners, baseCorners, C_base);
+            for (int i = 0; i < baseCorners.Length; i++)
+            {
+                double s = baseCorners[i];
+                double low = s - 500;
+                double high = s + 500;
+                int cntLow = LowerBound(noteHitTimesV2, (int)low);
+                int cntHigh = LowerBound(noteHitTimesV2, (int)high);
+                int cnt = cntHigh - cntLow;
+                C_stepV2[i] = cnt;
+            }
+            double[] C_arr = StepInterp(allCorners, baseCorners, C_step);
+            double[] C_arrV2 = StepInterp(allCorners, baseCorners, C_stepV2);
 
             double[] Ks_step = new double[baseCorners.Length];
             for (int i = 0; i < baseCorners.Length; i++)
@@ -827,8 +834,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             }
             double[] effectiveWeights = new double[N];
             for (int i = 0; i < N; i++)
+                if (ContainsCL) {
                 effectiveWeights[i] = C_arr[i] * gaps[i];
-
+                }
+                else {
+                effectiveWeights[i] = C_arrV2[i] * gaps[i];
+                }
             List<CornerData> cornerDataList = new List<CornerData>();
             for (int i = 0; i < N; i++)
             {
