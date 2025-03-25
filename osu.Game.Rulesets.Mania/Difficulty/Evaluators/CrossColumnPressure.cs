@@ -30,6 +30,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         public static double[] EvaluateCrossColumnPressure(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, int mapLength, double hitLeniency)
         {
             double[] crossColumnPressure = new double[mapLength];
+            double[] prevFastCross = new double[mapLength];
 
             for (int col = 0; col < totalColumns + 1; col++)
             {
@@ -58,11 +59,33 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     if (prev is not null && prevPrev is not null && prev.StartTime < note.StartTime)
                     {
                         double delta = 0.001 * (prev.StartTime - prevPrev.StartTime);
-                        double val = 0.1 * Math.Pow(Math.Max(hitLeniency, delta), -2);
+                        double val = 0.16 * Math.Pow(Math.Max(hitLeniency, delta), -2);
+
+                        double crossVal = cross_matrix[totalColumns][col];
+
+                        if (col == 0 || col == totalColumns)
+                            val *= 1 - crossVal;
+                        else
+                        {
+                            // We provide a nerf to the value if either the adjacent and current columns dont any notes within the past 150 milliseconds.
+                            bool adjacentKeyUsed = prev.CurrentHitObjects[col - 1]?.StartTime - prev.StartTime < 150 || prevPrev.CurrentHitObjects[col - 1]?.StartTime - prevPrev.StartTime < 150;
+                            bool currentKeyUsed = prev.CurrentHitObjects[col]?.StartTime - prev.StartTime < 150 || prevPrev.CurrentHitObjects[col]?.StartTime - prevPrev.StartTime < 150;
+
+                            if (!(adjacentKeyUsed && currentKeyUsed))
+                                val *= 1 - crossVal;
+                        }
+
+                        double fastCross = Math.Max(0, 0.4 * Math.Pow(Math.Max(Math.Max(delta, 0.06), -0.75 * hitLeniency), -2) - 80) * crossVal;
 
                         for (int t = (int)prev.StartTime; t < note.StartTime; t++)
                         {
                             crossColumnPressure[t] += val * cross_matrix[totalColumns][col];
+
+                            // fastCross only applies to n columns, since we're iterating over n+1 we ignore the first column.
+                            if (col != 0)
+                                crossColumnPressure[t] += Math.Sqrt(prevFastCross[t] + fastCross);
+
+                            prevFastCross[t] = fastCross;
                         }
                     }
 
