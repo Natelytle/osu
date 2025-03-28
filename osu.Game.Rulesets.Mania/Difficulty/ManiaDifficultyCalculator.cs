@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 Mods = mods,
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.
-                GreatHitWindow = Math.Ceiling((int)(getHitWindow300(mods) * clockRate) / clockRate),
+                GreatHitWindow = getHitWindow300(mods, clockRate),
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
 
@@ -93,7 +93,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new SunnySkill(mods, ((ManiaBeatmap)beatmap).TotalColumns, beatmap.Difficulty.OverallDifficulty, ((ManiaBeatmap)beatmap).HitObjects.Count, Math.Ceiling((int)(getHitWindow300(mods) * clockRate) / clockRate))
+            new SunnySkill(mods, ((ManiaBeatmap)beatmap).TotalColumns, beatmap.Difficulty.OverallDifficulty, ((ManiaBeatmap)beatmap).HitObjects.Count, getHitWindow300(mods, clockRate))
         };
 
         protected override Mod[] DifficultyAdjustmentMods
@@ -132,27 +132,30 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             }
         }
 
-        private double getHitWindow300(Mod[] mods)
+        private double getHitWindow300(Mod[] mods, double clockRate)
         {
             if (isForCurrentRuleset)
             {
-                double od = Math.Min(10.0, Math.Max(0, 10.0 - originalOverallDifficulty));
-                return applyModAdjustments(34 + 3 * od, mods);
+                double anti_od = Math.Min(10.0, Math.Max(0, 10.0 - originalOverallDifficulty));
+                return applyModAdjustments(34 + 3 * anti_od, mods, clockRate);
             }
 
             if (Math.Round(originalOverallDifficulty) > 4)
-                return applyModAdjustments(34, mods);
+                return applyModAdjustments(34, mods, clockRate);
 
-            return applyModAdjustments(47, mods);
+            return applyModAdjustments(47, mods, clockRate);
 
-            static double applyModAdjustments(double value, Mod[] mods)
-            {
+            static double applyModAdjustments(double value, Mod[] mods, double clockRate)
+            {   
+                value *= clockRate;
+                value += 1e-6; // to make sure rounding is correct
+
                 if (mods.Any(m => m is ManiaModHardRock))
                     value /= 1.4;
                 else if (mods.Any(m => m is ManiaModEasy))
                     value *= 1.4;
 
-                return value;
+                return ((int)(value) + 0.5) / clockRate;
             }
         }
     }

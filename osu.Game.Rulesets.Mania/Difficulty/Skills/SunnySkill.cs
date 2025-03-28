@@ -65,7 +65,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (noteSeq.Count <= 0)
                 return 0;
 
-            double x = 0.3 * Math.Pow((2 * greatHitWindow + 1) / 1000.0, 0.5);
+            double x = 0.3 * Math.Pow(greatHitWindow / 500.0, 0.5);
             x = Math.Min(x, 0.6 * (x - 0.09) + 0.09);
 
             SRParams srParams = MACalculator.Calculate(noteSeq, noteSeqByColumn, totalColumns, x, mods.Any(m => m is ModClassic));
