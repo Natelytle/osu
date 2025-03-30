@@ -577,12 +577,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 if (delta < 2 * x / 3)
                 {
                     inc = (1.0 / delta) * Math.Pow(0.08 * (1.0 / x) *
-                        (1 - lambda_3 * (1.0 / x) * Math.Pow(delta - x / 2, 2)), 0.25) * bVal * v;
+                        (1 - lambda_3 * (1.0 / x) * Math.Pow(delta - x / 2, 2)), 0.25) * Math.Max(bVal, v);
                 }
                 else
                 {
                     inc = (1.0 / delta) * Math.Pow(0.08 * (1.0 / x) *
-                        (1 - lambda_3 * (1.0 / x) * Math.Pow(x / 6, 2)), 0.25) * bVal * v;
+                        (1 - lambda_3 * (1.0 / x) * Math.Pow(x / 6, 2)), 0.25) * Math.Max(bVal, v);
                 }
 
                 // Advance pointerP until the current base corner is at least h_l.
