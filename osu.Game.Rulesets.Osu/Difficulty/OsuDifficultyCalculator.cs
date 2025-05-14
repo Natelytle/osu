@@ -95,8 +95,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
 
-            double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
-            double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseAimPerformance = OsuContinuousSkill.DifficultyToPerformance(aimRating);
+            double baseSpeedPerformance = OsuContinuousSkill.DifficultyToPerformance(speedRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
             double basePerformance =
