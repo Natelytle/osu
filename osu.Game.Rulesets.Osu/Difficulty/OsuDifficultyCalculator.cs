@@ -14,8 +14,6 @@ using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
-using osu.Game.Rulesets.Osu.Scoring;
-using osu.Game.Rulesets.Scoring;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
 {
@@ -24,6 +22,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private const double performance_base_multiplier = 1.15; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
         private const double difficulty_multiplier = 0.0675;
         private const double star_rating_multiplier = 0.0265;
+
+        public const double ADJUSTED_OVERALL_DIFFICULTY = 10.0;
 
         public override int Version => 20250306;
 
@@ -70,13 +70,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double preempt = IBeatmapDifficultyInfo.DifficultyRange(beatmap.Difficulty.ApproachRate, 1800, 1200, 450) / clockRate;
             double approachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5;
 
-            HitWindows hitWindows = new OsuHitWindows();
-            hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
-
-            double hitWindowGreat = hitWindows.WindowFor(HitResult.Great) / clockRate;
-
-            double overallDifficulty = (80 - hitWindowGreat) / 6;
-
             int hitCircleCount = beatmap.HitObjects.Count(h => h is HitCircle);
             int sliderCount = beatmap.HitObjects.Count(h => h is Slider);
             int spinnerCount = beatmap.HitObjects.Count(h => h is Spinner);
@@ -85,14 +78,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double drainRate = beatmap.Difficulty.DrainRate;
 
-            double aimRating = computeAimRating(aim.DifficultyValue(), mods, totalHits, approachRate, overallDifficulty);
-            double aimRatingNoSliders = computeAimRating(aimWithoutSliders.DifficultyValue(), mods, totalHits, approachRate, overallDifficulty);
-            double speedRating = computeSpeedRating(speed.DifficultyValue(), mods, totalHits, approachRate, overallDifficulty);
+            double aimRating = computeAimRating(aim.DifficultyValue(), mods, totalHits, approachRate, ADJUSTED_OVERALL_DIFFICULTY);
+            double aimRatingNoSliders = computeAimRating(aimWithoutSliders.DifficultyValue(), mods, totalHits, approachRate, ADJUSTED_OVERALL_DIFFICULTY);
+            double speedRating = computeSpeedRating(speed.DifficultyValue(), mods, totalHits, approachRate, ADJUSTED_OVERALL_DIFFICULTY);
 
             double flashlightRating = 0.0;
 
             if (flashlight is not null)
-                flashlightRating = computeFlashlightRating(flashlight.DifficultyValue(), mods, totalHits, overallDifficulty);
+                flashlightRating = computeFlashlightRating(flashlight.DifficultyValue(), mods, totalHits, ADJUSTED_OVERALL_DIFFICULTY);
 
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
 
