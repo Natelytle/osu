@@ -412,9 +412,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double successfulHitsProportion = totalSuccessfulHits / (double)totalHits;
             double mapCompletionProportion = totalHits / (double)(attributes.HitCircleCount + attributes.SliderCount + attributes.SpinnerCount);
 
-            c300 *= mapCompletionProportion * successfulHitsProportion * mapCompletionProportion;
-            c100 *= mapCompletionProportion * successfulHitsProportion * mapCompletionProportion;
-            c50 *= mapCompletionProportion * successfulHitsProportion * mapCompletionProportion;
+            c300 *= successfulHitsProportion * mapCompletionProportion;
+            c100 *= successfulHitsProportion * mapCompletionProportion;
+            c50 *= successfulHitsProportion * mapCompletionProportion;
 
             return (c300, c100, c50);
         }
@@ -429,6 +429,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             int accuracyObjectCount = attributes.HitCircleCount + (usingClassicSliderAccuracy ? 0 : attributes.SliderCount);
             (double great, double ok, double meh, double miss) = getRelevantCounts(accuracyObjectCount);
+
+            // redistribute mehs into accuracy
+            ok = 1.5 * accuracyObjectCount * (1 - (great + ok / 3 + meh / 6 + miss) / accuracyObjectCount);
+            meh = 0;
 
             // 51st percentile
             double? d = calculateDeviation(attributes, great, ok, meh, 0.025);
