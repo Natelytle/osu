@@ -4,8 +4,7 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Osu.Difficulty.Utils;
-using osuTK;
+using osu.Game.Rulesets.Osu.Objects;
 using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
 using static osu.Game.Rulesets.Osu.Difficulty.Preprocessing.OsuDifficultyHitObject;
 
@@ -15,11 +14,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     {
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+                return 0;
+
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current) * 62;
-            difficulty += EvaluateAgilityBonus(current) * 65;
-            difficulty += EvaluateAngleBonus(current) * 65;
-            // difficulty += EvaluateVelocityChangeBonus(current) * 65;
+            double difficulty = EvaluateDistanceBonus(current) * 103;
+            //difficulty += EvaluateAgilityBonus(current) * 65;
+            difficulty += EvaluateAngleBonus(current) * 103;
+            difficulty += EvaluateVelocityChangeBonus(current) * 85;
+
+            var osuPrevObj = (OsuDifficultyHitObject)current;
 
             return difficulty;
         }
@@ -27,9 +31,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double EvaluateDistanceBonus(DifficultyHitObject current)
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuPrevObj = (OsuDifficultyHitObject)current;
 
             // Base snap difficulty is velocity.
             double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+
+            // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
 
             return distanceBonus;
         }
@@ -42,6 +49,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
+            double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            double prevVelocity = osuPrevObj.Movement.Length / osuPrevObj.StrainTime;
+
             double currDistanceMultiplier = Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.5, 1);
             double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0.5, 1);
 
@@ -53,12 +63,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 320.0 / (1 + 0.45 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 240.0 / (1 + 0.35 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 2.5);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 2) - 1);
 
-            return agilityBonus;
+            return agilityBonus * 17.5;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)
@@ -75,14 +85,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevVelocity = osuPrevObj.Movement.Length / osuPrevObj.StrainTime;
 
             // We scale angle bonus by the amount of overlap between the previous 2 notes. This addresses cheesable angles
-            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0.5, 1);
+            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0, 0.25);
 
             // We also scale angle bonus by the difference in velocity from prevPrev -> prev and prev -> current. This addresses cut stream patterns.
-            prevDistanceMultiplier *= currVelocity > 0 ? Math.Min(1, prevVelocity * 1.4 / currVelocity) : 1;
+            prevDistanceMultiplier *= Math.Pow((currVelocity > 0 ? Math.Min(1, prevVelocity * 1.4 / currVelocity) : 1), 1);
 
             double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * prevDistanceMultiplier; // Gengaozo pattern
 
-            return angleBonus;
+            double distanceScaling = 0.4 + 0.6 * Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.0, 8);
+
+            return angleBonus * distanceScaling;
         }
 
         public static double EvaluateVelocityChangeBonus(DifficultyHitObject current)
@@ -90,25 +102,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (!IsValid(current, 3))
                 return 0;
 
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            OsuDifficultyHitObject osuCurrObj = (OsuDifficultyHitObject)current;
+            OsuDifficultyHitObject osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            OsuDifficultyHitObject osuPrevObj1 = (OsuDifficultyHitObject)current.Previous(1);
 
-            Vector2 prevMovement = osuPrevObj.Movement;
-            Vector2 currMovement = osuCurrObj.Movement;
+            double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            double prevVelocity = osuPrevObj.Movement.Length / osuPrevObj.StrainTime;
 
-            double currTime = osuCurrObj.StrainTime;
-            double prevTime = osuPrevObj.StrainTime;
+            double diameter = osuCurrObj.Radius * 2;
 
-            double baseVelocityChange = Math.Max(0, Math.Abs(prevMovement.Length / prevTime - currMovement.Length / currTime) - currMovement.Length / currTime);
+            double velChangeBonus = 0;
 
-            double prevAngleBonus = CurveBuilder.BuildSmootherStep(osuPrevObj.Angle!.Value, (0, 0.4), (1.04, 0), (2.62, 1));
-            double currAngleBonus = CurveBuilder.BuildSmootherStep(osuCurrObj.Angle!.Value, (0.52, 1), (2.09, 0), (3.14, 0.4));
+            if (Math.Max(prevVelocity, currVelocity) != 0)
+            {
 
-            double angleBonus = 0.3 * prevAngleBonus + 0.7 * currAngleBonus;
+                // Scale with ratio of difference compared to 0.5 * max dist.
+                double distRatio = Math.Pow(Math.Sin(Math.PI / 2 * Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity)), 2);
 
-            double overlapNerf = Math.Pow(Math.Clamp((osuCurrObj.RawMovement.Length - osuPrevObj.Radius / 1.5) / osuPrevObj.Radius, 0, 1), 2);
+                // Reward for % distance up to 125 / strainTime for overlaps where velocity is still changing.
+                double overlapVelocityBuff = Math.Min(diameter * 1.25 / Math.Min(osuCurrObj.StrainTime, osuPrevObj.StrainTime), Math.Abs(prevVelocity - currVelocity));
 
-            double velChangeBonus = baseVelocityChange * ((1.3 + angleBonus) * overlapNerf);
+                velChangeBonus = overlapVelocityBuff * distRatio;
+
+                // Penalize for rhythm changes.
+                velChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuPrevObj.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuPrevObj.StrainTime), 2);
+            }
 
             return velChangeBonus;
         }
