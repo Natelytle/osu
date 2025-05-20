@@ -430,8 +430,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             int accuracyObjectCount = attributes.HitCircleCount + (usingClassicSliderAccuracy ? 0 : attributes.SliderCount);
             (double great, double ok, double meh, double miss) = getRelevantCounts(accuracyObjectCount);
 
-            // 75th percentile
-            double? d = calculateDeviation(attributes, great, ok, meh, 0.674);
+            // 51st percentile
+            double? d = calculateDeviation(attributes, great, ok, meh, 0.025);
 
             if (!usingClassicSliderAccuracy)
                 return d;
