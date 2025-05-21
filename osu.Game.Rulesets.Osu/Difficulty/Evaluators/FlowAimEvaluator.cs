@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 225;
+        private static double flowMultiplier => 75;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Increase multiplier in the beginning to buff all the scaling
             // Increase power to increase buff for spaced speedflow
             // Increase number in the divisor to make steeper scaling with bpm
-            flowDifficulty += 2.2 * (Math.Pow(osuCurrObj.Movement.Length, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
+            flowDifficulty += 2.4 * (Math.Pow(osuCurrObj.Movement.Length, 0.8) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 18) - 1);
 
             double angleBonus = 0;
 
@@ -91,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * 60;
+                flowDifficulty += sliderBonus * 25;
             }
 
             return flowDifficulty;
@@ -114,7 +114,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
@@ -130,12 +130,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double result = currAngleBonus;
 
-            result *= Math.Min(osuCurrObj.Movement.Length, osuLast0Obj.Movement.Length) / Math.Max(osuCurrObj.StrainTime, osuLast0Obj.StrainTime);
+            result *= Math.Min(osuCurrObj.Movement.Length, osuLastObj.Movement.Length) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime);
 
             // Nerf acute angle if previous notes were slower
             // IMPORTANT INFORMATION: removing this limitation buffs many alt maps
             // BUT it also  buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-            result *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast0Obj.StrainTime * 0.55, osuLast0Obj.StrainTime * 0.75);
+            result *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLastObj.StrainTime * 0.55, osuLastObj.StrainTime * 0.75);
 
             // Decrease angle bonus if angle changes are slower than 1 in 4 notes
             double deltaAngle = Math.Abs(last1Angle - last2Angle);
@@ -157,26 +157,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
-            if (osuCurrObj.AngleSigned == null || osuLast0Obj.AngleSigned == null)
+            if (osuCurrObj.AngleSigned == null || osuLastObj.AngleSigned == null)
                 return 0;
 
             double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
-            double prevVelocity = osuLast0Obj.Movement.Length / osuLast0Obj.StrainTime;
+            double prevVelocity = osuLastObj.Movement.Length / osuLastObj.StrainTime;
 
             double currAngle = osuCurrObj.AngleSigned.Value;
-            double lastAngle = osuLast0Obj.AngleSigned.Value;
+            double lastAngle = osuLastObj.AngleSigned.Value;
 
             double minVelocity = Math.Min(currVelocity, prevVelocity);
             double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * minVelocity;
 
-            // Remove angle change if previous 2 notes were slower
+            // Remove angle change if previous notes were slower
             // IMPORTANT INFORMATION: removing this limitation significantly buffs almost all tech, alt, underweight maps in general
             // BUT it also very significantly buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast0Obj.StrainTime * 0.55, osuLast0Obj.StrainTime * 0.75);
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLastObj.StrainTime * 0.55, osuLastObj.StrainTime * 0.75);
             angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast1Obj.StrainTime * 0.55, osuLast1Obj.StrainTime * 0.75);
 
             double last1Angle = osuLast1Obj.Angle ?? 0;
@@ -236,7 +236,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Add radius to account for distance potenitally being very small
             double distanceSimilarityFactor = DifficultyCalculationUtils.ReverseLerp(prev1Distance + radius, (prev2Distance + radius) * 0.8, (prev2Distance + radius) * 0.95);
             double distanceFactor = 0.5 + 0.5 * DifficultyCalculationUtils.ReverseLerp(Math.Max(prev1Distance, prev2Distance), diameter * 1.5, diameter * 0.75);
-            // There also should be something like angleFactor, because if it has aim-control difficulty - you can't really speed-up flow aim that easily
+            // There also should be smth like angleFactor, because if it has aim-control difficulty - you can't really speed-up flow aim that easily
 
             deltaVelocity *= 1 - 0.65 * distanceSimilarityFactor * distanceFactor;
 
@@ -266,9 +266,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             deltaVelocity *= 1 - distanceSimilarity1 * distanceSimilarity2 * directionFactor;
-
-            // Penalize rhythm change
-            deltaVelocity *= DifficultyCalculationUtils.ReverseLerp(osuLast0Obj.StrainTime, osuCurrObj.StrainTime * 0.55, osuCurrObj.StrainTime * 0.75);
 
             // Don't reward very big differences too much
             if (deltaVelocity > minVelocity * 2)
@@ -341,7 +338,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     double potentialLeniency = currAngleChange - Math.Min(currAngleChange, prevAngleChange);
 
                     double usedLeniency = Math.Min(angleChangeLeniency, potentialLeniency);
-                    relevantAngleChange *= (1 - usedLeniency);
+                    relevantAngleChange = relevantAngleChange * (1 - usedLeniency);
                     angleChangeLeniency -= usedLeniency;
                 }
 

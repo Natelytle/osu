@@ -18,11 +18,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current, withSliderTravelDistance) * 98;
+            double difficulty = EvaluateDistanceBonus(current, withSliderTravelDistance) * 39;
             double sliderBonus = 0;
             //difficulty += EvaluateAgilityBonus(current) * 65;
-            difficulty += EvaluateAngleBonus(current) * 98;
-            difficulty += EvaluateVelocityChangeBonus(current) * 125;
+            difficulty += EvaluateAngleBonus(current) * 39;
+            difficulty += EvaluateVelocityChangeBonus(current) * 78;
 
             var osuPrevObj = (OsuDifficultyHitObject)current;
 
@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                difficulty += sliderBonus * 60;
+                difficulty += sliderBonus * 25;
 
             return difficulty;
         }
@@ -42,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double EvaluateDistanceBonus(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuPrevObj = (OsuDifficultyHitObject)current;
 
             // Base snap difficulty is velocity.
             double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
@@ -81,12 +81,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 240.0 / (1 + 0.35 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 240.0 / (1 + 0.25 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 2) - 1);
 
-            return agilityBonus * 17;
+            return agilityBonus * 8.35;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)
