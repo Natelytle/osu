@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Extensions.IEnumerableExtensions;
-using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
@@ -420,7 +419,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         /// <summary>
-        /// Estimates total accuracy deviation based on hit results and whether slider accuracy was used.
+        /// Estimates player's deviation on notes with accuracy using <see cref="calculateDeviation"/>.
         /// </summary>
         private double? calculateTotalDeviation(OsuDifficultyAttributes attributes)
         {
@@ -435,7 +434,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             meh = 0;
 
             // 51st percentile
-            double? d = calculateDeviation(attributes, great, ok, meh, 0.025);
+            double? d = calculateDeviation(great, ok, meh, 0.025);
 
             if (!usingClassicSliderAccuracy)
                 return d;
@@ -449,50 +448,67 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         /// <summary>
-        /// Estimates speed tap deviation under worst-case assumptions.
+        /// Estimates player's deviation on speed notes using <see cref="calculateDeviation"/>, assuming worst-case.
+        /// Treats all speed notes as hit circles.
         /// </summary>
         private double? calculateSpeedDeviation(OsuDifficultyAttributes attributes)
         {
             if (totalSuccessfulHits == 0)
                 return null;
 
-            double estimatedSpeedCount = attributes.SpeedNoteCount + 0.1 * Math.Max(0, totalHits - attributes.SpeedNoteCount);
-            (double great, double ok, double meh, double miss) = getRelevantCounts(estimatedSpeedCount);
+            // Calculate accuracy assuming the worst case scenario
+            double speedNoteCount = attributes.SpeedNoteCount + 0.1 * (totalHits - attributes.SpeedNoteCount);
+
+            (double great, double ok, double meh, _) = getRelevantCounts(speedNoteCount);
 
             // 99th percentile
-            return calculateDeviation(attributes, great, ok, meh, 2.32634787404);
+            return calculateDeviation(great, ok, meh, 2.32634787404);
         }
 
         /// <summary>
-        /// Estimates tap deviation from OD and hit windows using normal and uniform distribution assumptions.
+        /// Estimates the player's tap deviation based on the OD, given number of greats, oks, mehs and misses,
+        /// assuming the player's mean hit error is 0. The estimation is consistent in that two SS scores on the same map with the same settings
+        /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
+        /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
         /// </summary>
-        private double? calculateDeviation(OsuDifficultyAttributes attributes, double great, double ok, double meh, double z_score)
+        private double? calculateDeviation(double relevantCountGreat, double relevantCountOk, double relevantCountMeh, double z_score)
         {
-            double totalRelevant = great + ok + meh;
-            if (totalRelevant <= 0)
+            if (relevantCountGreat + relevantCountOk + relevantCountMeh <= 0)
                 return null;
 
-            double n = Math.Max(1, great + ok); // to avoid division by zero
-            double p = great / n;
+            // The sample proportion of successful hits.
+            double n = Math.Max(1, relevantCountGreat + relevantCountOk);
+            double p = relevantCountGreat / n;
 
-            double pLowerBound = (n * p + z_score * z_score / 2) / (n + z_score * z_score)
-                                 - z_score / (n + z_score * z_score) * Math.Sqrt(n * p * (1 - p) + z_score * z_score / 4);
+            // We can be 99% confident that the population proportion is at least this value.
+            double pLowerBound = Math.Min(p, (n * p + z_score * z_score / 2) / (n + z_score * z_score) - z_score / (n + z_score * z_score) * Math.Sqrt(n * p * (1 - p) + z_score * z_score / 4));
 
-            double dev = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
+            double deviation;
 
-            double erfArg = okHitWindow / (Math.Sqrt(2) * dev);
-            double densityFactor = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / dev, 2))
-                                   / (dev * DifficultyCalculationUtils.Erf(erfArg));
+            if (pLowerBound > 0)
+            {
+                // Compute deviation assuming greats and oks are normally distributed.
+                deviation = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
 
-            dev *= Math.Sqrt(1 - densityFactor);
+                // Subtract the deviation provided by tails that land outside the ok hit window from the deviation computed above.
+                // This is equivalent to calculating the deviation of a normal distribution truncated at +-okHitWindow.
+                double okHitWindowTailAmount = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviation, 2))
+                                               / (deviation * DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviation)));
 
-            double fallbackLimit = okHitWindow / Math.Sqrt(3);
-            if (Precision.AlmostEquals(pLowerBound, 0.0) || densityFactor >= 1 || dev > fallbackLimit)
-                dev = fallbackLimit;
+                deviation *= Math.Sqrt(1 - okHitWindowTailAmount);
+            }
+            else
+            {
+                // A tested limit value for the case of a score only containing oks.
+                deviation = okHitWindow / Math.Sqrt(3);
+            }
 
+            // Compute and add the variance for mehs, assuming that they are uniformly distributed.
             double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
 
-            return Math.Sqrt(((great + ok) * dev * dev + meh * mehVariance) / (great + ok + meh));
+            deviation = Math.Sqrt(((relevantCountGreat + relevantCountOk) * Math.Pow(deviation, 2) + relevantCountMeh * mehVariance) / (relevantCountGreat + relevantCountOk + relevantCountMeh));
+
+            return deviation;
         }
 
         /// <summary>
