@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
         private static double flowMultiplier => 225;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -28,6 +28,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Start with velocity
             double velocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+
+            if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
+            {
+                double travelVelocity = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime; // calculate the slider velocity from slider head to slider end.
+                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
+
+                velocity = Math.Max(velocity, movementVelocity + travelVelocity); // take the larger total combined velocity.
+            }
 
             double flowDifficulty = velocity;
 
@@ -79,6 +87,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += angleBonus + velocityChangeBonus;
             flowDifficulty *= flowMultiplier;
+
+            if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
+            {
+                double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
+                flowDifficulty += sliderBonus * 60;
+            }
 
             return flowDifficulty;
         }
