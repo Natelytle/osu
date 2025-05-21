@@ -140,7 +140,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             speedDeviation = calculateSpeedDeviation(osuAttributes);
 
             (adjustedCountGreat, adjustedCountOk, adjustedCountMeh) = calculateAdjustedAccuracy(OsuDifficultyCalculator.ADJUSTED_OVERALL_DIFFICULTY, deviation, osuAttributes);
-            adjustedAccuracy = (adjustedCountGreat + adjustedCountOk / 3.0 + adjustedCountMeh / 6.0) / totalHits;
+            adjustedAccuracy = totalHits > 0 ? (adjustedCountGreat + adjustedCountOk / 3.0 + adjustedCountMeh / 6.0) / totalHits : 0;
 
             double aimValue = computeAimValue(score, osuAttributes);
             double speedValue = computeSpeedValue(score, osuAttributes);
@@ -415,6 +415,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             c100 *= successfulHitsProportion * mapCompletionProportion;
             c50 *= successfulHitsProportion * mapCompletionProportion;
 
+            // hack
+            c300 = Math.Min(c300 * (totalHits + 1) / totalHits, totalHits);
+            c100 = Math.Max(c100 * (totalHits + 1) / totalHits - 1, 0);
+            c50 = c50 * (totalHits + 1) / totalHits;
+
             return (c300, c100, c50);
         }
 
@@ -423,18 +428,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         private double? calculateTotalDeviation(OsuDifficultyAttributes attributes)
         {
-            if (totalSuccessfulHits == 0)
+            int accuracyObjectCount = attributes.HitCircleCount + (usingClassicSliderAccuracy ? 0 : attributes.SliderCount);
+
+            if (totalSuccessfulHits == 0 || accuracyObjectCount == 0)
                 return null;
 
-            int accuracyObjectCount = attributes.HitCircleCount + (usingClassicSliderAccuracy ? 0 : attributes.SliderCount);
             (double great, double ok, double meh, double miss) = getRelevantCounts(accuracyObjectCount);
 
             // redistribute mehs into accuracy
             ok = 1.5 * accuracyObjectCount * (1 - (great + ok / 3 + meh / 6 + miss) / accuracyObjectCount);
             meh = 0;
 
-            // 51st percentile
-            double? d = calculateDeviation(great, ok, meh, 0.025);
+            // mean with a prior of one note
+            double? d = calculateDeviation(great, ok + 1, meh, 0.0);
 
             if (!usingClassicSliderAccuracy)
                 return d;
