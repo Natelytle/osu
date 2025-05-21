@@ -40,6 +40,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             difficulties.Add(StrainValueAt(current));
         }
 
+        /// <summary>
+        /// Calculates the number of strains weighted against the top strain.
+        /// The result is scaled by clock rate as it affects the total number of strains.
+        /// </summary>
+        public virtual double CountTopWeightedStrains()
+        {
+            if (difficulties.Count == 0)
+                return 0.0;
+
+            double consistentTopStrain = DifficultyValue() / 10; // What would the top strain be if all strain values were identical
+
+            if (consistentTopStrain == 0)
+                return difficulties.Count;
+
+            // Use a weighted sum of all strains. Constants are arbitrary and give nice values
+            return difficulties.Sum(s => 1.1 / (1 + Math.Exp(-10 * (s / consistentTopStrain - 0.88))));
+        }
+
         protected abstract double HitProbability(double skill, double difficulty);
 
         private double difficultyValueExact()
