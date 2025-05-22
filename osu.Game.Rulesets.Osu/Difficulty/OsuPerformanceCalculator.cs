@@ -167,6 +167,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimEstimatedSliderBreaks = aimEstimatedSliderBreaks,
                 SpeedEstimatedSliderBreaks = speedEstimatedSliderBreaks,
                 SpeedDeviation = speedDeviation,
+                AdjustedAccuracy = adjustedAccuracy,
+                AdjustedCountOk = adjustedCountOk,
+                AdjustedCountMeh = adjustedCountMeh,
                 Total = totalValue
             };
         }
@@ -390,20 +393,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double newOkHitWindow = hitWindows.WindowFor(HitResult.Ok);
             double newMehHitWindow = hitWindows.WindowFor(HitResult.Meh);
 
-            double c300 = attributes.HitCircleCount * DifficultyCalculationUtils.Erf(newGreatHitWindow / (Math.Sqrt(2) * deviation.Value));
-            double c100 = attributes.HitCircleCount * DifficultyCalculationUtils.Erf(newOkHitWindow / (Math.Sqrt(2) * deviation.Value)) - c300;
-            double c50 = attributes.HitCircleCount - c300 - c100;
+            int hitObjectsWithAccuracy = usingClassicSliderAccuracy ? attributes.HitCircleCount : attributes.HitCircleCount + attributes.SliderCount;
+
+            double c300 = hitObjectsWithAccuracy * DifficultyCalculationUtils.Erf(newGreatHitWindow / (Math.Sqrt(2) * deviation.Value));
+            double c100 = hitObjectsWithAccuracy * DifficultyCalculationUtils.Erf(newOkHitWindow / (Math.Sqrt(2) * deviation.Value)) - c300;
+            double c50 = hitObjectsWithAccuracy - c300 - c100;
+
+            // We added 1 to the count when calculating accuracy. remove it using a hack
+            c300 = Math.Min(c300 * (hitObjectsWithAccuracy + 1) / hitObjectsWithAccuracy, hitObjectsWithAccuracy);
+            c100 = Math.Max(c100 * (hitObjectsWithAccuracy + 1) / hitObjectsWithAccuracy - 1, 0);
+            c50 = c50 * (hitObjectsWithAccuracy + 1) / hitObjectsWithAccuracy;
 
             if (usingClassicSliderAccuracy)
             {
                 c300 += attributes.SliderCount * DifficultyCalculationUtils.Erf(newMehHitWindow / (Math.Sqrt(2) * deviation.Value));
                 c100 += attributes.SliderCount - attributes.SliderCount * DifficultyCalculationUtils.Erf(newMehHitWindow / (Math.Sqrt(2) * deviation.Value));
-            }
-            else
-            {
-                c300 *= (attributes.SliderCount + attributes.HitCircleCount) / (double)attributes.HitCircleCount;
-                c100 *= (attributes.SliderCount + attributes.HitCircleCount) / (double)attributes.HitCircleCount;
-                c50 *= (attributes.SliderCount + attributes.HitCircleCount) / (double)attributes.HitCircleCount;
             }
 
             c300 += attributes.SpinnerCount;
@@ -414,11 +418,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             c300 *= successfulHitsProportion * mapCompletionProportion;
             c100 *= successfulHitsProportion * mapCompletionProportion;
             c50 *= successfulHitsProportion * mapCompletionProportion;
-
-            // hack
-            c300 = Math.Min(c300 * (totalHits + 1) / totalHits, totalHits);
-            c100 = Math.Max(c100 * (totalHits + 1) / totalHits - 1, 0);
-            c50 = c50 * (totalHits + 1) / totalHits;
 
             return (c300, c100, c50);
         }

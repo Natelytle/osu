@@ -39,6 +39,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_estimated_slider_breaks")]
         public double SpeedEstimatedSliderBreaks { get; set; }
 
+        [JsonProperty("adjusted_accuracy")]
+        public double AdjustedAccuracy { get; set; }
+
+        [JsonProperty("adjusted_count_ok")]
+        public double AdjustedCountOk { get; set; }
+
+        [JsonProperty("adjusted_count_meh")]
+        public double AdjustedCountMeh { get; set; }
+
         public override IEnumerable<PerformanceDisplayAttribute> GetAttributesForDisplay()
         {
             foreach (var attribute in base.GetAttributesForDisplay())
