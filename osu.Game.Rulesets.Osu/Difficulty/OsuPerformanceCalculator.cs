@@ -170,7 +170,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AdjustedAccuracy = adjustedAccuracy,
                 AdjustedCountOk = adjustedCountOk,
                 AdjustedCountMeh = adjustedCountMeh,
-                Total = adjustedCountOk + adjustedCountMeh
+                Total = totalValue
             };
         }
 
