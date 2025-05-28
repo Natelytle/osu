@@ -16,6 +16,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const double slider_multiplier = 1.35;
         private const double velocity_change_multiplier = 0.75;
         private const double wiggle_multiplier = 1.02;
+        private const double high_distance_multiplier = 1.0;
 
         /// <summary>
         /// Evaluates the difficulty of aiming the current object, based on:
@@ -148,8 +149,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             aimStrain += wiggleBonus * wiggle_multiplier;
 
+            double highDistanceBonus = 1 + osuCurrObj.LazyJumpDistance > 301 ? Math.Pow((osuCurrObj.LazyJumpDistance - 300) / 450, 1.0) : 0;
+
             // Add in acute angle bonus or wide angle bonus + velocity change bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
+            aimStrain += Math.Max(Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier), highDistanceBonus * high_distance_multiplier);
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
