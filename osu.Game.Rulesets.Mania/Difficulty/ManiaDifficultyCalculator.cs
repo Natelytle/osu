@@ -68,33 +68,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
-            // We want to split LNs into their heads and tails.
-            List<HitObject> nestedHitObjects = new List<HitObject>();
-
-            foreach (var obj in beatmap.HitObjects)
-            {
-                if (obj.NestedHitObjects.Count == 0)
-                    nestedHitObjects.Add(obj);
-                else
-                {
-                    nestedHitObjects.Add(obj.NestedHitObjects.First());
-                    nestedHitObjects.Add(obj.NestedHitObjects.Last());
-                }
-            }
-
             // Order notes by start time, then by column left to right.
-            var sortedObjects = nestedHitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToList();
+            var sortedObjects = beatmap.HitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToList();
 
             int columns = ((ManiaBeatmap)beatmap).TotalColumns;
 
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
             List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[columns];
-            List<DifficultyHitObject>[] perColumnNestedObjects = new List<DifficultyHitObject>[columns];
 
             for (int column = 0; column < columns; column++)
             {
                 perColumnObjects[column] = new List<DifficultyHitObject>();
-                perColumnNestedObjects[column] = new List<DifficultyHitObject>();
             }
 
             // Since we can only view previous objects, we need to temporarily store objects when we want to edit a property to be a next object.
@@ -104,10 +88,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             for (int i = 1; i < sortedObjects.Count; i++)
             {
-                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, perColumnNestedObjects, objects.Count, longNoteIndex);
+                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count, longNoteIndex);
                 objects.Add(currentObject);
                 currentTimeObjects.Add(currentObject);
-                perColumnNestedObjects[currentObject.Column].Add(currentObject);
 
                 if (currentObject.BaseObject is not TailNote)
                     perColumnObjects[currentObject.Column].Add(currentObject);
@@ -146,14 +129,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new Strain(mods, beatmap.Difficulty.OverallDifficulty),
-            new ChordSkill(mods),
-            new CrossColumnSkill(mods),
-            new HoldingSkill(mods),
-            new ReleaseSkill(mods),
-            new SameColumnSkill(mods),
-            new SpeedSkill(mods),
-            new TotalSkill(mods),
+            new Strain(mods, beatmap.Difficulty.OverallDifficulty, ((ManiaBeatmap)beatmap).TotalColumns)
         };
 
         protected override Mod[] DifficultyAdjustmentMods

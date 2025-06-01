@@ -14,7 +14,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public new ManiaHitObject BaseObject => (ManiaHitObject)base.BaseObject;
 
         private readonly List<DifficultyHitObject>[] perColumnObjects;
-        private readonly List<DifficultyHitObject>[] perColumnNestedObjects;
 
         private readonly int columnIndex;
         private readonly int nestedColumnIndex;
@@ -36,19 +35,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public int Column;
 
-        // Previous and next long notes relative to the current object.
-        // Prev can be the current note.
-        public readonly ManiaDifficultyHitObject? PrevLongNote;
-
-        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, List<DifficultyHitObject>[] perColumnNestedObjects, int index, int longNoteIndex)
+        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index, int longNoteIndex)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
             int totalColumns = perColumnObjects.Length;
             this.perColumnObjects = perColumnObjects;
-            this.perColumnNestedObjects = perColumnNestedObjects;
             Column = BaseObject.Column;
             columnIndex = this.perColumnObjects[Column].Count;
-            nestedColumnIndex = this.perColumnNestedObjects[Column].Count;
             LongNoteIndex = longNoteIndex;
             PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
             ConcurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
@@ -56,11 +49,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
             StartTime = base.StartTime;
             EndTime = base.EndTime;
-
-            if (BaseObject is TailNote)
-            {
-                StartTime = PrevInColumn(0)?.StartTime ?? 0;
-            }
 
             if (index > 0)
             {
@@ -106,28 +94,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// <param name="forwardsIndex">The number of notes to go forward.</param>
         /// <returns>The object in this column <paramref name="forwardsIndex"/> notes forward, or null if this is the last note in the column.</returns>
         public ManiaDifficultyHitObject? NextInColumn(int forwardsIndex)
-        {
-            int index = columnIndex + (forwardsIndex + 1);
-            return index >= 0 && index < perColumnObjects[Column].Count ? (ManiaDifficultyHitObject)perColumnObjects[Column][index] : null;
-        }
-
-        /// <summary>
-        /// The previous object in the same column as this <see cref="ManiaDifficultyHitObject"/>, inclusive of Long Note tails.
-        /// </summary>
-        /// <param name="backwardsIndex">The number of notes to go back.</param>
-        /// <returns>The object in this column <see cref="backwardsIndex"/> notes back, or null if this is the first note in the column.</returns>
-        public ManiaDifficultyHitObject? PrevInColumnNested(int backwardsIndex)
-        {
-            int index = nestedColumnIndex - (backwardsIndex + 1);
-            return index >= 0 && index < perColumnNestedObjects[Column].Count ? (ManiaDifficultyHitObject)perColumnNestedObjects[Column][index] : null;
-        }
-
-        /// <summary>
-        /// The next object in the same column as this <see cref="ManiaDifficultyHitObject"/>, inclusive of Long Note tails.
-        /// </summary>
-        /// <param name="forwardsIndex">The number of notes to go forward.</param>
-        /// <returns>The object in this column <see cref="forwardsIndex"/> notes forward, or null if this is the last note in the column.</returns>
-        public ManiaDifficultyHitObject? NextInColumnNested(int forwardsIndex)
         {
             int index = columnIndex + (forwardsIndex + 1);
             return index >= 0 && index < perColumnObjects[Column].Count ? (ManiaDifficultyHitObject)perColumnObjects[Column][index] : null;

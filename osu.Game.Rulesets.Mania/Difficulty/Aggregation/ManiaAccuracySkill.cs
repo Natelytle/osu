@@ -7,7 +7,6 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
@@ -67,25 +66,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
         public override void Process(DifficultyHitObject current)
         {
-            var prevInColumn = ((ManiaDifficultyHitObject)current).PrevInColumn(0);
+            double strainValue = StrainValueOf(current);
 
             switch (current.BaseObject)
             {
-                case not (HeadNote or TailNote):
-                    noteDifficulties.Add(StrainValueOf(current));
+                case not HoldNote:
+                    noteDifficulties.Add(strainValue);
                     break;
 
-                case HeadNote:
-                    longNoteDifficulties.Add((StrainValueOf(current), 0));
-                    break;
-
-                case TailNote:
-                    if (prevInColumn is null) break;
-
-                    int headIndex = prevInColumn.LongNoteIndex;
-                    var tuple = longNoteDifficulties[headIndex];
-                    tuple.Tail = StrainValueOf(current);
-                    longNoteDifficulties[headIndex] = tuple;
+                case HoldNote:
+                    longNoteDifficulties.Add((strainValue, strainValue));
                     break;
             }
         }
