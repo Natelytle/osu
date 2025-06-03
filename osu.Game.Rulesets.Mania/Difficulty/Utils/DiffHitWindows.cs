@@ -76,20 +76,5 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         }
 
         public double HitProbability(double window, double deviation) => deviation != 0 ? DifficultyCalculationUtils.FastErf(window / (deviation * Math.Sqrt(2))) : 1;
-
-        public double HitProbabilityLn(double window, double headDeviation, double tailDeviation)
-        {
-            double pHead = HitProbability(window, headDeviation);
-
-            // Calculate the expected value of the distance from 0 of the head hit, given it lands within the current window.
-            // We'll subtract this from the tail window to approximate the difficulty of landing both hits within 2x the current window.
-            double beta = window / headDeviation;
-            double z = DifficultyCalculationUtils.NormalCdf(0, 1, beta) - 0.5;
-            double expectedValue = headDeviation * (DifficultyCalculationUtils.NormalPdf(0, 1, 0) - DifficultyCalculationUtils.NormalPdf(0, 1, beta)) / z;
-
-            double pTail = HitProbability(2 * window - expectedValue, tailDeviation);
-
-            return pHead * pTail;
-        }
     }
 }

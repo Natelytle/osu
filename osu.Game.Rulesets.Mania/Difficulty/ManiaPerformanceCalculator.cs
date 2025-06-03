@@ -41,7 +41,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             scoreAccuracy = calculateCustomAccuracy();
 
-            double multiplier = 100;
+            double multiplier = 5.0;
 
             if (score.Mods.Any(m => m is ModNoFail))
                 multiplier *= 0.75;
@@ -62,10 +62,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             double skill = accuracyAdjustedSkillLevel(attributes);
 
-            double difficultyValue = skill; // Math.Pow(skill, 2);
-
-            // It's easy to spam retry short maps for a high accuracy value.
-            // double shortMapNerf = 2 / (1 + Math.Exp(-totalHits / 20)) - 1;
+            double difficultyValue = Math.Pow(skill, 2.2); // Star rating to pp curve
 
             return difficultyValue;
         }

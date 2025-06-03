@@ -21,9 +21,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         // The number of long notes before this note.
         public readonly int LongNoteIndex;
 
-        public new readonly double StartTime;
-        public new double EndTime;
-
         // The hit object earlier in time than this note in each column
         public readonly ManiaDifficultyHitObject?[] PreviousHitObjects;
 
@@ -34,6 +31,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public ManiaDifficultyHitObject?[] CurrentHitObjects;
 
         public int Column;
+
+        public readonly double ColumnStrainTime;
 
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index, int longNoteIndex)
             : base(hitObject, lastObject, clockRate, objects, index)
@@ -46,9 +45,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
             ConcurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
             CurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
-
-            StartTime = base.StartTime;
-            EndTime = base.EndTime;
+            ColumnStrainTime = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
 
             if (index > 0)
             {
@@ -71,10 +68,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         // Should only run after perColumnObjects is fully constructed with all details
         public void InitializeNextHitObjects()
         {
-            if (BaseObject is HeadNote)
-            {
-                EndTime = NextInColumn(0)?.EndTime ?? 0;
-            }
         }
 
         /// <summary>
