@@ -41,7 +41,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
         // We need to use dictionaries so that we can attach tails to the correct heads, or else we cannot process stable accuracy properly.
         private readonly List<double> noteDifficulties = new List<double>();
-        private readonly List<(double Head, double Tail)> longNoteDifficulties = new List<(double, double)>();
+        private readonly List<double> tailDifficulties = new List<double>();
 
         private List<BinNote>? binNotes;
 
@@ -68,7 +68,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                     break;
 
                 case HoldNote:
-                    longNoteDifficulties.Add((strainValue, strainValue));
+                    noteDifficulties.Add(strainValue);
+                    tailDifficulties.Add(strainValue);
                     break;
             }
         }
@@ -93,7 +94,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.975, 0.95, 0.90, 0.80, 0.70 };
 
             // If there are no notes, we just return the empty polynomial.
-            if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
+            if (noteDifficulties.Count + tailDifficulties.Count == 0)
                 return skillLevels;
 
             for (int i = 0; i < accuracies.Length; i++)
@@ -112,18 +113,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
         private double skillLevelAtAccuracy(double accuracy)
         {
-            if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
+            if (noteDifficulties.Count + tailDifficulties.Count == 0)
                 return 0;
 
-            double maxDifficulty = noteDifficulties.Count != 0 ? noteDifficulties.Max() : longNoteDifficulties.ConvertAll(obj => obj.Head + obj.Tail).Max();
+            double maxDifficulty = noteDifficulties.Count != 0 ? noteDifficulties.Max() : tailDifficulties.Max();
 
             if (maxDifficulty == 0)
                 return 0;
 
-            binNotes ??= BinNote.CreateBins(noteDifficulties, 32);
-
-            binHeads ??= BinNote.CreateBins(longNoteDifficulties.ConvertAll(d => d.Head), 32);
-            binTails ??= BinNote.CreateBins(longNoteDifficulties.ConvertAll(d => d.Tail), 32);
+            binNotes ??= BinNote.CreateBins(noteDifficulties, 24);
+            binTails ??= BinNote.CreateBins(tailDifficulties, 24);
 
             double skill = RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2, accuracy: 0.002);
 
@@ -141,12 +140,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             if (skill == 0)
                 return 0;
 
-            return noteDifficulties.Count > 128 || longNoteDifficulties.Count > 128 ? accuracyProbBinned(accuracy, skill) : accuracyProbExact(accuracy, skill);
+            return noteDifficulties.Count > 128 || tailDifficulties.Count > 128 ? accuracyProbBinned(accuracy, skill) : accuracyProbExact(accuracy, skill);
         }
 
         private double accuracyProbExact(double accuracy, double skill)
         {
-            double count = noteDifficulties.Count + longNoteDifficulties.Count * 2;
+            double count = noteDifficulties.Count + tailDifficulties.Count;
 
             double sum = 0;
             double varSum = 0;
@@ -159,14 +158,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                 varSum += noteProbs.Variance;
             }
 
-            for (int i = 0; i < longNoteDifficulties.Count; i++)
+            for (int i = 0; i < tailDifficulties.Count; i++)
             {
-                var noteProbs = getNoteProbabilities(longNoteDifficulties[i].Head, skill);
-
-                sum += noteProbs.Score;
-                varSum += noteProbs.Variance;
-
-                var tailProbs = getTailProbabilities(longNoteDifficulties[i].Tail, skill);
+                var tailProbs = getTailProbabilities(tailDifficulties[i], skill);
 
                 sum += tailProbs.Score;
                 varSum += tailProbs.Variance;
@@ -182,7 +176,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
         private double accuracyProbBinned(double accuracy, double skill)
         {
-            double count = noteDifficulties.Count + longNoteDifficulties.Count * 2;
+            double count = noteDifficulties.Count + tailDifficulties.Count;
 
             double sum = 0;
             double varSum = 0;
@@ -193,14 +187,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
                 sum += binNotes[i].Count * noteProbs.Score;
                 varSum += binNotes[i].Count * noteProbs.Variance;
-            }
-
-            for (int i = 0; i < binHeads!.Count; i++)
-            {
-                var noteProbs = getNoteProbabilities(binHeads[i].Difficulty, skill);
-
-                sum += binHeads[i].Count * noteProbs.Score;
-                varSum += binHeads[i].Count * noteProbs.Variance;
             }
 
             for (int i = 0; i < binTails!.Count; i++)

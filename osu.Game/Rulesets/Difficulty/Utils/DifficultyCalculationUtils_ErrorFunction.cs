@@ -690,6 +690,10 @@ namespace osu.Game.Rulesets.Difficulty.Utils
 
         public static double FastErf(double x)
         {
+            // close enough to 1 to not care. saves computation
+            if (x > 2.8)
+                return 1;
+
             // Constants for approximation (Abramowitz and Stegun formula 7.1.26)
             double t = 1.0 / (1.0 + 0.3275911 * Math.Abs(x));
             double tau = t * (0.254829592
