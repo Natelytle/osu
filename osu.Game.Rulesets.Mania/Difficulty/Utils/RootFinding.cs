@@ -36,7 +36,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
                 expansions += 1;
 
                 if (expansions > 32)
+                {
+                    double test = function(b);
                     throw new ArgumentOutOfRangeException();
+                }
             }
 
             double t = 0.5;

@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             var binsList = binsArray.ToList();
 
             // For a slight performance improvement, we remove bins that don't contribute to difficulty.
-            binsList.RemoveAll(bin => bin.Count == 0);
+            // binsList.RemoveAll(bin => bin.Count == 0);
 
             return binsList;
         }

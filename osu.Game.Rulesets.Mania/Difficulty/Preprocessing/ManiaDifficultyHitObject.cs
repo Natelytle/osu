@@ -16,7 +16,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         private readonly List<DifficultyHitObject>[] perColumnObjects;
 
         private readonly int columnIndex;
-        private readonly int nestedColumnIndex;
 
         // The number of long notes before this note.
         public readonly int LongNoteIndex;

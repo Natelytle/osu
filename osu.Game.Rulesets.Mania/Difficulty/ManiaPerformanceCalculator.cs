@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Mania.Difficulty.Aggregation;
+using osu.Game.Rulesets.Mania.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
@@ -69,11 +69,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double accuracyAdjustedSkillLevel(ManiaDifficultyAttributes attributes)
         {
-            double[] skillLevels = attributes.AccuracySkillLevels!;
-            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.95, 0.90, 0.80, 0.70 };
+            double[] skillLevels = { 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0 };
+            double[] accuracies = attributes.AccuracyCurve!;
 
             if (scoreAccuracy == 1)
-                return skillLevels[0];
+                return attributes.SSValue * skillLevels[0];
 
             for (int i = 1; i < accuracies.Length; i++)
             {
@@ -85,13 +85,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 double lowAccBound = accuracies[i];
                 double lowAccSkill = skillLevels[i];
 
-                double penalty = Interpolation.Lerp(lowAccSkill, highAccSkill, (scoreAccuracy - lowAccBound) / (highAccBound - lowAccBound));
+                double scoreSkill = attributes.SSValue * Interpolation.Lerp(lowAccSkill, highAccSkill, (scoreAccuracy - lowAccBound) / (highAccBound - lowAccBound));
 
-                return penalty;
+                return scoreSkill;
             }
 
-            // 5% under the lowest skill level is always zero pp.
-            return Math.Max(Interpolation.Lerp(0, skillLevels.Last(), (scoreAccuracy - (accuracies.Last() - 0.05)) / 0.05), 0);
+            return 0;
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;

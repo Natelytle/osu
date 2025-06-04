@@ -9,7 +9,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyAttributes : DifficultyAttributes
     {
-        public double[]? AccuracySkillLevels { get; set; }
+        public double SSValue { get; set; }
+        public double[]? AccuracyCurve { get; set; }
 
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {

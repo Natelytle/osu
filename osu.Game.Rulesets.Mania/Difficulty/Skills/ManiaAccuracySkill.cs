@@ -12,7 +12,7 @@ using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
-namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
+namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public abstract class ManiaAccuracySkill : Skill
     {
@@ -44,9 +44,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
         private readonly List<double> tailDifficulties = new List<double>();
 
         private List<BinNote>? binNotes;
-
-        // Lazer mechanics let us split heads and tails and treat them like notes.
-        private List<BinNote>? binHeads;
         private List<BinNote>? binTails;
 
         private double difficultyValueCache;
@@ -79,7 +76,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
         public override double DifficultyValue()
         {
             binNotes = null;
-            binHeads = null;
             binTails = null;
 
             // cache for later use in the accuracy curve.
@@ -88,43 +84,42 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             return difficultyValueCache;
         }
 
-        public double[] AccuracyCurve()
+        public double SSValue() => skillLevelAtAccuracy(1);
+
+        public double[] AccuracyCurve(double ssValue)
         {
-            double[] skillLevels = new double[20];
-            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.975, 0.95, 0.90, 0.80, 0.70 };
+            double[] skillLevels = { 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0 };
+            double[] accuracies = new double[21];
 
             // If there are no notes, we just return the empty polynomial.
             if (noteDifficulties.Count + tailDifficulties.Count == 0)
                 return skillLevels;
 
-            for (int i = 0; i < accuracies.Length; i++)
-            {
-                if (accuracies[i] == star_rating_accuracy && difficultyValueCache != 0)
-                {
-                    skillLevels[i] = difficultyValueCache;
-                    continue;
-                }
+            accuracies[0] = 1;
 
-                skillLevels[i] = skillLevelAtAccuracy(accuracies[i]);
+            for (int i = 1; i < skillLevels.Length; i++)
+            {
+                accuracies[i] = accuracyAt(ssValue * skillLevels[i]);
             }
 
-            return skillLevels;
+            return accuracies;
         }
 
         private double skillLevelAtAccuracy(double accuracy)
         {
-            if (noteDifficulties.Count + tailDifficulties.Count == 0)
+            if (noteDifficulties.Count == 0)
                 return 0;
 
-            double maxDifficulty = noteDifficulties.Count != 0 ? noteDifficulties.Max() : tailDifficulties.Max();
+            double maxNoteDifficulty = noteDifficulties.Max();
+            double maxTailDifficulty = tailDifficulties.Count > 0 ? tailDifficulties.Max() : 0;
 
-            if (maxDifficulty == 0)
+            if (maxNoteDifficulty + maxTailDifficulty == 0)
                 return 0;
 
             binNotes ??= BinNote.CreateBins(noteDifficulties, 24);
             binTails ??= BinNote.CreateBins(tailDifficulties, 24);
 
-            double skill = RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2, accuracy: 0.002);
+            double skill = RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, Math.Max(maxNoteDifficulty, maxTailDifficulty) * 2, accuracy: 0.002);
 
             return skill;
         }
@@ -203,6 +198,81 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
 
             return p;
+        }
+
+        /// <summary>
+        /// The percentile accuracy achieved at skill.
+        /// </summary>
+        /// <param name="skill"></param>
+        private double accuracyAt(double skill)
+        {
+            // Just a little root finding trick since accuracy can have be above 0% even at 0 skill. Doing this lets the root finding algorithm find a root anyway.
+            if (skill == 0)
+                return 0;
+
+            return noteDifficulties.Count > 512 || tailDifficulties.Count > 512 ? binnedAccuracyAt(skill) : exactAccuracyAt(skill);
+        }
+
+        private double exactAccuracyAt(double skill)
+        {
+            double count = noteDifficulties.Count + tailDifficulties.Count;
+
+            double sum = 0;
+            double varSum = 0;
+
+            for (int i = 0; i < noteDifficulties.Count; i++)
+            {
+                var noteProbs = getNoteProbabilities(noteDifficulties[i], skill);
+
+                sum += noteProbs.Score;
+                varSum += noteProbs.AdjustedVariance;
+            }
+
+            for (int i = 0; i < tailDifficulties.Count; i++)
+            {
+                var tailProbs = getTailProbabilities(tailDifficulties[i], skill);
+
+                sum += tailProbs.Score;
+                varSum += tailProbs.AdjustedVariance;
+            }
+
+            double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
+            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
+
+            double accuracy = RootFinding.FindRootExpand(accuracy => (1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy)) - accuracy_prob, 0, 1);
+
+            return accuracy;
+        }
+
+        private double binnedAccuracyAt(double skill)
+        {
+            double count = noteDifficulties.Count + tailDifficulties.Count;
+
+            double sum = 0;
+            double varSum = 0;
+
+            for (int i = 0; i < binNotes!.Count; i++)
+            {
+                var noteProbs = getNoteProbabilities(binNotes[i].Difficulty, skill);
+
+                sum += binNotes[i].Count * noteProbs.Score;
+                varSum += binNotes[i].Count * noteProbs.AdjustedVariance;
+            }
+
+            for (int i = 0; i < binTails!.Count; i++)
+            {
+                var tailProbs = getTailProbabilities(binTails![i].Difficulty, skill);
+
+                sum += binTails[i].Count * tailProbs.Score;
+                varSum += binTails[i].Count * tailProbs.AdjustedVariance;
+            }
+
+            double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
+            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
+
+            double accuracy = RootFinding.FindRootExpand(accuracy => (1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy)) - accuracy_prob, 0, 1);
+
+            return accuracy;
         }
 
         private JudgementProbs getNoteProbabilities(double difficulty, double skill)
