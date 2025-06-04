@@ -155,7 +155,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                 var noteProbs = getNoteProbabilities(noteDifficulties[i], skill);
 
                 sum += noteProbs.Score;
-                varSum += noteProbs.Variance;
+                varSum += noteProbs.AdjustedVariance;
             }
 
             for (int i = 0; i < tailDifficulties.Count; i++)
@@ -163,7 +163,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                 var tailProbs = getTailProbabilities(tailDifficulties[i], skill);
 
                 sum += tailProbs.Score;
-                varSum += tailProbs.Variance;
+                varSum += tailProbs.AdjustedVariance;
             }
 
             double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
@@ -186,7 +186,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                 var noteProbs = getNoteProbabilities(binNotes[i].Difficulty, skill);
 
                 sum += binNotes[i].Count * noteProbs.Score;
-                varSum += binNotes[i].Count * noteProbs.Variance;
+                varSum += binNotes[i].Count * noteProbs.AdjustedVariance;
             }
 
             for (int i = 0; i < binTails!.Count; i++)
@@ -194,7 +194,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
                 var tailProbs = getTailProbabilities(binTails![i].Difficulty, skill);
 
                 sum += binTails[i].Count * tailProbs.Score;
-                varSum += binTails[i].Count * tailProbs.Variance;
+                varSum += binTails[i].Count * tailProbs.AdjustedVariance;
             }
 
             double mean = sum / count / MAX_JUDGEMENT_WEIGHT;

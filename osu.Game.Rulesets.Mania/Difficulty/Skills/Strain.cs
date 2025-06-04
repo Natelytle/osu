@@ -15,8 +15,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double individual_decay_base = 0.125;
         private const double overall_decay_base = 0.30;
 
-        private const double individual_multiplier = 0.42;
-        private const double overall_multiplier = 0.26;
+        private const double individual_multiplier = 0.43;
+        private const double overall_multiplier = 0.264;
 
         private readonly double[] individualStrains;
         private double overallStrain;
