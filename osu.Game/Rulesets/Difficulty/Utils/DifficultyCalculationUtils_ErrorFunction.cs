@@ -690,39 +690,21 @@ namespace osu.Game.Rulesets.Difficulty.Utils
 
         public static double FastErf(double x)
         {
-            if (x == 0)
-            {
-                return 0;
-            }
-
-            if (double.IsPositiveInfinity(x))
-            {
+            // close enough to 1 to not care. saves computation
+            if (x > 2.8)
                 return 1;
-            }
 
-            if (double.IsNegativeInfinity(x))
-            {
-                return -1;
-            }
+            // Constants for approximation (Abramowitz and Stegun formula 7.1.26)
+            double t = 1.0 / (1.0 + 0.3275911 * Math.Abs(x));
+            double tau = t * (0.254829592
+                              + t * (-0.284496736
+                                     + t * (1.421413741
+                                            + t * (-1.453152027
+                                                   + t * 1.061405429))));
 
-            if (double.IsNaN(x))
-            {
-                return double.NaN;
-            }
+            double erf = 1.0 - tau * Math.Exp(-x * x);
 
-            double a = Math.Abs(x);
-            double c = Math.Min(a, 10.5);
-            double s = -c * c;
-            double e = Math.Exp(s);
-
-            double p = 1.0f + c * (0.89916040490444396641803508 + c * (0.29003254218498800483029800 + c * (-6.039978560295280373180365800e-06)));
-            double q = -0.88612305828107297228444744628522 + c * (-1.5832753114623931686392298767750 + c * (-1.0652172318567498077134599150 + c * (-0.2898382023408970105866028431)));
-            double r = e * (1 + c * p / q);
-
-            if (x < 0.0)
-                r = 2.0 - r;
-
-            return 1 - r;
+            return x >= 0 ? erf : -erf;
         }
 
         public static double FastErfc(double x)
