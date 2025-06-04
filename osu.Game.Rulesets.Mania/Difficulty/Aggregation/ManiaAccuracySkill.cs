@@ -49,6 +49,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
         private List<BinNote>? binHeads;
         private List<BinNote>? binTails;
 
+        private double difficultyValueCache;
+
         protected ManiaAccuracySkill(Mod[] mods, double od)
             : base(mods)
         {
@@ -79,13 +81,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             binHeads = null;
             binTails = null;
 
-            return skillLevelAtAccuracy(star_rating_accuracy);
+            // cache for later use in the accuracy curve.
+            difficultyValueCache = skillLevelAtAccuracy(star_rating_accuracy);
+
+            return difficultyValueCache;
         }
 
         public double[] AccuracyCurve()
         {
             double[] skillLevels = new double[20];
-            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95, 0.90, 0.80, 0.70 };
+            double[] accuracies = { 1.00, 0.998, 0.995, 0.99, 0.975, 0.95, 0.90, 0.80, 0.70 };
 
             // If there are no notes, we just return the empty polynomial.
             if (noteDifficulties.Count + longNoteDifficulties.Count == 0)
@@ -93,6 +98,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
 
             for (int i = 0; i < accuracies.Length; i++)
             {
+                if (accuracies[i] == star_rating_accuracy && difficultyValueCache != 0)
+                {
+                    skillLevels[i] = difficultyValueCache;
+                    continue;
+                }
+
                 skillLevels[i] = skillLevelAtAccuracy(accuracies[i]);
             }
 
@@ -114,7 +125,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Aggregation
             binHeads ??= BinNote.CreateBins(longNoteDifficulties.ConvertAll(d => d.Head), 32);
             binTails ??= BinNote.CreateBins(longNoteDifficulties.ConvertAll(d => d.Tail), 32);
 
-            double skill = RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2);
+            double skill = RootFinding.FindRootExpand(skill => accuracyProb(accuracy, skill) - accuracy_prob, 0, maxDifficulty * 2, accuracy: 0.002);
 
             return skill;
         }
