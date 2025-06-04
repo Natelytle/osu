@@ -59,8 +59,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                     do
                     {
                         PreviousHitObjects[prevNote.Column] = prevNote;
-                        prevNote = (ManiaDifficultyHitObject?)prevNote.Previous(0);
-                    } while (prevNote?.DeltaTime == 0);
+                    } while (prevNote.DeltaTime == 0 && (prevNote = (ManiaDifficultyHitObject?)prevNote.Previous(0)) is not null);
                 }
             }
         }
