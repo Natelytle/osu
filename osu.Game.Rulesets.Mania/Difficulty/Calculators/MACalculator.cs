@@ -1,3 +1,6 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// See the LICENCE file in the repository root for full licence text.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,9 +9,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 {
     public class Note
     {
-        public int Column;  // key/column index
-        public int Head;    // head (hit) time
-        public int Tail;    // tail time (or -1 if not LN)
+        public int Column; // key/column index
+        public int Head; // head (hit) time
+        public int Tail; // tail time (or -1 if not LN)
         public int ColumnIndex;
 
         public Note(int column, int head, int tail)
@@ -37,9 +40,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
         public double Weight;
     }
 
-    public struct SRParams
+    public struct SrParams
     {
-        public double SR;
+        public double Sr;
         public double Spikiness;
         public double Switches;
     }
@@ -48,12 +51,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
     /// MACalculator computes the difficulty rating from noteSeq (a sequence of notes).
     /// All methods are static.
     /// </summary>
-    public static class MACalculator
+    public static class MaCalculator
     {
         /// <param name="noteSeq">List of Note objects.</param>
+        /// <param name="noteSeqByColumn">Per column lists of Note objects.</param>
         /// <param name="keyCount">Number of keys (columns).</param>
+        /// <param name="hitWindowLeniency">A leniency value derived from the hit window.</param>
+        /// <param name="containsCl">Whether the CL mod is activated.</param>
         /// <returns>The computed difficulty (Level) as an int.</returns>
-        public static SRParams Calculate(List<Note> noteSeq, List<List<Note>> noteSeqByColumn, int keyCount, double x, bool ContainsCL)
+        public static SrParams Calculate(List<Note> noteSeq, List<List<Note>> noteSeqByColumn, int keyCount, double hitWindowLeniency, bool containsCl)
         {
             // Fixed tuning constants.
             const double lambda_n = 5;
@@ -76,6 +82,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // --- Group notes by column ---
             Dictionary<int, List<Note>> noteDict = new Dictionary<int, List<Note>>();
+
             for (int i = 0; i < keyCount; i++)
             {
                 noteDict[i] = new List<Note>();
@@ -96,59 +103,62 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             }
 
             // --- Long notes ---
-            List<Note> LNSeq = noteSeq.Where(n => n.Tail >= 0).ToList();
-            List<Note> tailSeq = LNSeq.OrderBy(n => n.Tail).ToList();
+            List<Note> lnSeq = noteSeq.Where(n => n.Tail >= 0).ToList();
+            List<Note> tailSeq = lnSeq.OrderBy(n => n.Tail).ToList();
 
-            Dictionary<int, List<Note>> LNDict = new Dictionary<int, List<Note>>();
-            foreach (var note in LNSeq)
+            Dictionary<int, List<Note>> lnDict = new Dictionary<int, List<Note>>();
+
+            foreach (var note in lnSeq)
             {
-                if (!LNDict.ContainsKey(note.Column))
-                    LNDict[note.Column] = new List<Note>();
-                LNDict[note.Column].Add(note);
+                if (!lnDict.ContainsKey(note.Column))
+                    lnDict[note.Column] = new List<Note>();
+                lnDict[note.Column].Add(note);
             }
-            List<List<Note>> LNSeqByColumn = LNDict
-                .OrderBy(kvp => kvp.Key)
-                .Select(kvp => kvp.Value)
-                .ToList();
 
             int maxHead = noteSeq.Max(n => n.Head);
             int maxTail = noteSeq.Max(n => n.Tail);
-            int T = Math.Max(maxHead, maxTail) + 1;
+            int maxT = Math.Max(maxHead, maxTail) + 1;
 
             // --- Determine Corner Times for base variables and for A ---
             HashSet<int> cornersBase = new HashSet<int>();
+
             foreach (var note in noteSeq)
             {
                 cornersBase.Add(note.Head);
                 if (note.Tail >= 0)
                     cornersBase.Add(note.Tail);
             }
-            foreach (var s in cornersBase.ToList())
+
+            foreach (int s in cornersBase.ToList())
             {
                 cornersBase.Add(s + 501);
                 cornersBase.Add(s - 499);
                 cornersBase.Add(s + 1);
             }
+
             cornersBase.Add(0);
-            cornersBase.Add(T);
-            List<int> cornersBaseList = cornersBase.Where(s => s >= 0 && s <= T).ToList();
+            cornersBase.Add(maxT);
+            List<int> cornersBaseList = cornersBase.Where(s => s >= 0 && s <= maxT).ToList();
             cornersBaseList.Sort();
 
             HashSet<int> cornersA = new HashSet<int>();
+
             foreach (var note in noteSeq)
             {
                 cornersA.Add(note.Head);
                 if (note.Tail >= 0)
                     cornersA.Add(note.Tail);
             }
-            foreach (var s in cornersA.ToList())
+
+            foreach (int s in cornersA.ToList())
             {
                 cornersA.Add(s + 1000);
                 cornersA.Add(s - 1000);
             }
+
             cornersA.Add(0);
-            cornersA.Add(T);
-            List<int> cornersAList = cornersA.Where(s => s >= 0 && s <= T).ToList();
+            cornersA.Add(maxT);
+            List<int> cornersAList = cornersA.Where(s => s >= 0 && s <= maxT).ToList();
             cornersAList.Sort();
 
             HashSet<int> allCornersSet = new HashSet<int>(cornersBaseList);
@@ -158,15 +168,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             double[] allCorners = allCornersList.Select(val => (double)val).ToArray();
             double[] baseCorners = cornersBaseList.Select(val => (double)val).ToArray();
-            double[] ACorners = cornersAList.Select(val => (double)val).ToArray();
+            double[] aCorners = cornersAList.Select(val => (double)val).ToArray();
 
             // Calculate KU
             // Allocate a boolean active–flag array per key over baseCorners.
             // (New bool arrays are false by default; no need to loop and set to false.)
-            Dictionary<int, bool[]> key_usage = new Dictionary<int, bool[]>();
+            Dictionary<int, bool[]> keyUsage = new Dictionary<int, bool[]>();
+
             for (int k = 0; k < keyCount; k++)
             {
-                key_usage[k] = new bool[baseCorners.Length];
+                keyUsage[k] = new bool[baseCorners.Length];
             }
 
             // For each key, mark baseCorners that lie within the “active” interval for each note.
@@ -175,56 +186,63 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             {
                 // Get the note sequence for key k.
                 List<Note> notes = noteSeqByColumn[k];
+
                 foreach (var note in notes)
                 {
                     int activeStart = Math.Max(note.Head - 150, 0);
-                    int activeEnd = (note.Tail < 0) ? (note.Head + 150) : Math.Min(note.Tail + 150, T - 1);
+                    int activeEnd = note.Tail < 0 ? note.Head + 150 : Math.Min(note.Tail + 150, maxT - 1);
                     // Use binary search to find the first baseCorner >= activeStart.
-                    int startIdx = Array.BinarySearch(baseCorners, (double)activeStart);
+                    int startIdx = Array.BinarySearch(baseCorners, activeStart);
                     if (startIdx < 0)
                         startIdx = ~startIdx;
                     // Advance pointer until the base corner is no longer less than activeEnd.
                     int idx = startIdx;
+
                     while (idx < baseCorners.Length && baseCorners[idx] < activeEnd)
                     {
-                        key_usage[k][idx] = true;
+                        keyUsage[k][idx] = true;
                         idx++;
                     }
                 }
             }
 
             // For each baseCorner, build a list of active keys.
-            List<List<int>> KU_s_cols = new List<List<int>>(baseCorners.Length);
+            List<List<int>> kuSCols = new List<List<int>>(baseCorners.Length);
+
             for (int i = 0; i < baseCorners.Length; i++)
             {
                 List<int> activeCols = new List<int>();
+
                 for (int k = 0; k < keyCount; k++)
                 {
-                    if (key_usage[k][i])
+                    if (keyUsage[k][i])
                         activeCols.Add(k);
                 }
-                KU_s_cols.Add(activeCols);
+
+                kuSCols.Add(activeCols);
             }
 
-            Dictionary<int, double[]> key_usage_400 = new Dictionary<int, double[]>();
+            Dictionary<int, double[]> keyUsage400 = new Dictionary<int, double[]>();
+
             for (int k = 0; k < keyCount; k++)
             {
-                key_usage_400[k] = new double[baseCorners.Length];
+                keyUsage400[k] = new double[baseCorners.Length];
             }
 
             for (int k = 0; k < keyCount; k++)
             {
                 // Get the note sequence for key k.
                 List<Note> notes = noteSeqByColumn[k];
+
                 foreach (var note in notes)
                 {
                     int activeStart = Math.Max(note.Head, 0);
-                    int activeEnd = (note.Tail < 0) ? note.Head : Math.Min(note.Tail, T - 1);
+                    int activeEnd = note.Tail < 0 ? note.Head : Math.Min(note.Tail, maxT - 1);
                     // Use binary search to find the first baseCorner >= activeStart.
                     int start400Idx = Array.BinarySearch(baseCorners, (double)activeStart - 400);
-                    int startIdx = Array.BinarySearch(baseCorners, (double)activeStart);
+                    int startIdx = Array.BinarySearch(baseCorners, activeStart);
                     int end400Idx = Array.BinarySearch(baseCorners, (double)activeEnd + 400);
-                    int endIdx = Array.BinarySearch(baseCorners, (double)activeEnd);
+                    int endIdx = Array.BinarySearch(baseCorners, activeEnd);
 
                     if (start400Idx < 0)
                         start400Idx = ~start400Idx;
@@ -236,23 +254,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                         endIdx = ~endIdx;
 
                     for (int i = startIdx; i < endIdx; i++)
-                        key_usage_400[k][i] += 3.75 + Math.Min(activeEnd - activeStart, 1500) / 150;
+                        keyUsage400[k][i] += 3.75 + Math.Min(activeEnd - activeStart, 1500) / 150.0;
 
                     for (int i = start400Idx; i < startIdx; i++)
-                        key_usage_400[k][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(baseCorners[i] - activeStart, 2);
+                        keyUsage400[k][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(baseCorners[i] - activeStart, 2);
 
                     for (int i = endIdx; i < end400Idx; i++)
-                        key_usage_400[k][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(Math.Abs(baseCorners[i] - activeEnd), 2);
+                        keyUsage400[k][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(Math.Abs(baseCorners[i] - activeEnd), 2);
                 }
             }
 
             double[] anchor = new double[baseCorners.Length];
+
             for (int i = 0; i < baseCorners.Length; i++)
             {
                 double[] counts = new double[keyCount];
+
                 for (int k = 0; k < keyCount; k++)
                 {
-                    counts[k] = key_usage_400[k][i];
+                    counts[k] = keyUsage400[k][i];
                 }
 
                 Array.Sort(counts);
@@ -264,12 +284,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 if (countLength > 1)
                 {
                     double walk = Enumerable.Range(0, countLength - 1)
-                        .Select(i => nonZeroCounts[i] * (1 - 4 * Math.Pow(0.5 - (nonZeroCounts[i + 1] / nonZeroCounts[i]), 2)))
-                        .Sum();
+                                            .Select(j => nonZeroCounts[j] * (1 - 4 * Math.Pow(0.5 - nonZeroCounts[j + 1] / nonZeroCounts[j], 2)))
+                                            .Sum();
 
                     double maxWalk = Enumerable.Range(0, countLength - 1)
-                        .Select(i => nonZeroCounts[i])
-                        .Sum();
+                                               .Select(j => nonZeroCounts[j])
+                                               .Sum();
 
                     anchor[i] = walk / maxWalk;
                 }
@@ -286,24 +306,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // --- Section 2.3: Compute Jbar ---
             // Console.WriteLine("2.3");
-            Func<double, double> jackNerfer = delta =>
-            {
-                return 1 - 7e-5 * Math.Pow(0.15 + Math.Abs(delta - 0.08), -4);
-            };
+            Func<double, double> jackNerfer = delta => 1 - 7e-5 * Math.Pow(0.15 + Math.Abs(delta - 0.08), -4);
 
             // Allocate arrays for each column. For each column k,
             // J_ks[k] will store the unsmoothed J values on baseCorners,
             // and delta_ks[k] will store the corresponding delta values.
-            Dictionary<int, double[]> J_ks = new Dictionary<int, double[]>();
-            Dictionary<int, double[]> delta_ks = new Dictionary<int, double[]>();
+            Dictionary<int, double[]> jKs = new Dictionary<int, double[]>();
+            Dictionary<int, double[]> deltaKs = new Dictionary<int, double[]>();
+
             for (int k = 0; k < keyCount; k++)
             {
-                J_ks[k] = new double[baseCorners.Length];
-                delta_ks[k] = new double[baseCorners.Length];
+                jKs[k] = new double[baseCorners.Length];
+                deltaKs[k] = new double[baseCorners.Length];
+
                 // Initialize delta_ks to a large value.
                 for (int j = 0; j < baseCorners.Length; j++)
                 {
-                    delta_ks[k][j] = 1e9;
+                    deltaKs[k][j] = 1e9;
                 }
             }
 
@@ -311,7 +330,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             for (int k = 0; k < keyCount; k++)
             {
                 List<Note> notes = noteSeqByColumn[k];
-                int pointer = 0;  // pointer over the baseCorners array
+                int pointer = 0; // pointer over the baseCorners array
 
                 // For each adjacent note pair in the column.
                 for (int i = 0; i < notes.Count - 1; i++)
@@ -319,54 +338,58 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                     int start = notes[i].Head;
                     int end = notes[i + 1].Head;
                     double delta = 0.001 * (end - start);
-                    double val = (1.0 / delta) * (1.0 / (delta + lambda_1 * Math.Pow(x, 0.25)));
-                    double J_val = val * jackNerfer(delta);
+                    double val = 1.0 / delta * (1.0 / (delta + lambda_1 * Math.Pow(hitWindowLeniency, 0.25)));
+                    double jVal = val * jackNerfer(delta);
 
                     // Advance pointer until we reach the first base corner >= start.
                     while (pointer < baseCorners.Length && baseCorners[pointer] < start)
                     {
                         pointer++;
                     }
+
                     // For all base corners in [start, end), assign J_val and delta.
                     while (pointer < baseCorners.Length && baseCorners[pointer] < end)
                     {
-                        J_ks[k][pointer] = J_val;
-                        delta_ks[k][pointer] = delta;
+                        jKs[k][pointer] = jVal;
+                        deltaKs[k][pointer] = delta;
                         pointer++;
                     }
                 }
             }
 
             // Smooth each column’s J using a sliding ±500 window.
-            Dictionary<int, double[]> Jbar_ks = new Dictionary<int, double[]>();
+            Dictionary<int, double[]> jbarKs = new Dictionary<int, double[]>();
+
             for (int k = 0; k < keyCount; k++)
             {
-                Jbar_ks[k] = SmoothOnCorners(baseCorners, J_ks[k], 500, 0.001, "sum");
+                jbarKs[k] = SmoothOnCorners(baseCorners, jKs[k], 500, 0.001, "sum");
             }
 
             // Now, for each base corner, aggregate across columns using the lambda_n–power average.
-            double[] Jbar_base = new double[baseCorners.Length];
+            double[] jbarBase = new double[baseCorners.Length];
+
             for (int j = 0; j < baseCorners.Length; j++)
             {
                 double num = 0.0, den = 0.0;
+
                 for (int k = 0; k < keyCount; k++)
                 {
-                    double v = Math.Max(Jbar_ks[k][j], 0);
-                    double weight = 1.0 / delta_ks[k][j];
+                    double v = Math.Max(jbarKs[k][j], 0);
+                    double weight = 1.0 / deltaKs[k][j];
                     num += Math.Pow(v, lambda_n) * weight;
                     den += weight;
                 }
+
                 double avg = num / Math.Max(1e-9, den);
-                Jbar_base[j] = Math.Pow(avg, 1.0 / lambda_n);
+                jbarBase[j] = Math.Pow(avg, 1.0 / lambda_n);
             }
 
             // Interpolate Jbar from baseCorners to allCorners.
-            double[] Jbar = InterpValues(allCorners, baseCorners, Jbar_base);
-
+            double[] jbar = interpValues(allCorners, baseCorners, jbarBase);
 
             // --- Section 2.4: Compute Xbar ---
             // Console.WriteLine("2.4");
-            List<List<double>> crossMatrix = new List<List<double>>()
+            List<List<double>> crossMatrix = new List<List<double>>
             {
                 new List<double> { -1 },
                 new List<double> { 0.075, 0.075 },
@@ -386,10 +409,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 fastCross[k] = new double[baseCorners.Length];
 
             // Allocate an array for each key pair (for k=0..keyCount, total keyCount+1 arrays).
-            Dictionary<int, double[]> X_ks = new Dictionary<int, double[]>();
+            Dictionary<int, double[]> xKs = new Dictionary<int, double[]>();
+
             for (int k = 0; k <= keyCount; k++)
             {
-                X_ks[k] = new double[baseCorners.Length]; // All values default to 0.
+                xKs[k] = new double[baseCorners.Length]; // All values default to 0.
             }
 
             // For each k, compute a step function over the baseCorners that is constant over each interval.
@@ -398,6 +422,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             {
                 // Determine the merged note sequence for this key–pair:
                 List<Note> notesInPair;
+
                 if (k == 0)
                 {
                     notesInPair = noteSeqByColumn[0];
@@ -409,18 +434,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 else
                 {
                     // Merge the two sorted lists from columns (k–1) and k.
-                    notesInPair = MergeSorted(noteSeqByColumn[k - 1], noteSeqByColumn[k]);
+                    notesInPair = mergeSorted(noteSeqByColumn[k - 1], noteSeqByColumn[k]);
                 }
 
                 // pointer scans through baseCorners once.
                 int pointer = 0;
+
                 for (int i = 1; i < notesInPair.Count; i++)
                 {
                     // For this note pair, define the interval [start, end)
                     int start = notesInPair[i - 1].Head;
                     int end = notesInPair[i].Head;
                     double delta = 0.001 * (end - start);
-                    double val = 0.16 * Math.Pow(Math.Max(x, delta), -2);
+                    double val = 0.16 * Math.Pow(Math.Max(hitWindowLeniency, delta), -2);
 
                     // Advance the pointer until the current base corner is within [start, end)
                     while (pointer < baseCorners.Length && baseCorners[pointer] < start)
@@ -428,7 +454,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                         pointer++;
                     }
 
-                    int pointer_start = pointer;
+                    int pointerStart = pointer;
 
                     // Find the end value
                     while (pointer < baseCorners.Length && baseCorners[pointer] < end)
@@ -436,43 +462,42 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                         pointer++;
                     }
 
-                    int pointer_end = pointer;
+                    int pointerEnd = pointer;
 
                     // if ((k - 1) not in KU_s_cols[idx_start] or (k - 1) not in KU_s_cols[idx_end]) or (k not in KU_s_cols[idx_start] or k not in KU_s_cols[idx_end]):
-                        // val*=(1-cross_coeff[k])
+                    // val*=(1-cross_coeff[k])
 
                     double crossVal = keyCount < crossMatrix.Count ? crossMatrix[keyCount][k] : 0.4;
 
-                    bool leftKeyNotPresent = !KU_s_cols[pointer_start].Contains(k - 1) && !KU_s_cols[pointer_end].Contains(k - 1);
-                    bool keyNotPresent = !KU_s_cols[pointer_start].Contains(k) && !KU_s_cols[pointer_end].Contains(k);
+                    bool leftKeyNotPresent = !kuSCols[pointerStart].Contains(k - 1) && !kuSCols[pointerEnd].Contains(k - 1);
+                    bool keyNotPresent = !kuSCols[pointerStart].Contains(k) && !kuSCols[pointerEnd].Contains(k);
 
                     if (leftKeyNotPresent || keyNotPresent)
-                        val *= (1 - crossVal);
-
+                        val *= 1 - crossVal;
 
                     // Now assign the value for all baseCorners in [start, end)
-                    for (int p = pointer_start; p < pointer_end; p++)
+                    for (int p = pointerStart; p < pointerEnd; p++)
                     {
-                        X_ks[k][p] = val;
-                        fastCross[k][p] = Math.Max(0, 0.4 * Math.Pow(Math.Max(Math.Max(delta, 0.06), 0.75 * x), -2) - 80);
+                        xKs[k][p] = val;
+                        fastCross[k][p] = Math.Max(0, 0.4 * Math.Pow(Math.Max(Math.Max(delta, 0.06), 0.75 * hitWindowLeniency), -2) - 80);
                     }
-
                 }
             }
 
             // Combine the X_ks values across k using the cross–matrix coefficients.
             // (The cross–matrix for keyCount returns a list of keyCount+1 coefficients.)
-            double[] X_base = new double[baseCorners.Length];
+            double[] xBase = new double[baseCorners.Length];
+
             for (int i = 0; i < baseCorners.Length; i++)
             {
                 double sum1 = 0.0;
                 double sum2 = 0.0;
+
                 for (int k = 0; k <= keyCount; k++)
                 {
                     double crossVal = keyCount < crossMatrix.Count ? crossMatrix[keyCount][k] : 0.4;
 
-                    sum1 += X_ks[k][i] * crossVal;
-
+                    sum1 += xKs[k][i] * crossVal;
                 }
 
                 for (int k = 0; k < keyCount; k++)
@@ -483,125 +508,130 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                     sum2 += Math.Sqrt(fastCross[k][i] * crossVal * fastCross[k + 1][i] * crossValNext);
                 }
 
-                X_base[i] = sum1 + sum2;
+                xBase[i] = sum1 + sum2;
             }
 
             // Smooth and interpolate as in the rest of the algorithm.
-            double[] Xbar_base = SmoothOnCorners(baseCorners, X_base, 500, 0.001, "sum");
-            double[] Xbar = InterpValues(allCorners, baseCorners, Xbar_base);
+            double[] xbarBase = SmoothOnCorners(baseCorners, xBase, 500, 0.001, "sum");
+            double[] xbar = interpValues(allCorners, baseCorners, xbarBase);
 
             // --- Section 2.5: Compute Pbar ---
             // Console.WriteLine("2.5");
 
             // Build LN_bodies array over time [0, T)
-            double[] LN_bodies = new double[T];
-            for (int i = 0; i < T; i++)
-                LN_bodies[i] = 0.0;
+            double[] lnBodies = new double[maxT];
+            for (int i = 0; i < maxT; i++)
+                lnBodies[i] = 0.0;
 
             // For each long note, add contributions in three segments:
             //   from h to t0, add nothing;
             //   from t0 to t1, add 1.3;
-            foreach (var note in LNSeq)
+            foreach (var note in lnSeq)
             {
                 int h = note.Head;
                 int t = note.Tail;
                 int t0 = Math.Min(h + 60, t);
                 int t1 = Math.Min(h + 120, t);
                 for (int i = t0; i < t1; i++)
-                    LN_bodies[i] += 1.3;
+                    lnBodies[i] += 1.3;
                 for (int i = t1; i < t; i++)
-                    LN_bodies[i] += 1.0;
+                    lnBodies[i] += 1.0;
             }
 
             // adjust the LN bodies count - this helps with high key inverse
-            for (int i = 0; i < LN_bodies.Length; i++)
+            for (int i = 0; i < lnBodies.Length; i++)
             {
-                LN_bodies[i] = Math.Min(LN_bodies[i], 2.5 + 0.5 * LN_bodies[i]);
+                lnBodies[i] = Math.Min(lnBodies[i], 2.5 + 0.5 * lnBodies[i]);
             }
 
             // Compute cumulative sum over LN_bodies
-            double[] cumsum_LN = new double[T + 1];
-            cumsum_LN[0] = 0.0;
-            for (int i = 1; i <= T; i++)
+            double[] cumsumLn = new double[maxT + 1];
+            cumsumLn[0] = 0.0;
+
+            for (int i = 1; i <= maxT; i++)
             {
-                cumsum_LN[i] = cumsum_LN[i - 1] + LN_bodies[i - 1];
+                cumsumLn[i] = cumsumLn[i - 1] + lnBodies[i - 1];
             }
 
             // LN_sum returns the exact sum over LN_bodies in the interval [a, b)
-            Func<int, int, double> LN_sum = (a, b) => cumsum_LN[b] - cumsum_LN[a];
+            Func<int, int, double> lnSum = (a, b) => cumsumLn[b] - cumsumLn[a];
 
             // Stream Booster
-            Func<double, double> streamBooster = (delta) =>
+            Func<double, double> streamBooster = delta =>
             {
                 double val = 7.5 / delta;
                 if (val > 160 && val < 360)
                     return 1 + 1.7e-7 * (val - 160) * Math.Pow(val - 360, 2);
+
                 return 1.0;
             };
 
             // Allocate P_step on the base grid.
-            double[] P_step = new double[baseCorners.Length];
+            double[] pStep = new double[baseCorners.Length];
             for (int i = 0; i < baseCorners.Length; i++)
-                P_step[i] = 0.0;
+                pStep[i] = 0.0;
 
             // Process each adjacent pair of notes in noteSeq. Since noteSeq is sorted by head time,
             // the interval [h_l, h_r) for each pair will also be in increasing order.
             // We maintain a pointer into baseCorners that advances monotonically.
             int pointerP = 0;
+
             for (int i = 0; i < noteSeq.Count - 1; i++)
             {
-                int h_l = noteSeq[i].Head;
-                int h_r = noteSeq[i + 1].Head;
-                double delta_time = h_r - h_l;
+                int hL = noteSeq[i].Head;
+                int hR = noteSeq[i + 1].Head;
+                double deltaTime = hR - hL;
 
-                if (delta_time < 1e-9)
+                if (deltaTime < 1e-9)
                 {
                     // Handle Dirac delta spikes when consecutive notes have identical times.
                     // Find the base corner exactly equal to h_l (using binary search is acceptable here)
-                    int idx = Array.BinarySearch(baseCorners, (double)h_l);
+                    int idx = Array.BinarySearch(baseCorners, hL);
                     if (idx < 0)
                         idx = ~idx;
-                    if (idx < baseCorners.Length && Math.Abs(baseCorners[idx] - h_l) < 1e-9)
+
+                    if (idx < baseCorners.Length && Math.Abs(baseCorners[idx] - hL) < 1e-9)
                     {
-                        double spike = 1000 * Math.Pow(0.02 * (4 / x - lambda_3), 0.25);
-                        P_step[idx] += spike;
+                        double spike = 1000 * Math.Pow(0.02 * (4 / hitWindowLeniency - lambda_3), 0.25);
+                        pStep[idx] += spike;
                     }
+
                     continue;
                 }
 
                 // Compute constant values for this interval.
-                double delta = 0.001 * delta_time;
-                double v = 1 + lambda2 * 0.001 * LN_sum(h_l, h_r);
+                double delta = 0.001 * deltaTime;
+                double v = 1 + lambda2 * 0.001 * lnSum(hL, hR);
                 double bVal = streamBooster(delta);
                 double inc;
-                if (delta < 2 * x / 3)
+
+                if (delta < 2 * hitWindowLeniency / 3)
                 {
-                    inc = (1.0 / delta) * Math.Pow(0.08 * (1.0 / x) *
-                        (1 - lambda_3 * (1.0 / x) * Math.Pow(delta - x / 2, 2)), 0.25) * Math.Max(bVal, v);
+                    inc = 1.0 / delta * Math.Pow(0.08 * (1.0 / hitWindowLeniency) *
+                                                 (1 - lambda_3 * (1.0 / hitWindowLeniency) * Math.Pow(delta - hitWindowLeniency / 2, 2)), 0.25) * Math.Max(bVal, v);
                 }
                 else
                 {
-                    inc = (1.0 / delta) * Math.Pow(0.08 * (1.0 / x) *
-                        (1 - lambda_3 * (1.0 / x) * Math.Pow(x / 6, 2)), 0.25) * Math.Max(bVal, v);
+                    inc = 1.0 / delta * Math.Pow(0.08 * (1.0 / hitWindowLeniency) *
+                                                 (1 - lambda_3 * (1.0 / hitWindowLeniency) * Math.Pow(hitWindowLeniency / 6, 2)), 0.25) * Math.Max(bVal, v);
                 }
 
                 // Advance pointerP until the current base corner is at least h_l.
-                while (pointerP < baseCorners.Length && baseCorners[pointerP] < h_l)
+                while (pointerP < baseCorners.Length && baseCorners[pointerP] < hL)
                     pointerP++;
 
                 // For every base corner in the interval [h_l, h_r), add the increment.
-                while (pointerP < baseCorners.Length && baseCorners[pointerP] < h_r)
+                while (pointerP < baseCorners.Length && baseCorners[pointerP] < hR)
                 {
-                    P_step[pointerP] += Math.Min(inc * anchor[pointerP], Math.Max(inc, inc * 2 - 10));
+                    pStep[pointerP] += Math.Min(inc * anchor[pointerP], Math.Max(inc, inc * 2 - 10));
                     pointerP++;
                 }
                 // Since noteSeq is sorted, pointerP never resets backwards.
             }
 
             // Smooth and interpolate P_step as before.
-            double[] Pbar_base = SmoothOnCorners(baseCorners, P_step, 500, 0.001, "sum");
-            double[] Pbar = InterpValues(allCorners, baseCorners, Pbar_base);
-
+            double[] pbarBase = SmoothOnCorners(baseCorners, pStep, 500, 0.001, "sum");
+            double[] pbar = interpValues(allCorners, baseCorners, pbarBase);
 
             // --- Section 2.6: Compute Abar ---
             // Console.WriteLine("2.6");
@@ -609,74 +639,79 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             // Compute dks: For each baseCorner, for each adjacent pair of active keys,
             // compute the difference measure: |delta_ks[k0] - delta_ks[k1]| + max(0, max(delta_ks[k0], delta_ks[k1]) - 0.3).
             Dictionary<int, double[]> dks = new Dictionary<int, double[]>();
+
             for (int k = 0; k < keyCount - 1; k++)
             {
                 dks[k] = new double[baseCorners.Length];
             }
+
             for (int i = 0; i < baseCorners.Length; i++)
             {
-                List<int> cols = KU_s_cols[i];
+                List<int> cols = kuSCols[i];
+
                 // Only if there are at least two active keys.
                 for (int j = 0; j < cols.Count - 1; j++)
                 {
                     int k0 = cols[j];
                     int k1 = cols[j + 1];
-                    dks[k0][i] = Math.Abs(delta_ks[k0][i] - delta_ks[k1][i]) +
-                                0.4 * Math.Max(0, Math.Max(delta_ks[k0][i], delta_ks[k1][i]) - 0.11);
+                    dks[k0][i] = Math.Abs(deltaKs[k0][i] - deltaKs[k1][i]) +
+                                 0.4 * Math.Max(0, Math.Max(deltaKs[k0][i], deltaKs[k1][i]) - 0.11);
                 }
             }
 
             // Compute A_step on the A–grid (ACorners). Start with a default value of 1.0.
-            double[] A_step = new double[ACorners.Length];
-            for (int i = 0; i < ACorners.Length; i++)
-                A_step[i] = 1.0;
+            double[] aStep = new double[aCorners.Length];
+            for (int i = 0; i < aCorners.Length; i++)
+                aStep[i] = 1.0;
 
             // For each A–corner, determine the corresponding value from the base grid.
             // We do this by finding the nearest baseCorner using binary search, then using the active key list there.
-            for (int i = 0; i < ACorners.Length; i++)
+            for (int i = 0; i < aCorners.Length; i++)
             {
-                double s = ACorners[i];
+                double s = aCorners[i];
                 int idx = Array.BinarySearch(baseCorners, s);
                 if (idx < 0)
                     idx = ~idx;
                 if (idx >= baseCorners.Length)
                     idx = baseCorners.Length - 1;
                 // Get the list of active keys at this base corner.
-                List<int> cols = KU_s_cols[idx];
+                List<int> cols = kuSCols[idx];
+
                 // For each adjacent pair of active keys in that list, adjust A_step.
                 for (int j = 0; j < cols.Count - 1; j++)
                 {
                     int k0 = cols[j];
                     int k1 = cols[j + 1];
-                    double d_val = dks[k0][idx];
-                    if (d_val < 0.02)
-                        A_step[i] *= Math.Min(0.75 + 0.5 * Math.Max(delta_ks[k0][idx], delta_ks[k1][idx]), 1);
-                    else if (d_val < 0.07)
-                        A_step[i] *= Math.Min(0.65 + 5 * d_val + 0.5 * Math.Max(delta_ks[k0][idx], delta_ks[k1][idx]), 1);
+                    double dVal = dks[k0][idx];
+                    if (dVal < 0.02)
+                        aStep[i] *= Math.Min(0.75 + 0.5 * Math.Max(deltaKs[k0][idx], deltaKs[k1][idx]), 1);
+                    else if (dVal < 0.07)
+                        aStep[i] *= Math.Min(0.65 + 5 * dVal + 0.5 * Math.Max(deltaKs[k0][idx], deltaKs[k1][idx]), 1);
                 }
             }
 
             // Finally, smooth A_step on the ACorners with a ±500 window (using average smoothing),
             // then interpolate Abar from the ACorners to the overall grid.
-            double[] Abar_A = SmoothOnCorners(ACorners, A_step, 250, 1.0, "avg");
-            double[] Abar = InterpValues(allCorners, ACorners, Abar_A);
-
+            double[] abarA = SmoothOnCorners(aCorners, aStep, 250, 1.0, "avg");
+            double[] abar = interpValues(allCorners, aCorners, abarA);
 
             // --- Section 2.7: Compute Rbar ---
             // Console.WriteLine("2.7");
 
-            double[] R_base = new double[baseCorners.Length];
-            double[] I_arr = new double[baseCorners.Length];
-            for (int i = 0; i < R_base.Length; i++)
+            double[] rBase = new double[baseCorners.Length];
+            double[] iArr = new double[baseCorners.Length];
+
+            for (int i = 0; i < rBase.Length; i++)
             {
-                R_base[i] = 0;
-                I_arr[i] = 0;
+                rBase[i] = 0;
+                iArr[i] = 0;
             }
 
-            double[] I_list = new double[tailSeq.Count];
-            for (int i = 0; i < I_list.Length; i++)
+            double[] iList = new double[tailSeq.Count];
+
+            for (int i = 0; i < iList.Length; i++)
             {
-                I_list[i] = 0;
+                iList[i] = 0;
             }
 
             for (int note = 0; note < tailSeq.Count; note++)
@@ -689,20 +724,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
                 Note? nextNote = nextNoteExists ? noteSeqByColumn[currentNote.Column][nextNoteIndex] : null;
 
-                double currentI = 0.001 * Math.Abs(currentNote.Tail - currentNote.Head - 80.0) / x;
+                double currentI = 0.001 * Math.Abs(currentNote.Tail - currentNote.Head - 80.0) / hitWindowLeniency;
 
                 if (nextNote is null)
                 {
-                    I_list[note] = 2 / (2 + Math.Exp(-5 * (currentI - 0.75)));
+                    iList[note] = 2 / (2 + Math.Exp(-5 * (currentI - 0.75)));
                     continue;
                 }
 
-                double nextI = 0.001 * Math.Abs(((Note)nextNote).Head - currentNote.Tail - 80.0) / x;
+                double nextI = 0.001 * Math.Abs(nextNote.Head - currentNote.Tail - 80.0) / hitWindowLeniency;
 
-                I_list[note] = 2 / (2 + Math.Exp(-5 * (currentI - 0.75)) + Math.Exp(-5 * (nextI - 0.75)));
+                iList[note] = 2 / (2 + Math.Exp(-5 * (currentI - 0.75)) + Math.Exp(-5 * (nextI - 0.75)));
             }
 
-            int previous_idx_start = 0;
+            int previousIdxStart = 0;
 
             for (int i = 0; i < tailSeq.Count - 1; i++)
             {
@@ -712,165 +747,183 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 int startTime = note.Tail;
                 int endTime = nextNote.Tail;
 
-                int idx_start = -1;
+                int idxStart = -1;
 
-                for (int j = previous_idx_start; j < baseCorners.Length; j++)
+                for (int j = previousIdxStart; j < baseCorners.Length; j++)
                 {
                     if (baseCorners[j] >= startTime)
                     {
-                        idx_start = j;
-                        previous_idx_start = j;
+                        idxStart = j;
+                        previousIdxStart = j;
                         break;
                     }
                 }
 
-                if (idx_start == -1)
+                if (idxStart == -1)
                 {
                     continue;
                 }
 
-                double delta_r = 0.001 * (nextNote.Tail - note.Tail);
+                double deltaR = 0.001 * (nextNote.Tail - note.Tail);
 
-                for (int j = idx_start; j < baseCorners.Length; j++)
+                for (int j = idxStart; j < baseCorners.Length; j++)
                 {
                     if (baseCorners[j] >= endTime)
                         break;
 
-                    I_arr[j] = 1 + I_list[i];
+                    iArr[j] = 1 + iList[i];
 
-                    R_base[j] = 0.08 * Math.Pow(delta_r, -1.0 / 2.0) * (1 / x) * (1 + lambda_4 * (I_list[i] + I_list[i + 1]));
+                    rBase[j] = 0.08 * Math.Pow(deltaR, -1.0 / 2.0) * (1 / hitWindowLeniency) * (1 + lambda_4 * (iList[i] + iList[i + 1]));
                 }
             }
 
             // Smooth and interpolate as in the rest of the algorithm.
-            double[] Rbar_base = SmoothOnCorners(baseCorners, R_base, 500, 0.001, "sum");
-            double[] Rbar = InterpValues(allCorners, baseCorners, Rbar_base);
-
+            double[] rbarBase = SmoothOnCorners(baseCorners, rBase, 500, 0.001, "sum");
+            double[] rbar = interpValues(allCorners, baseCorners, rbarBase);
 
             // --- Section 3: Compute C and Ks ---
             // Console.WriteLine("3");
-            List<int> noteHitTimes;
-            List<int> noteHitTimesV2;
-            noteHitTimes = noteSeq.Select(n => n.Head).ToList();
-            noteHitTimesV2 = noteSeq.Select(n => n.Head)
-                                .Concat(noteSeq.Where(n => n.Tail >= 0)
-                                                .Select(n => n.Tail))
-                                .ToList();
+            var noteHitTimes = noteSeq.Select(n => n.Head).ToList();
+            var noteHitTimesV2 = noteSeq.Select(n => n.Head)
+                                        .Concat(noteSeq.Where(n => n.Tail >= 0)
+                                                       .Select(n => n.Tail))
+                                        .ToList();
             noteHitTimes.Sort();
             noteHitTimesV2.Sort();
-            double[] C_step = new double[baseCorners.Length];
-            double[] C_stepV2 = new double[baseCorners.Length];
-            for (int i = 0; i < baseCorners.Length; i++)
-            {
-                double s = baseCorners[i];
-                double low = s - 500;
-                double high = s + 500;
-                int cntLow = LowerBound(noteHitTimes, (int)low);
-                int cntHigh = LowerBound(noteHitTimes, (int)high);
-                int cnt = cntHigh - cntLow;
-                C_step[i] = cnt;
-            }
-            for (int i = 0; i < baseCorners.Length; i++)
-            {
-                double s = baseCorners[i];
-                double low = s - 500;
-                double high = s + 500;
-                int cntLow = LowerBound(noteHitTimesV2, (int)low);
-                int cntHigh = LowerBound(noteHitTimesV2, (int)high);
-                int cnt = cntHigh - cntLow;
-                C_stepV2[i] = cnt;
-            }
-            double[] C_arr = StepInterp(allCorners, baseCorners, C_step);
-            double[] C_arrV2 = StepInterp(allCorners, baseCorners, C_stepV2);
+            double[] cStep = new double[baseCorners.Length];
+            double[] cStepV2 = new double[baseCorners.Length];
 
-            double[] Ks_step = new double[baseCorners.Length];
+            for (int i = 0; i < baseCorners.Length; i++)
+            {
+                double s = baseCorners[i];
+                double low = s - 500;
+                double high = s + 500;
+                int cntLow = lowerBound(noteHitTimes, (int)low);
+                int cntHigh = lowerBound(noteHitTimes, (int)high);
+                int cnt = cntHigh - cntLow;
+                cStep[i] = cnt;
+            }
+
+            for (int i = 0; i < baseCorners.Length; i++)
+            {
+                double s = baseCorners[i];
+                double low = s - 500;
+                double high = s + 500;
+                int cntLow = lowerBound(noteHitTimesV2, (int)low);
+                int cntHigh = lowerBound(noteHitTimesV2, (int)high);
+                int cnt = cntHigh - cntLow;
+                cStepV2[i] = cnt;
+            }
+
+            double[] cArr = stepInterp(allCorners, baseCorners, cStep);
+            double[] cArrV2 = stepInterp(allCorners, baseCorners, cStepV2);
+
+            double[] ksStep = new double[baseCorners.Length];
+
             for (int i = 0; i < baseCorners.Length; i++)
             {
                 int cntActive = 0;
+
                 for (int k = 0; k < keyCount; k++)
                 {
-                    if (key_usage[k][i])
+                    if (keyUsage[k][i])
                         cntActive++;
                 }
-                Ks_step[i] = Math.Max(cntActive, 1);
+
+                ksStep[i] = Math.Max(cntActive, 1);
             }
-            double[] Ks_base = Ks_step;
-            double[] Ks_arr = StepInterp(allCorners, baseCorners, Ks_base);
+
+            double[] ksBase = ksStep;
+            double[] ksArr = stepInterp(allCorners, baseCorners, ksBase);
 
             // --- Final Computations: Compute S, T, D ---
-            int N = allCorners.Length;
-            double[] S_all = new double[N];
-            double[] T_all = new double[N];
-            double[] D_all = new double[N];
-            for (int i = 0; i < N; i++)
-            {
-                double A_val = Abar[i];
-                double J_val = Jbar[i];
-                double X_val = Xbar[i];
-                double P_val = Pbar[i];
-                double R_val = Rbar[i];
-                double C_val = C_arr[i];
-                double Ks_val = Ks_arr[i];
+            int n = allCorners.Length;
+            double[] sAll = new double[n];
+            double[] tAll = new double[n];
+            double[] dAll = new double[n];
 
-                double term1 = Math.Pow(Math.Pow(A_val, 3.0 / Ks_val) * Math.Min(J_val, 8 + 0.85*J_val), 1.5);
-                double term2 = Math.Pow(Math.Pow(A_val, 2.0 / 3.0) * (0.8 * P_val + R_val * 35.0 / (C_val + 8)), 1.5);
-                double S_val = Math.Pow(w0 * term1 + (1 - w0) * term2, 2.0 / 3.0);
-                S_all[i] = S_val;
-                double T_val = (Math.Pow(A_val, 3.0 / Ks_val) * X_val) / (X_val + S_val + 1);
-                T_all[i] = T_val;
-                D_all[i] = w1 * Math.Pow(S_val, 0.5) * Math.Pow(T_val, p1) + S_val * w2;
+            for (int i = 0; i < n; i++)
+            {
+                double aVal = abar[i];
+                double jVal = jbar[i];
+                double xVal = xbar[i];
+                double pVal = pbar[i];
+                double rVal = rbar[i];
+                double cVal = cArr[i];
+                double ksVal = ksArr[i];
+
+                double term1 = Math.Pow(Math.Pow(aVal, 3.0 / ksVal) * Math.Min(jVal, 8 + 0.85 * jVal), 1.5);
+                double term2 = Math.Pow(Math.Pow(aVal, 2.0 / 3.0) * (0.8 * pVal + rVal * 35.0 / (cVal + 8)), 1.5);
+                double sVal = Math.Pow(w0 * term1 + (1 - w0) * term2, 2.0 / 3.0);
+                sAll[i] = sVal;
+                double tVal = Math.Pow(aVal, 3.0 / ksVal) * xVal / (xVal + sVal + 1);
+                tAll[i] = tVal;
+                dAll[i] = w1 * Math.Pow(sVal, 0.5) * Math.Pow(tVal, p1) + sVal * w2;
             }
 
             // --- Weighted–Percentile Calculation ---
-            double[] gaps = new double[N];
-            if (N == 1)
+            double[] gaps = new double[n];
+
+            if (n == 1)
                 gaps[0] = 0;
             else
             {
                 gaps[0] = (allCorners[1] - allCorners[0]) / 2.0;
-                gaps[N - 1] = (allCorners[N - 1] - allCorners[N - 2]) / 2.0;
-                for (int i = 1; i < N - 1; i++)
+                gaps[n - 1] = (allCorners[n - 1] - allCorners[n - 2]) / 2.0;
+                for (int i = 1; i < n - 1; i++)
                     gaps[i] = (allCorners[i + 1] - allCorners[i - 1]) / 2.0;
             }
-            double[] effectiveWeights = new double[N];
-            for (int i = 0; i < N; i++)
-                if (ContainsCL) {
-                effectiveWeights[i] = C_arr[i] * gaps[i];
+
+            double[] effectiveWeights = new double[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                if (containsCl)
+                {
+                    effectiveWeights[i] = cArr[i] * gaps[i];
                 }
-                else {
-                effectiveWeights[i] = C_arrV2[i] * gaps[i];
+                else
+                {
+                    effectiveWeights[i] = cArrV2[i] * gaps[i];
                 }
+            }
+
             List<CornerData> cornerDataList = new List<CornerData>();
-            for (int i = 0; i < N; i++)
+
+            for (int i = 0; i < n; i++)
             {
                 cornerDataList.Add(new CornerData
                 {
                     Time = allCorners[i],
-                    Jbar = Jbar[i],
-                    Xbar = Xbar[i],
-                    Pbar = Pbar[i],
-                    Abar = Abar[i],
-                    Rbar = Rbar[i],
-                    C = C_arr[i],
-                    Ks = Ks_arr[i],
-                    D = D_all[i],
+                    Jbar = jbar[i],
+                    Xbar = xbar[i],
+                    Pbar = pbar[i],
+                    Abar = abar[i],
+                    Rbar = rbar[i],
+                    C = cArr[i],
+                    Ks = ksArr[i],
+                    D = dAll[i],
                     Weight = effectiveWeights[i]
                 });
             }
+
             var sortedList = cornerDataList.OrderBy(cd => cd.D).ToList();
-            double[] D_sorted = sortedList.Select(cd => cd.D).ToArray();
+            double[] dSorted = sortedList.Select(cd => cd.D).ToArray();
             double[] cumWeights = new double[sortedList.Count];
             double sumW = 0.0;
+
             for (int i = 0; i < sortedList.Count; i++)
             {
                 sumW += sortedList[i].Weight;
                 cumWeights[i] = sumW;
             }
+
             double totalWeight = sumW;
             double[] normCumWeights = cumWeights.Select(cw => cw / totalWeight).ToArray();
 
-            double[] targetPercentiles = new double[] { 0.945, 0.935, 0.925, 0.915, 0.845, 0.835, 0.825, 0.815 };
+            double[] targetPercentiles = { 0.945, 0.935, 0.925, 0.915, 0.845, 0.835, 0.825, 0.815 };
             List<int> indices = new List<int>();
+
             foreach (double tp in targetPercentiles)
             {
                 int idx = Array.FindIndex(normCumWeights, cw => cw >= tp);
@@ -878,7 +931,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                     idx = sortedList.Count - 1;
                 indices.Add(idx);
             }
+
             double percentile93, percentile83;
+
             if (indices.Count >= 8)
             {
                 double sum93 = 0.0;
@@ -895,40 +950,43 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 percentile93 = sortedList.Average(cd => cd.D);
                 percentile83 = percentile93;
             }
+
             double numWeighted = 0.0;
             double denWeighted = 0.0;
+
             for (int i = 0; i < sortedList.Count; i++)
             {
                 numWeighted += Math.Pow(sortedList[i].D, lambda_n) * sortedList[i].Weight;
                 denWeighted += sortedList[i].Weight;
             }
+
             double weightedMean = Math.Pow(numWeighted / denWeighted, 1.0 / lambda_n);
 
-            double SR = (0.88 * percentile93) * 0.25 + (0.94 * percentile83) * 0.2 + weightedMean * 0.55;
-            SR = Math.Pow(SR, p0) / Math.Pow(8, p0) * 8;
+            double sr = 0.88 * percentile93 * 0.25 + 0.94 * percentile83 * 0.2 + weightedMean * 0.55;
+            sr = Math.Pow(sr, p0) / Math.Pow(8, p0) * 8;
 
             // length weighting
-            double totalNotes = noteSeq.Count + 0.5 * LNSeq.Sum(ln => Math.Min(ln.Tail - ln.Head, 1000) / 200.0);
-            SR *= totalNotes / (totalNotes + 60);
+            double totalNotes = noteSeq.Count + 0.5 * lnSeq.Sum(ln => Math.Min(ln.Tail - ln.Head, 1000) / 200.0);
+            sr *= totalNotes / (totalNotes + 60);
 
-            SR = rescaleHigh(SR);
-            SR *= 0.975;
+            sr = rescaleHigh(sr);
+            sr *= 0.975;
 
-            double variance_sum_top = 0;
-            double variance_sum_bottom = denWeighted;
+            double varianceSumTop = 0;
+            double varianceSumBottom = denWeighted;
 
-            for (int i = 0; i < D_sorted.Length; i++)
+            for (int i = 0; i < dSorted.Length; i++)
             {
-                variance_sum_top += Math.Pow(Math.Pow(D_sorted[i], 8) - Math.Pow(weightedMean, 8), 2) * sortedList[i].Weight;
+                varianceSumTop += Math.Pow(Math.Pow(dSorted[i], 8) - Math.Pow(weightedMean, 8), 2) * sortedList[i].Weight;
             }
 
-            double weighted_variance = Math.Pow(variance_sum_top / variance_sum_bottom, 1.0 / 8.0);
+            double weightedVariance = Math.Pow(varianceSumTop / varianceSumBottom, 1.0 / 8.0);
 
-            double spikiness = Math.Sqrt(weighted_variance) / weightedMean;
-            double switches = Switches(noteSeq, tailSeq, allCorners, Ks_arr, D_all);
-            SRParams pr = new SRParams
+            double spikiness = Math.Sqrt(weightedVariance) / weightedMean;
+            double switches = Switches(noteSeq, tailSeq, allCorners, ksArr, dAll);
+            SrParams pr = new SrParams
             {
-                SR = SR,
+                Sr = sr,
                 Spikiness = spikiness,
                 Switches = switches,
             };
@@ -947,30 +1005,33 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
         }
 
         // Returns the cumulative sum array for f evaluated on x.
-        private static double[] CumulativeSum(double[] x, double[] f)
+        private static double[] cumulativeSum(double[] x, double[] f)
         {
             int n = x.Length;
-            double[] F = new double[n];
-            F[0] = 0.0;
+            double[] bigF = new double[n];
+            bigF[0] = 0.0;
+
             for (int i = 1; i < n; i++)
             {
-                F[i] = F[i - 1] + f[i - 1] * (x[i] - x[i - 1]);
+                bigF[i] = bigF[i - 1] + f[i - 1] * (x[i] - x[i - 1]);
             }
-            return F;
+
+            return bigF;
         }
 
         // Query cumulative sum at q.
-        private static double QueryCumsum(double q, double[] x, double[] F, double[] f)
+        private static double queryCumsum(double q, double[] x, double[] bigF, double[] f)
         {
             if (q <= x[0])
                 return 0.0;
-            if (q >= x[x.Length - 1])
-                return F[x.Length - 1];
+            if (q >= x[^1])
+                return bigF[x.Length - 1];
+
             int idx = Array.BinarySearch(x, q);
             if (idx < 0)
                 idx = ~idx;
             int i = idx - 1;
-            return F[i] + f[i] * (q - x[i]);
+            return bigF[i] + f[i] * (q - x[i]);
         }
 
         // Smooth values f (defined on x) over a symmetric window.
@@ -978,73 +1039,81 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
         private static double[] SmoothOnCorners(double[] x, double[] f, double window, double scale, string mode)
         {
             int n = f.Length;
-            double[] F = CumulativeSum(x, f);
+            double[] bigF = cumulativeSum(x, f);
             double[] g = new double[n];
+
             for (int i = 0; i < n; i++)
             {
                 double s = x[i];
                 double a = Math.Max(s - window, x[0]);
-                double b = Math.Min(s + window, x[x.Length - 1]);
-                double val = QueryCumsum(b, x, F, f) - QueryCumsum(a, x, F, f);
+                double b = Math.Min(s + window, x[^1]);
+                double val = queryCumsum(b, x, bigF, f) - queryCumsum(a, x, bigF, f);
                 if (mode == "avg")
-                    g[i] = (b - a) > 0 ? val / (b - a) : 0.0;
+                    g[i] = b - a > 0 ? val / (b - a) : 0.0;
                 else
                     g[i] = scale * val;
             }
+
             return g;
         }
 
         // Linear interpolation from old_x, old_vals to new_x.
-        private static double[] InterpValues(double[] new_x, double[] old_x, double[] old_vals)
+        private static double[] interpValues(double[] newX, double[] oldX, double[] oldVals)
         {
-            int n = new_x.Length;
-            double[] new_vals = new double[n];
+            int n = newX.Length;
+            double[] newVals = new double[n];
+
             for (int i = 0; i < n; i++)
             {
-                double x_val = new_x[i];
-                if (x_val <= old_x[0])
-                    new_vals[i] = old_vals[0];
-                else if (x_val >= old_x[old_x.Length - 1])
-                    new_vals[i] = old_vals[old_x.Length - 1];
+                double xVal = newX[i];
+
+                if (xVal <= oldX[0])
+                    newVals[i] = oldVals[0];
+                else if (xVal >= oldX[^1])
+                    newVals[i] = oldVals[oldX.Length - 1];
                 else
                 {
-                    int idx = Array.BinarySearch(old_x, x_val);
+                    int idx = Array.BinarySearch(oldX, xVal);
                     if (idx < 0)
                         idx = ~idx;
                     int j = idx - 1;
-                    double t = (x_val - old_x[j]) / (old_x[j + 1] - old_x[j]);
-                    new_vals[i] = old_vals[j] + t * (old_vals[j + 1] - old_vals[j]);
+                    double t = (xVal - oldX[j]) / (oldX[j + 1] - oldX[j]);
+                    newVals[i] = oldVals[j] + t * (oldVals[j + 1] - oldVals[j]);
                 }
             }
-            return new_vals;
+
+            return newVals;
         }
 
         // Step–function interpolation (zero–order hold).
-        private static double[] StepInterp(double[] new_x, double[] old_x, double[] old_vals)
+        private static double[] stepInterp(double[] newX, double[] oldX, double[] oldVals)
         {
-            int n = new_x.Length;
-            double[] new_vals = new double[n];
+            int n = newX.Length;
+            double[] newVals = new double[n];
+
             for (int i = 0; i < n; i++)
             {
-                double x_val = new_x[i];
-                int idx = Array.BinarySearch(old_x, x_val);
+                double xVal = newX[i];
+                int idx = Array.BinarySearch(oldX, xVal);
                 if (idx < 0)
                     idx = ~idx;
                 idx = idx - 1;
                 if (idx < 0)
                     idx = 0;
-                if (idx >= old_vals.Length)
-                    idx = old_vals.Length - 1;
-                new_vals[i] = old_vals[idx];
+                if (idx >= oldVals.Length)
+                    idx = oldVals.Length - 1;
+                newVals[i] = oldVals[idx];
             }
-            return new_vals;
+
+            return newVals;
         }
 
         // Merges two sorted lists of Note (sorted by Head) into one sorted list.
-        private static List<Note> MergeSorted(List<Note> list1, List<Note> list2)
+        private static List<Note> mergeSorted(List<Note> list1, List<Note> list2)
         {
             List<Note> merged = new List<Note>();
             int i = 0, j = 0;
+
             while (i < list1.Count && j < list2.Count)
             {
                 if (list1[i].Head <= list2[j].Head)
@@ -1058,24 +1127,28 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                     j++;
                 }
             }
+
             while (i < list1.Count)
             {
                 merged.Add(list1[i]);
                 i++;
             }
+
             while (j < list2.Count)
             {
                 merged.Add(list2[j]);
                 j++;
             }
+
             return merged;
         }
 
         // Implements lower_bound: first index at which list[index] >= value.
-        private static int LowerBound(List<int> list, int value)
+        private static int lowerBound(List<int> list, int value)
         {
             int low = 0;
             int high = list.Count;
+
             while (low < high)
             {
                 int mid = (low + high) / 2;
@@ -1084,6 +1157,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
                 else
                     high = mid;
             }
+
             return low;
         }
 
@@ -1098,12 +1172,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             // Determine the unique categories and their counts.
             // Using a dictionary to map each unique value to its count.
             Dictionary<int, int> counts = new Dictionary<int, int>();
+
             foreach (int v in valList)
             {
-                if (counts.ContainsKey(v))
+                if (!counts.TryAdd(v, 1))
                     counts[v]++;
-                else
-                    counts[v] = 1;
             }
 
             // Create arrays for the unique values and their corresponding relative frequencies.
@@ -1112,6 +1185,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             double[] p = new double[nUnique];
             int index = 0;
             int totalCount = valList.Count;
+
             foreach (KeyValuePair<int, int> kvp in counts)
             {
                 unique[index] = kvp.Key;
@@ -1133,6 +1207,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // Compute the distance (dissimilarity) matrix for the unique values.
             double[,] distMatrix = new double[nUnique, nUnique];
+
             for (int i = 0; i < nUnique; i++)
             {
                 for (int j = 0; j < nUnique; j++)
@@ -1143,28 +1218,30 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // Compute Rao's Quadratic Entropy:
             // Q = sum_{i,j} p[i] * p[j] * distMatrix[i, j]
-            double Q = 0.0;
+            double q = 0.0;
+
             for (int i = 0; i < nUnique; i++)
             {
                 for (int j = 0; j < nUnique; j++)
                 {
-                    Q += p[i] * p[j] * distMatrix[i, j];
+                    q += p[i] * p[j] * distMatrix[i, j];
                 }
             }
 
-            return Q;
+            return q;
         }
 
         /// <param name="noteSeq">A list of notes (each note is an array of integers).</param>
+        /// <param name="noteSeqByColumn"></param>
         /// <returns>The variety measure computed from the head gaps and tail gaps.</returns>
         public static double Variety(List<Note> noteSeq, List<List<Note>> noteSeqByColumn)
         {
             // Extract heads and tails.
-            List<Note> tailSeq = new List<Note>();
-            tailSeq = noteSeq.OrderBy(n => n.Tail).ToList();
+            List<Note> tailSeq = noteSeq.OrderBy(n => n.Tail).ToList();
 
             // Compute the gaps between consecutive head values.
             List<int> headGaps = new List<int>();
+
             for (int i = 0; i < noteSeq.Count - 1; i++)
             {
                 headGaps.Add(noteSeq[i + 1].Head - noteSeq[i].Head);
@@ -1172,6 +1249,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             // Compute the gaps between consecutive tail values.
             List<int> tailGaps = new List<int>();
+
             for (int i = 0; i < tailSeq.Count - 1; i++)
             {
                 tailGaps.Add(tailSeq[i + 1].Tail - tailSeq[i].Tail);
@@ -1182,11 +1260,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
             double tailVariety = RaoQuadraticEntropyLog(tailGaps);
 
             List<int> headGapsNew = new List<int>();
+
             for (int k = 0; k < noteSeqByColumn.Count; k++)
             {
                 List<Note> heads = noteSeqByColumn[k];
 
                 List<int> headGapsColumn = new List<int>();
+
                 for (int i = 0; i < heads.Count - 1; i++)
                 {
                     headGapsColumn.Add(heads[i + 1].Head - heads[i].Head);
@@ -1199,6 +1279,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
 
             return 0.5 * headVariety + 0.11 * tailVariety + 0.45 * colVariety;
         }
+
         /// <summary>
         /// Computes the switch measure.
         /// noteSeq: List of notes used for heads.
@@ -1220,107 +1301,125 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Calculators
         /// allCorners: Sorted array of double values.
         /// KsArr, weights: Arrays of double values.
         /// </summary>
-            public static double Switches(List<Note> noteSeq, List<Note> tailSeq, double[] allCorners, double[] KsArr, double[] weights)
+        public static double Switches(List<Note> noteSeq, List<Note> tailSeq, double[] allCorners, double[] ksArr, double[] weights)
+        {
+            // Extract head values.
+            List<int> heads = noteSeq.Select(n => n.Head).ToList();
+
+            // For each head, use LowerBound (which now uses Array.BinarySearch) to get the insertion index.
+            List<int> idxList = heads.Select(h => LowerBound(allCorners, h)).ToList();
+
+            // Use these indices (dropping the last element) to select values from KsArr and weights.
+            List<double> ksArrAtNote = idxList.Take(idxList.Count - 1).Select(i => ksArr[i]).ToList();
+            List<double> weightsAtNote = idxList.Take(idxList.Count - 1).Select(i => weights[i]).ToList();
+
+            // Compute gaps between consecutive head values.
+            List<double> headGaps = new List<double>();
+
+            for (int i = 0; i < heads.Count - 1; i++)
             {
-                // Extract head values.
-                List<int> heads = noteSeq.Select(n => n.Head).ToList();
+                headGaps.Add(heads[i + 1] - heads[i]);
+            }
 
-                // For each head, use LowerBound (which now uses Array.BinarySearch) to get the insertion index.
-                List<int> idxList = heads.Select(h => LowerBound(allCorners, (double)h)).ToList();
+            int numHeadGaps = headGaps.Count;
+            // Compute moving averages over a window defined by index offsets (from i-50 to i+50).
+            List<double> avgs = new List<double>();
 
-                // Use these indices (dropping the last element) to select values from KsArr and weights.
-                List<double> KsArrAtNote = idxList.Take(idxList.Count - 1).Select(i => KsArr[i]).ToList();
-                List<double> weightsAtNote = idxList.Take(idxList.Count - 1).Select(i => weights[i]).ToList();
+            for (int i = 0; i < numHeadGaps; i++)
+            {
+                int start = Math.Max(0, i - 50);
+                int end = Math.Min(i + 50, numHeadGaps - 1);
+                double sum = 0.0;
+                int count = 0;
 
-                // Compute gaps between consecutive head values.
-                List<double> headGaps = new List<double>();
-                for (int i = 0; i < heads.Count - 1; i++)
+                for (int j = start; j <= end; j++)
                 {
-                    headGaps.Add((double)(heads[i + 1] - heads[i]));
+                    sum += headGaps[j];
+                    count++;
                 }
 
-                int numHeadGaps = headGaps.Count;
-                // Compute moving averages over a window defined by index offsets (from i-50 to i+50).
-                List<double> avgs = new List<double>();
-                for (int i = 0; i < numHeadGaps; i++)
+                avgs.Add(sum / count);
+            }
+
+            // Compute signature for heads.
+            double signatureHead = 0.0;
+
+            for (int i = 0; i < numHeadGaps; i++)
+            {
+                signatureHead += Math.Sqrt(headGaps[i] / avgs[i] / numHeadGaps * weightsAtNote[i])
+                                 * Math.Pow(ksArrAtNote[i], 0.25);
+            }
+
+            double sumRefHead = 0.0;
+
+            for (int i = 0; i < numHeadGaps; i++)
+            {
+                sumRefHead += headGaps[i] / avgs[i] * weightsAtNote[i];
+            }
+
+            double refSignatureHead = Math.Sqrt(sumRefHead);
+
+            // Process tails similarly.
+            List<int> tails = tailSeq.Select(n => n.Tail).ToList();
+            List<int> idxListTails = tails.Select(t => LowerBound(allCorners, t)).ToList();
+            List<double> ksArrAtTail = idxListTails.Take(idxListTails.Count - 1).Select(i => ksArr[i]).ToList();
+            List<double> weightsAtTail = idxListTails.Take(idxListTails.Count - 1).Select(i => weights[i]).ToList();
+
+            List<double> tailGaps = new List<double>();
+
+            for (int i = 0; i < tails.Count - 1; i++)
+            {
+                tailGaps.Add(tails[i + 1] - tails[i]);
+            }
+
+            double signatureTail = 0.0;
+            double refSignatureTail = 0.0;
+
+            if (tails.Count > 0 && tails[^1] > tails[0] && tailGaps.Count > 0)
+            {
+                int numTailGaps = tailGaps.Count;
+                List<double> avgsTail = new List<double>();
+
+                for (int i = 0; i < numTailGaps; i++)
                 {
                     int start = Math.Max(0, i - 50);
-                    int end = Math.Min(i + 50, numHeadGaps - 1);
+                    int end = Math.Min(i + 50, numTailGaps - 1);
                     double sum = 0.0;
                     int count = 0;
+
                     for (int j = start; j <= end; j++)
                     {
-                        sum += headGaps[j];
+                        sum += tailGaps[j];
                         count++;
                     }
-                    avgs.Add(sum / count);
+
+                    avgsTail.Add(sum / count);
                 }
 
-                // Compute signature for heads.
-                double signatureHead = 0.0;
-                for (int i = 0; i < numHeadGaps; i++)
+                for (int i = 0; i < numTailGaps; i++)
                 {
-                    signatureHead += Math.Sqrt((headGaps[i] / avgs[i] / numHeadGaps) * weightsAtNote[i])
-                                    * Math.Pow(KsArrAtNote[i], 0.25);
+                    signatureTail += Math.Sqrt(tailGaps[i] / avgsTail[i] / numTailGaps * weightsAtTail[i])
+                                     * Math.Pow(ksArrAtTail[i], 0.25);
                 }
-                double sumRefHead = 0.0;
-                for (int i = 0; i < numHeadGaps; i++)
+
+                double sumRefTail = 0.0;
+
+                for (int i = 0; i < numTailGaps; i++)
                 {
-                    sumRefHead += (headGaps[i] / avgs[i]) * weightsAtNote[i];
-                }
-                double refSignatureHead = Math.Sqrt(sumRefHead);
-
-                // Process tails similarly.
-                List<int> tails = tailSeq.Select(n => n.Tail).ToList();
-                List<int> idxListTails = tails.Select(t => LowerBound(allCorners, (double)t)).ToList();
-                List<double> KsArrAtTail = idxListTails.Take(idxListTails.Count - 1).Select(i => KsArr[i]).ToList();
-                List<double> weightsAtTail = idxListTails.Take(idxListTails.Count - 1).Select(i => weights[i]).ToList();
-
-                List<double> tailGaps = new List<double>();
-                for (int i = 0; i < tails.Count - 1; i++)
-                {
-                    tailGaps.Add((double)(tails[i + 1] - tails[i]));
+                    sumRefTail += tailGaps[i] / avgsTail[i] * weightsAtTail[i];
                 }
 
-                double signatureTail = 0.0;
-                double refSignatureTail = 0.0;
-                if (tails.Count > 0 && tails[tails.Count - 1] > tails[0] && tailGaps.Count > 0)
-                {
-                    int numTailGaps = tailGaps.Count;
-                    List<double> avgsTail = new List<double>();
-                    for (int i = 0; i < numTailGaps; i++)
-                    {
-                        int start = Math.Max(0, i - 50);
-                        int end = Math.Min(i + 50, numTailGaps - 1);
-                        double sum = 0.0;
-                        int count = 0;
-                        for (int j = start; j <= end; j++)
-                        {
-                            sum += tailGaps[j];
-                            count++;
-                        }
-                        avgsTail.Add(sum / count);
-                    }
-                    for (int i = 0; i < numTailGaps; i++)
-                    {
-                        signatureTail += Math.Sqrt((tailGaps[i] / avgsTail[i] / numTailGaps) * weightsAtTail[i])
-                                        * Math.Pow(KsArrAtTail[i], 0.25);
-                    }
-                    double sumRefTail = 0.0;
-                    for (int i = 0; i < numTailGaps; i++)
-                    {
-                        sumRefTail += (tailGaps[i] / avgsTail[i]) * weightsAtTail[i];
-                    }
-                    refSignatureTail = Math.Sqrt(sumRefTail);
-                }
-
-                // Combine head and tail signatures.
-                double numerator = signatureHead * numHeadGaps + signatureTail * tailGaps.Count;
-                double denominator = refSignatureHead * numHeadGaps + refSignatureTail * tailGaps.Count;
-                double switches = numerator / denominator;
-
-                return switches / 2.0 + 0.5;
+                refSignatureTail = Math.Sqrt(sumRefTail);
             }
-            #endregion
+
+            // Combine head and tail signatures.
+            double numerator = signatureHead * numHeadGaps + signatureTail * tailGaps.Count;
+            double denominator = refSignatureHead * numHeadGaps + refSignatureTail * tailGaps.Count;
+            double switches = numerator / denominator;
+
+            return switches / 2.0 + 0.5;
         }
+
+        #endregion
+    }
 }

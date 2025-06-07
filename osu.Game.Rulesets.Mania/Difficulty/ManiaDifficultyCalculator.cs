@@ -12,7 +12,6 @@ using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
-using osu.Game.Rulesets.Mania.MathUtils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Scoring;
@@ -25,6 +24,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
         private readonly bool isForCurrentRuleset;
+        private readonly double originalOverallDifficulty;
 
         public override int Version => 20241007;
 
@@ -32,6 +32,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             : base(ruleset, beatmap)
         {
             isForCurrentRuleset = beatmap.BeatmapInfo.Ruleset.MatchesOnlineID(ruleset);
+            originalOverallDifficulty = beatmap.BeatmapInfo.Difficulty.OverallDifficulty;
         }
 
         protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
@@ -69,8 +70,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             sortedObjects = sortedObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToArray();
 
-            int columns = ((ManiaBeatmap)beatmap).TotalColumns;
-
             var objects = new List<DifficultyHitObject>(sortedObjects.Length);
 
             for (int i = 1; i < sortedObjects.Length; i++)
@@ -88,7 +87,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new SunnySkill(mods, ((ManiaBeatmap)beatmap).TotalColumns, beatmap.Difficulty.OverallDifficulty, ((ManiaBeatmap)beatmap).HitObjects.Count, getHitWindow300(mods, clockRate))
+            new SunnySkill(mods, ((ManiaBeatmap)beatmap).TotalColumns, ((ManiaBeatmap)beatmap).HitObjects.Count, getHitWindow300(mods, clockRate))
         };
 
         protected override Mod[] DifficultyAdjustmentMods
@@ -124,6 +123,33 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                     new ManiaModKey9(),
                     new MultiMod(new ManiaModKey9(), new ManiaModDualStages()),
                 }).ToArray();
+            }
+        }
+
+        private double getHitWindow300(Mod[] mods, double clockRate)
+        {
+            if (isForCurrentRuleset)
+            {
+                double antiOd = Math.Min(10.0, Math.Max(0, 10.0 - originalOverallDifficulty));
+                return applyModAdjustments(34 + 3 * antiOd, mods, clockRate);
+            }
+
+            if (Math.Round(originalOverallDifficulty) > 4)
+                return applyModAdjustments(34, mods, clockRate);
+
+            return applyModAdjustments(47, mods, clockRate);
+
+            static double applyModAdjustments(double value, Mod[] mods, double clockRate)
+            {
+                value *= clockRate;
+                value += 1e-6; // to make sure rounding is correct
+
+                if (mods.Any(m => m is ManiaModHardRock))
+                    value /= 1.4;
+                else if (mods.Any(m => m is ManiaModEasy))
+                    value *= 1.4;
+
+                return ((int)(value) + 0.5) / clockRate;
             }
         }
     }

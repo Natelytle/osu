@@ -4,11 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Difficulty.Calculators;
 using osu.Game.Rulesets.Mods;
 
@@ -16,31 +14,28 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class SunnySkill : Skill
     {
-        private List<Calculators.Note> noteSeq;
-        private List<List<Calculators.Note>> noteSeqByColumn;
-        private double od;
-        private int totalColumns;
+        private readonly List<Note> noteSeq;
+        private readonly List<List<Note>> noteSeqByColumn;
+        private readonly int totalColumns;
         private double spikiness;
         private double switches;
-        private double greatHitWindow;
-        private Mod[] mods;
+        private readonly double greatHitWindow;
+        private readonly Mod[] mods;
 
-        public SunnySkill(Mod[] mods, int totalColumns, double od, int objectCount, double greatHitWindow)
+        public SunnySkill(Mod[] mods, int totalColumns, int objectCount, double greatHitWindow)
             : base(mods)
         {
-            this.od = od;
-
             this.totalColumns = totalColumns;
 
-            noteSeq = new List<Calculators.Note>(objectCount);
+            noteSeq = new List<Note>(objectCount);
 
             this.greatHitWindow = greatHitWindow;
 
-            noteSeqByColumn = new List<List<Calculators.Note>>();
+            noteSeqByColumn = new List<List<Note>>();
 
             for (int k = 0; k < totalColumns; k++)
             {
-                noteSeqByColumn.Add(new List<Calculators.Note>());
+                noteSeqByColumn.Add(new List<Note>());
             }
 
             this.mods = mods;
@@ -53,7 +48,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             int endTime = currObj.EndTime == currObj.StartTime ? -1 : (int)currObj.EndTime;
 
-            Calculators.Note note = new Calculators.Note(currObj.BaseObject.Column, (int)currObj.StartTime, endTime);
+            Note note = new Note(currObj.BaseObject.Column, (int)currObj.StartTime, endTime);
 
             noteSeq.Add(note);
 
@@ -68,22 +63,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double x = 0.3 * Math.Pow(greatHitWindow / 500.0, 0.5);
             x = Math.Min(x, 0.6 * (x - 0.09) + 0.09);
 
-            SRParams srParams = MACalculator.Calculate(noteSeq, noteSeqByColumn, totalColumns, x, mods.Any(m => m is ModClassic));
+            SrParams srParams = MaCalculator.Calculate(noteSeq, noteSeqByColumn, totalColumns, x, mods.Any(m => m is ModClassic));
             spikiness = srParams.Spikiness;
             switches = srParams.Switches;
 
-            return srParams.SR;
+            return srParams.Sr;
         }
 
         public double VarietyValue()
         {
-            return MACalculator.Variety(noteSeq, noteSeqByColumn);
+            return MaCalculator.Variety(noteSeq, noteSeqByColumn);
         }
 
         public double AccScalarValue()
         {
-            return 0.5*spikiness+0.5*switches;
+            return 0.5 * spikiness + 0.5 * switches;
         }
-
     }
 }
