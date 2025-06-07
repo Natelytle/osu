@@ -31,7 +31,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public int Column;
 
-        public readonly double ColumnStrainTime;
+        public readonly double ColumnDeltaTime;
 
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index, int longNoteIndex)
             : base(hitObject, lastObject, clockRate, objects, index)
@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
             ConcurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
             CurrentHitObjects = new ManiaDifficultyHitObject[totalColumns];
-            ColumnStrainTime = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
+            ColumnDeltaTime = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
 
             if (index > 0)
             {
