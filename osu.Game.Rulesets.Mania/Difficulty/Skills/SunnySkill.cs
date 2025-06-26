@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
@@ -30,10 +31,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private readonly int totalColumns;
         private readonly double hitLeniency;
 
+        private readonly Corners corners;
         private readonly List<ManiaDifficultyHitObject> noteList = new List<ManiaDifficultyHitObject>();
         private readonly List<ManiaDifficultyHitObject>[] perColumnNoteList;
 
-        public SunnySkill(Mod[] mods, int totalColumns, double od)
+        public SunnySkill(Mod[] mods, int totalColumns, double od, double mapEndTime)
             : base(mods)
         {
             hitLeniency = 0.3 * Math.Pow((64.5 - Math.Ceiling(od * 3.0)) / 500.0, 0.5);
@@ -42,6 +44,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             for (int i = 0; i < totalColumns; i++)
                 perColumnNoteList[i] = new List<ManiaDifficultyHitObject>();
+
+            corners = new Corners(mapEndTime);
         }
 
         // Mania difficulty hit objects are already sorted in the difficulty calculator, we just need to populate the lists.
@@ -51,6 +55,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             noteList.Add(currObj);
             perColumnNoteList[currObj.Column].Add(currObj);
+            corners.AddCornersForNote(currObj);
         }
 
         public override double DifficultyValue()
