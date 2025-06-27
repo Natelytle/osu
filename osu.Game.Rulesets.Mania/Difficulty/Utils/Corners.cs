@@ -14,7 +14,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
     /// </summary>
     public struct Corners
     {
-        private double mapEndTime;
+        private readonly double mapEndTime;
 
         /// <summary>
         /// Time values at, 1ms after, 501ms after, and 499ms before each note.

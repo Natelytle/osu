@@ -79,7 +79,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 }
             }
 
-            unevenness = CornerUtils.AverageCornersWithinWindow(aCorners, unevenness, 500);
+            unevenness = CornerUtils.SmoothCornersWithinWindow(aCorners, unevenness, 500, 1, false);
 
             unevenness = CornerUtils.InterpolateValues(allCorners, aCorners, unevenness);
 

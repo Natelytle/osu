@@ -81,7 +81,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             // Smooths it out
-            crossColumnPressure = CornerUtils.SumCornersWithinWindow(baseCorners, crossColumnPressure, 500, 0.001);
+            crossColumnPressure = CornerUtils.SmoothCornersWithinWindow(baseCorners, crossColumnPressure, 500, 0.001);
 
             // Fits it to all corners
             crossColumnPressure = CornerUtils.InterpolateValues(allCorners, baseCorners, crossColumnPressure);

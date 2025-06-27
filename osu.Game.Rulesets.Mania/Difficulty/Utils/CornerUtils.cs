@@ -7,48 +7,73 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public class CornerUtils
     {
-        public static double[] AverageCornersWithinWindow(double[] cornerTimes, double[] cornerValues, double window)
+        // Smooths values within the provided window, either by averaging the values or summing them and multiplying them by scale.
+        public static double[] SmoothCornersWithinWindow(double[] cornerTimes, double[] cornerValues, double window, double scale, bool sum = true)
         {
             int n = cornerValues.Length;
-            double[] cumulativeCornerValues = cumulativeSum(cornerTimes, cornerValues);
 
+            if (n == 0)
+            {
+                return Array.Empty<double>();
+            }
+
+            double[] cumulativeCornerValues = cumulativeSum(cornerTimes, cornerValues);
             double[] averagedValues = new double[n];
+
+            double firstCornerTime = cornerTimes[0];
+            double lastCornerTime = cornerTimes[n - 1];
+            double lastCumulativeValue = cumulativeCornerValues[n - 1];
+
+            int idxA = 0;
+            int idxB = 0;
 
             for (int i = 0; i < n; i++)
             {
                 double t = cornerTimes[i];
-                double a = Math.Max(t - window, cornerTimes[0]);
-                double b = Math.Min(t + window, cornerTimes[^1]);
+                double a = Math.Max(t - window, firstCornerTime);
+                double b = Math.Min(t + window, lastCornerTime);
 
-                // Get the sum of the values in the window.
-                double val = queryCumulativeSum(b, cornerTimes, cornerValues, cumulativeCornerValues) - queryCumulativeSum(a, cornerTimes, cornerValues, cumulativeCornerValues);
+                double valA;
 
-                averagedValues[i] = val / (b - a);
+                if (a <= firstCornerTime)
+                {
+                    valA = 0.0;
+                }
+                else
+                {
+                    while (idxA < n - 1 && cornerTimes[idxA + 1] <= a)
+                    {
+                        idxA++;
+                    }
+
+                    valA = cumulativeCornerValues[idxA] + cornerValues[idxA] * (a - cornerTimes[idxA]);
+                }
+
+                double valB;
+
+                if (b >= lastCornerTime)
+                {
+                    valB = lastCumulativeValue;
+                }
+                else
+                {
+                    while (idxB < n - 1 && cornerTimes[idxB + 1] <= b)
+                    {
+                        idxB++;
+                    }
+
+                    valB = cumulativeCornerValues[idxB] + cornerValues[idxB] * (b - cornerTimes[idxB]);
+                }
+
+                double val = valB - valA;
+
+                if (sum)
+                    averagedValues[i] = val * scale;
+                else
+                    averagedValues[i] = val / (b - a);
             }
 
             return averagedValues;
-        }
-
-        public static double[] SumCornersWithinWindow(double[] cornerTimes, double[] cornerValues, double window, double scale)
-        {
-            int n = cornerValues.Length;
-            double[] cumulativeCornerValues = cumulativeSum(cornerTimes, cornerValues);
-
-            double[] summedValues = new double[n];
-
-            for (int i = 0; i < n; i++)
-            {
-                double t = cornerTimes[i];
-                double a = Math.Max(t - window, cornerTimes[0]);
-                double b = Math.Min(t + window, cornerTimes[^1]);
-
-                // Get the sum of the values in the window.
-                double val = queryCumulativeSum(b, cornerTimes, cornerValues, cumulativeCornerValues) - queryCumulativeSum(a, cornerTimes, cornerValues, cumulativeCornerValues);
-
-                summedValues[i] = val * scale;
-            }
-
-            return summedValues;
         }
 
         private static double[] cumulativeSum(double[] cornerTimes, double[] cornerValues)
@@ -64,22 +89,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             }
 
             return cumulativeCornerValues;
-        }
-
-        private static double queryCumulativeSum(double queryTime, double[] cornerTimes, double[] cornerValues, double[] cumulativeCornerValues)
-        {
-            if (queryTime <= cornerTimes[0])
-                return 0;
-            if (queryTime >= cornerTimes[^1])
-                return cumulativeCornerValues[^1];
-
-            int index = Array.BinarySearch(cornerTimes, queryTime);
-
-            if (index < 0)
-                index = ~index;
-            index -= 1;
-
-            return cumulativeCornerValues[index] + cornerValues[index] * (queryTime - cornerTimes[index]);
         }
 
         // Linear interpolation from old_x, old_vals to new_x.

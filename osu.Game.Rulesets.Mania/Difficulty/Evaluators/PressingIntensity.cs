@@ -31,7 +31,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     // if notes are less than 1ms apart
                     if (deltaTime < 1e-4)
                     {
-                        pressingIntensity[firstCornerIndex] += Math.Pow(0.02 * (4 / hitLeniency - 8.0), 1.0 / 4.0);
+                        pressingIntensity[firstCornerIndex] += 1000 * Math.Pow(0.02 * (4 / hitLeniency - 24.0), 1.0 / 4.0);
                         continue;
                     }
 
@@ -43,7 +43,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     else
                         val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - 8.0 * (1.0 / hitLeniency) * Math.Pow(hitLeniency / 6, 2)), 1 / 4.0);
 
-                    val = Math.Min(val * calculateAnchor(), Math.Max(val, val * 2 - 10));
+                    // Uncomment when anchor is implemented
+                    // val = Math.Min(val * calculateAnchor(), Math.Max(val, val * 2 - 10));
 
                     // find the first corner at the start time of the previous note
                     while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < note.StartTime) cornerPointer++;
@@ -58,7 +59,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 prev = note;
             }
 
-            pressingIntensity = CornerUtils.SumCornersWithinWindow(baseCorners, pressingIntensity, 500, 0.001);
+            pressingIntensity = CornerUtils.SmoothCornersWithinWindow(baseCorners, pressingIntensity, 500, 0.001);
 
             // Fits it to all corners
             pressingIntensity = CornerUtils.InterpolateValues(allCorners, baseCorners, pressingIntensity);

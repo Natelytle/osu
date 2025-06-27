@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     prev = note;
                 }
 
-                perColumnPressure = CornerUtils.SumCornersWithinWindow(baseCorners, perColumnPressure, 500, 0.001);
+                perColumnPressure = CornerUtils.SmoothCornersWithinWindow(baseCorners, perColumnPressure, 500, 0.001);
 
                 // Accumulate weighted values directly
                 for (int i = 0; i < baseCorners.Length; i++)

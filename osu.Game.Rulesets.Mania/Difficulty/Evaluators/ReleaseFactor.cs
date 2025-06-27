@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 note = next;
             }
 
-            releaseFactor = CornerUtils.SumCornersWithinWindow(baseCorners, releaseFactor, 500, 0.001);
+            releaseFactor = CornerUtils.SmoothCornersWithinWindow(baseCorners, releaseFactor, 500, 0.001);
 
             releaseFactor = CornerUtils.InterpolateValues(allCorners, baseCorners, releaseFactor);
 

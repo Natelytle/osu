@@ -72,29 +72,29 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             int start = 0;
             int end = 0;
 
-            for (int t = 0; t < allCorners.Length; t++)
+            for (int i = 0; i < allCorners.Length; i++)
             {
                 // Clamp each pressure value to [0-inf]
-                x[t] = Math.Max(0, x[t]);
-                j[t] = Math.Max(0, j[t]);
-                p[t] = Math.Max(0, p[t]);
-                a[t] = Math.Max(0, a[t]);
-                r[t] = Math.Max(0, r[t]);
+                x[i] = Math.Max(0, x[i]);
+                j[i] = Math.Max(0, j[i]);
+                p[i] = Math.Max(0, p[i]);
+                a[i] = Math.Max(0, a[i]);
+                r[i] = Math.Max(0, r[i]);
 
-                while (start < noteList.Count && noteList[start].StartTime < t - 500)
+                while (start < noteList.Count && noteList[start].StartTime < allCorners[i] - 500)
                 {
                     start += 1;
                 }
 
-                while (end < noteList.Count && noteList[end].StartTime < t + 500)
+                while (end < noteList.Count && noteList[end].StartTime < allCorners[i] + 500)
                 {
                     end += 1;
                 }
 
                 int c = end - start;
 
-                double strain = Math.Pow(0.37 * Math.Pow(Math.Pow(a[t], 1.0 / 2.0) * j[t], 1.5) + (1 - 0.37) * Math.Pow(Math.Pow(a[t], 2.0 / 3.0) * (p[t] + r[t]), 1.5), 2.0 / 3.0);
-                double twist = x[t] / (x[t] + strain + 1);
+                double strain = Math.Pow(0.37 * Math.Pow(Math.Pow(a[i], 1.0 / 2.0) * j[i], 1.5) + (1 - 0.37) * Math.Pow(Math.Pow(a[i], 2.0 / 3.0) * (p[i] + r[i]), 1.5), 2.0 / 3.0);
+                double twist = x[i] / (x[i] + strain + 1);
 
                 double deez = 2.7 * Math.Pow(strain, 1.0 / 2.0) * Math.Pow(twist, 1.5) + strain * 0.27;
 
