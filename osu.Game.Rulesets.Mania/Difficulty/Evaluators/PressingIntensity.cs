@@ -40,7 +40,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     }
 
                     double lnSum = calculateLnAmount(prev.StartTime, note.StartTime, prev.CurrentHitObjects, note.CurrentHitObjects);
-                    double val = Math.Max((1.0 / deltaTime) * (1 + 6.0 * lnSum), streamBooster(deltaTime));
+                    double val = Math.Max(1.0 / deltaTime * (1 + 6.0 * lnSum), streamBooster(deltaTime));
 
                     if (deltaTime < 2 * hitLeniency / 3.0)
                         val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - 24.0 * (1.0 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0);
@@ -53,9 +53,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                     for (int i = firstCornerIndex; i < lastCornerIndex; i++)
                     {
-                        val = Math.Min(val * calculateAnchor(keyUsages, i), Math.Max(val, val * 2 - 10));
+                        double valAnchor = Math.Min(val * calculateAnchor(keyUsages, i), Math.Max(val, val * 2 - 10));
 
-                        pressingIntensity[i] = val;
+                        pressingIntensity[i] = valAnchor;
                     }
                 }
 
