@@ -33,9 +33,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     int endIdx = cornerPointer;
 
                     for (int i = startIdx; i < endIdx; i++)
-                        keyUsages[i] = 1; // OR across all columns
+                        keyUsages[i] += 1;
                 }
             }
+
+            for (int i = 0; i < keyUsages.Length; i++)
+                keyUsages[i] = Math.Max(keyUsages[i], 1);
 
             return keyUsages;
         }

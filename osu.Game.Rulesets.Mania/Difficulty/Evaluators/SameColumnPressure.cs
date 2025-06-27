@@ -16,10 +16,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double[] perColumnPressure = new double[baseCorners.Length];
             double[] perColumnDeltaTimes = new double[baseCorners.Length];
             double[] sumWeights = new double[baseCorners.Length];
-            int cornerPointer = 0;
 
             for (int col = 0; col < totalColumns; col++)
             {
+                int cornerPointer = 0;
+
                 IEnumerable<ManiaDifficultyHitObject> columnNotes = perColumnNoteList[col];
 
                 Array.Clear(perColumnPressure);

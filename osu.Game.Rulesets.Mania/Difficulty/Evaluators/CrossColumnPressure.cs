@@ -30,12 +30,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             double[] crossColumnPressure = new double[baseCorners.Length];
             double[] prevFastCross = new double[baseCorners.Length];
-            int cornerPointer = 0;
 
             double[] columnWeights = cross_matrix[totalColumns];
 
             for (int col = 0; col < totalColumns + 1; col++)
             {
+                int cornerPointer = 0;
+
                 IEnumerable<ManiaDifficultyHitObject> pairedNotesList;
 
                 if (col == 0)
@@ -44,22 +45,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     pairedNotesList = perColumnNoteList[col - 1];
                 else
                     pairedNotesList = mergeSorted(perColumnNoteList[col], perColumnNoteList[col - 1]);
-
-                ManiaDifficultyHitObject? prevPrev = null;
                 ManiaDifficultyHitObject? prev = null;
 
                 double crossVal = columnWeights[col];
 
                 foreach (ManiaDifficultyHitObject note in pairedNotesList)
                 {
-                    if (prev is not null && prevPrev is not null && prev.StartTime < note.StartTime)
+                    if (prev is not null && prev.StartTime < note.StartTime)
                     {
+                        double currStart = note.StartTime;
                         double prevStart = prev.StartTime;
-                        double prevPrevStart = prevPrev.StartTime;
 
-                        double delta = 0.001 * (prevStart - prevPrevStart);
-                        double safeDelta = Math.Max(hitLeniency, delta);
-                        double val = 0.16 * Math.Pow(safeDelta, -2);
+                        double delta = 0.001 * (currStart - prevStart);
+                        double val = 0.16 * Math.Pow(Math.Max(hitLeniency, delta), -2);
 
                         if (col == 0 || col == totalColumns)
                         {
@@ -68,14 +66,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                         else
                         {
                             // We provide a nerf to the value if either the adjacent and current columns don't include any notes within the past 150 milliseconds.
-                            bool adjacentKeyUsed = prevStart - prev.CurrentHitObjects[col - 1]?.EndTime < 150 || prevPrevStart - prevPrev.CurrentHitObjects[col - 1]?.EndTime < 150;
-                            bool currentKeyUsed = prevStart - prev.CurrentHitObjects[col]?.EndTime < 150 || prevPrevStart - prevPrev.CurrentHitObjects[col]?.EndTime < 150;
+                            bool adjacentKeyUsed = currStart - note.CurrentHitObjects[col - 1]?.EndTime < 150 || prevStart - prev.CurrentHitObjects[col - 1]?.EndTime < 150;
+                            bool currentKeyUsed = currStart - note.CurrentHitObjects[col]?.EndTime < 150 || prevStart - prev.CurrentHitObjects[col]?.EndTime < 150;
 
-                            if (!(adjacentKeyUsed && currentKeyUsed))
+                            if (!adjacentKeyUsed || !currentKeyUsed)
                                 val *= 1 - crossVal;
                         }
 
-                        double fastCross = Math.Max(0, 0.4 * Math.Pow(Math.Max(Math.Max(delta, 0.06), -0.75 * hitLeniency), -2) - 80) * crossVal;
+                        double fastCross = Math.Max(0, 0.4 * Math.Pow(Math.Max(Math.Max(delta, 0.06), 0.75 * hitLeniency), -2) - 80) * crossVal;
 
                         // find the first corner at the start time of the previous note
                         while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < prev.StartTime) cornerPointer++;
@@ -97,7 +95,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                         }
                     }
 
-                    prevPrev = prev;
                     prev = note;
                 }
             }

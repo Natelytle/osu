@@ -35,11 +35,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     if (deltaTime < 1e-4)
                     {
                         pressingIntensity[firstCornerIndex] += 1000 * Math.Pow(0.02 * (4 / hitLeniency - 24.0), 1.0 / 4.0);
+                        prev = note;
                         continue;
                     }
 
-                    double lnSum = calculateLnAmount(prev.StartTime, note.StartTime, prev.CurrentHitObjects, note.CurrentHitObjects);
-                    double val = Math.Max(1.0 / deltaTime * (1 + 6.0 * lnSum), streamBooster(deltaTime));
+                    double lnSum = calculateLnAmount(prev.StartTime, note.StartTime, note.CurrentHitObjects);
+                    double val = 1 / deltaTime;
+
+                    // Multiply by whichever bonus is higher, the LN bonus or the stream booster.
+                    val *= Math.Max(1 + 6.0 * lnSum, streamBooster(deltaTime));
 
                     if (deltaTime < 2 * hitLeniency / 3.0)
                         val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - 24.0 * (1.0 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0);
@@ -52,7 +56,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                     for (int i = firstCornerIndex; i < lastCornerIndex; i++)
                     {
-                        double valAnchor = Math.Min(val * calculateAnchor(keyUsages, i), Math.Max(val, val * 2 - 10));
+                        double valAnchor = 1.255 * Math.Min(val * calculateAnchor(keyUsages, i), Math.Max(val, val * 2 - 10));
 
                         pressingIntensity[i] = valAnchor;
                     }
@@ -123,33 +127,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return 1;
         }
 
-        private static double calculateLnAmount(double startTime, double endTime, ManiaDifficultyHitObject?[] currentObjects, ManiaDifficultyHitObject?[] nextObjects)
+        private static double calculateLnAmount(double startTime, double endTime, ManiaDifficultyHitObject?[] endTimeObjects)
         {
             double lnAmount = 0;
 
-            for (int column = 0; column < currentObjects.Length; column++)
+            for (int column = 0; column < endTimeObjects.Length; column++)
             {
-                ManiaDifficultyHitObject? currObj = currentObjects[column];
-                ManiaDifficultyHitObject? nextObj = nextObjects[column];
+                ManiaDifficultyHitObject? obj = endTimeObjects[column];
 
-                if (currObj is not null && currObj.BaseObject is not Note)
+                while (obj is not null && obj.EndTime > startTime)
                 {
-                    double lnEnd = Math.Min(currObj.EndTime, endTime);
-                    double fullLnStart = Math.Max(currObj.StartTime + 120, startTime);
-                    double partialLnStart = Math.Max(currObj.StartTime + 60, startTime);
-                    double partialLnEnd = Math.Min(currObj.StartTime + 120, lnEnd);
+                    if (obj.BaseObject is not Note)
+                    {
+                        double lnEnd = Math.Min(obj.EndTime, endTime);
+                        double fullLnStart = Math.Max(obj.StartTime + 120, startTime);
+                        double partialLnStart = Math.Max(obj.StartTime + 60, startTime);
+                        double partialLnEnd = Math.Min(obj.StartTime + 120, lnEnd);
 
-                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 1.3 * Math.Max(partialLnEnd - partialLnStart, 0);
-                }
+                        lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 1.3 * Math.Max(partialLnEnd - partialLnStart, 0);
+                    }
 
-                if (nextObj?.StartTime != currObj?.StartTime && nextObj is not null && nextObj.BaseObject is not Note)
-                {
-                    double lnEnd = Math.Min(nextObj.EndTime, endTime);
-                    double fullLnStart = Math.Max(nextObj.StartTime + 120, startTime);
-                    double partialLnStart = Math.Max(nextObj.StartTime + 60, startTime);
-                    double partialLnEnd = Math.Min(nextObj.StartTime + 120, lnEnd);
-
-                    lnAmount += Math.Max(lnEnd - fullLnStart, 0) + 1.3 * Math.Max(partialLnEnd - partialLnStart, 0);
+                    obj = (ManiaDifficultyHitObject?)obj.PrevInColumn(0);
                 }
             }
 

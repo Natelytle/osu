@@ -63,12 +63,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, hitLeniency, baseCorners, allCorners);
             double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, aCorners, allCorners);
 
+            double xMax = x.Max();
+            double xMin = x.Min();
+            double jMax = j.Max();
+            double jMin = j.Min();
+            double pMax = p.Max();
+            double pMin = p.Min();
+            double rMax = r.Max();
+            double rMin = r.Min();
+            double aMax = a.Max();
+            double aMin = a.Min();
+
             double[] c = new double[length];
 
             int start = 0;
             int end = 0;
 
-            for (int i = 0; i < noteList.Count; i++)
+            for (int i = 0; i < allCorners.Length; i++)
             {
                 while (start < noteList.Count && noteList[start].StartTime < allCorners[i] - 500)
                     start += 1;
@@ -76,7 +87,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 while (end < noteList.Count && noteList[end].StartTime < allCorners[i] + 500)
                     end += 1;
 
-                c[i] = noteList[end].StartTime - noteList[start].StartTime;
+                c[i] = end - start;
             }
 
             double[] ks = KeyUsage.GetKeyUsages(perColumnNoteList, allCorners);

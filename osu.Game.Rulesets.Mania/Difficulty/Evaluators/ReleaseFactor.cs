@@ -25,7 +25,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             foreach (ManiaDifficultyHitObject next in longNoteList)
             {
                 if (prev is null || note is null || prev.EndTime >= note.EndTime)
+                {
+                    prev = note;
+                    note = next;
                     continue;
+                }
 
                 double previousI = 0.001 * Math.Abs(prev.EndTime - prev.StartTime - 80.0) / hitLeniency;
                 double currentI = 0.001 * Math.Abs(note.EndTime - note.StartTime - 80.0) / hitLeniency;

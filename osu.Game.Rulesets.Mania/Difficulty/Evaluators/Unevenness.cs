@@ -15,13 +15,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double[] unevenness = new double[aCorners.Length];
             double[] currentColumnDeltaTimes = new double[aCorners.Length];
             double?[] previousColumnDeltaTimes = new double?[aCorners.Length];
-            int cornerPointer = 0;
 
             for (int i = 0; i < aCorners.Length; i++)
                 unevenness[i] = 1;
 
             for (int col = 0; col < totalColumns; col++)
             {
+                int cornerPointer = 0;
+
                 List<ManiaDifficultyHitObject> columnNotes = perColumnNoteList[col];
 
                 ManiaDifficultyHitObject? prev = null;
