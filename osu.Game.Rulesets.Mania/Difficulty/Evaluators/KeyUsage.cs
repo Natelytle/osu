@@ -42,6 +42,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         public static double[][] GetKeyUsages400(List<ManiaDifficultyHitObject>[] perColumnNoteList, double[] baseCorners)
         {
             double[][] keyUsages = new double[perColumnNoteList.Length][];
+            double maxCorner = baseCorners[^1];
+            const double pow400 = 160000; // 400^2
+            const double weight_base = 3.75;
+            const double note_cap = 1500;
+            const double inv150 = 1.0 / 150;
 
             for (int column = 0; column < perColumnNoteList.Length; column++)
             {
@@ -49,12 +54,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 int cornerPointer = 0;
                 int corner400Pointer = 0;
 
-                foreach (ManiaDifficultyHitObject note in perColumnNoteList[column])
+                foreach (var note in perColumnNoteList[column])
                 {
                     double activeStart = note.StartTime;
-                    double activeStart400 = Math.Max(activeStart - 400, 0);
                     double activeEnd = note.EndTime;
-                    double activeEnd400 = Math.Min(activeEnd - 400, baseCorners[^1]);
+                    double activeStart400 = Math.Max(activeStart - 400, 0);
+                    double activeEnd400 = Math.Min(activeEnd + 400, maxCorner);
 
                     // find the first corner at activeStart - 400.
                     while (corner400Pointer < baseCorners.Length && baseCorners[corner400Pointer] < activeStart400) corner400Pointer++;
@@ -74,16 +79,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     while (corner400Pointer < baseCorners.Length && baseCorners[corner400Pointer] < activeEnd400) corner400Pointer++;
                     int end400Idx = corner400Pointer;
 
+                    double duration = activeEnd - activeStart;
+                    double contribution = weight_base + Math.Min(duration, note_cap) * inv150;
+
                     for (int i = startIdx; i < endIdx; i++)
-                        keyUsages[column][i] += 3.75 + Math.Min(activeEnd - activeStart, 1500) / 150;
+                        keyUsages[column][i] += contribution;
 
                     for (int i = start400Idx; i < startIdx; i++)
-                        keyUsages[column][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(baseCorners[i] - activeStart, 2);
+                    {
+                        double d = baseCorners[i] - activeStart;
+                        keyUsages[column][i] += weight_base - weight_base * (d * d / pow400);
+                    }
 
                     for (int i = endIdx; i < end400Idx; i++)
-                        keyUsages[column][i] += 3.75 - 3.75 / Math.Pow(400, 2) * Math.Pow(Math.Abs(baseCorners[i] - activeEnd), 2);
+                    {
+                        double d = baseCorners[i] - activeEnd;
+                        keyUsages[column][i] += weight_base - weight_base * (d * d / pow400);
+                    }
 
-                    // Reset the pointer to the last position.
+                    // Reset pointer for next note
                     corner400Pointer = start400Idx;
                 }
             }
