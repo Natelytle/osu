@@ -16,18 +16,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class SunnySkill : Skill
     {
-        // Balancing constants
-        public const double LAMBDA_N = 4.0;
-        public const double LAMBDA_1 = 0.11;
-        public const double LAMBDA_2 = 5.0;
-        public const double LAMBDA_3 = 8.0;
-        public const double LAMBDA_4 = 0.1;
-        private const double w_0 = 0.37;
-        private const double w_1 = 2.7;
-        private const double w_2 = 0.27;
-        private const double p_0 = 1.2;
-        private const double p_1 = 1.5;
-
         private readonly int totalColumns;
         private readonly double hitLeniency;
 
@@ -66,13 +54,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             int noteCount = noteList.Count;
             int lnCount = noteList.Count(obj => obj.BaseObject is HoldNote);
 
-            int mapLength = (int)noteList.Max(obj => obj.EndTime) + 1;
+            double[] baseCorners = corners.BaseCorners.ToArray();
+            double[] aCorners = corners.ACorners.ToArray();
+            double[] allCorners = corners.AllCorners.ToArray();
 
-            double[] j = SameColumnPressure.EvaluateSameColumnPressure(perColumnNoteList, totalColumns, mapLength, hitLeniency);
-            double[] x = CrossColumnPressure.EvaluateCrossColumnPressure(perColumnNoteList, totalColumns, mapLength, hitLeniency);
-            double[] p = PressingIntensity.EvaluatePressingIntensity(noteList, totalColumns, mapLength, hitLeniency);
-            double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, mapLength, hitLeniency);
-            double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, totalColumns, mapLength, hitLeniency);
+            double[] x = CrossColumnPressure.EvaluateCrossColumnPressure(perColumnNoteList, totalColumns, hitLeniency, baseCorners, allCorners);
+            double[] j = SameColumnPressure.EvaluateSameColumnPressure(perColumnNoteList, totalColumns, hitLeniency, baseCorners, allCorners);
+            double[] p = PressingIntensity.EvaluatePressingIntensity(noteList, hitLeniency, baseCorners, allCorners);
+            double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, hitLeniency, baseCorners, allCorners);
+            double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, aCorners, allCorners);
+
+            // --- Everything below this comment is all old and wrong ---
 
             double sum1 = 0;
             double sum2 = 0;
@@ -80,11 +72,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             int start = 0;
             int end = 0;
 
-            for (int t = 0; t < mapLength; t++)
+            for (int t = 0; t < allCorners.Length; t++)
             {
                 // Clamp each pressure value to [0-inf]
-                j[t] = Math.Max(0, j[t]);
                 x[t] = Math.Max(0, x[t]);
+                j[t] = Math.Max(0, j[t]);
                 p[t] = Math.Max(0, p[t]);
                 a[t] = Math.Max(0, a[t]);
                 r[t] = Math.Max(0, r[t]);
@@ -101,17 +93,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
                 int c = end - start;
 
-                double strain = Math.Pow(w_0 * Math.Pow(Math.Pow(a[t], 1.0 / 2.0) * j[t], 1.5) + (1 - w_0) * Math.Pow(Math.Pow(a[t], 2.0 / 3.0) * (p[t] + r[t]), 1.5), 2.0 / 3.0);
+                double strain = Math.Pow(0.37 * Math.Pow(Math.Pow(a[t], 1.0 / 2.0) * j[t], 1.5) + (1 - 0.37) * Math.Pow(Math.Pow(a[t], 2.0 / 3.0) * (p[t] + r[t]), 1.5), 2.0 / 3.0);
                 double twist = x[t] / (x[t] + strain + 1);
 
-                double deez = w_1 * Math.Pow(strain, 1.0 / 2.0) * Math.Pow(twist, p_1) + strain * w_2;
+                double deez = 2.7 * Math.Pow(strain, 1.0 / 2.0) * Math.Pow(twist, 1.5) + strain * 0.27;
 
-                sum1 += Math.Pow(deez, LAMBDA_N) * c;
+                sum1 += Math.Pow(deez, 4.0) * c;
                 sum2 += c;
             }
 
-            double starRating = Math.Pow(sum1 / sum2, 1.0 / LAMBDA_N);
-            starRating = Math.Pow(starRating, p_0) / Math.Pow(8, p_0) * 8;
+            double starRating = Math.Pow(sum1 / sum2, 1.0 / 4.0);
+            starRating = Math.Pow(starRating, 1.2) / Math.Pow(8, 1.2) * 8;
 
             // Nerf short maps
             starRating = starRating * (noteCount + 0.5 * lnCount) / (noteCount + 0.5 * lnCount + 60);

@@ -27,9 +27,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             [0.325, 0.55, 0.45, 0.35, 0.25, 0.05, 0.25, 0.35, 0.45, 0.55, 0.325]
         ];
 
-        public static double[] EvaluateCrossColumnPressure(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, int mapLength, double hitLeniency)
+        public static double[] EvaluateCrossColumnPressure(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, double hitLeniency, double[] baseCorners, double[] allCorners)
         {
-            double[] crossColumnPressure = new double[mapLength];
+            double[] crossColumnPressure = new double[baseCorners.Length];
+            int cornerPointer = 0;
 
             for (int col = 0; col < totalColumns + 1; col++)
             {
@@ -58,11 +59,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     if (prev is not null && prevPrev is not null && prev.StartTime < note.StartTime)
                     {
                         double delta = 0.001 * (prev.StartTime - prevPrev.StartTime);
-                        double val = 0.1 * Math.Pow(Math.Max(hitLeniency, delta), -2);
+                        double val = 0.16 * Math.Pow(Math.Max(hitLeniency, delta), -2);
 
-                        for (int t = (int)prev.StartTime; t < note.StartTime; t++)
+                        // find the first corner at the start time of the previous note
+                        while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < prev.StartTime) cornerPointer++;
+                        int firstCornerIndex = cornerPointer;
+
+                        // find the first corner at the start time of the previous note
+                        while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < note.StartTime) cornerPointer++;
+                        int lastCornerIndex = cornerPointer;
+
+                        for (int i = firstCornerIndex; i < lastCornerIndex; i++)
                         {
-                            crossColumnPressure[t] += val * cross_matrix[totalColumns][col];
+                            crossColumnPressure[i] += val * cross_matrix[totalColumns][col];
                         }
                     }
 
@@ -71,8 +80,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 }
             }
 
-            // smooths it out
-            crossColumnPressure = ListUtils.ApplySymmetricMovingAverage(crossColumnPressure, 500);
+            // Smooths it out
+            crossColumnPressure = CornerUtils.SumCornersWithinWindow(baseCorners, crossColumnPressure, 500, 0.001);
+
+            // Fits it to all corners
+            crossColumnPressure = CornerUtils.InterpolateValues(allCorners, baseCorners, crossColumnPressure);
 
             return crossColumnPressure;
         }

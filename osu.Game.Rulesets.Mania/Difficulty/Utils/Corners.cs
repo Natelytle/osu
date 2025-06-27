@@ -2,7 +2,8 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using osu.Framework.Lists;
+using System.Collections.Generic;
+using osu.Game.Extensions;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Utils
@@ -18,25 +19,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// <summary>
         /// Time values at, 1ms after, 501ms after, and 499ms before each note.
         /// </summary>
-        public SortedList<double> BaseCorners;
+        public SortedSet<double> BaseCorners;
 
         /// <summary>
         /// Time values at, 1000ms after, and 1000ms before each note.
         /// </summary>
-        public SortedList<double> ACorners;
+        public SortedSet<double> ACorners;
 
         /// <summary>
         /// A combination of BaseCorners and ACorners. Used for interpolating difficulty values.
         /// </summary>
-        public SortedList<double> AllCorners;
+        public SortedSet<double> AllCorners;
 
         public Corners(double mapEndTime)
         {
             this.mapEndTime = mapEndTime;
 
-            BaseCorners = new SortedList<double>();
-            ACorners = new SortedList<double>();
-            AllCorners = new SortedList<double>();
+            BaseCorners = new SortedSet<double>();
+            ACorners = new SortedSet<double>();
+            AllCorners = new SortedSet<double>();
         }
 
         public readonly void AddCornersForNote(ManiaDifficultyHitObject note)
