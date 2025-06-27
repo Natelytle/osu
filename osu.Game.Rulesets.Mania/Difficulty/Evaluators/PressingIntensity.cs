@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Objects;
@@ -72,29 +71,41 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         private static double calculateAnchor(double[][] keyUsages, int index)
         {
-            double[] counts = new double[keyUsages.Length];
+            int numColumns = keyUsages.Length;
+            List<double> nonZeroCounts = new List<double>(numColumns);
 
-            for (int column = 0; column < keyUsages.Length; column++)
+            for (int column = 0; column < numColumns; column++)
             {
-                counts[column] = keyUsages[column][index];
+                double value = keyUsages[column][index];
+
+                if (value > 0)
+                    nonZeroCounts.Add(value);
             }
 
-            Array.Sort(counts);
-            Array.Reverse(counts);
+            if (nonZeroCounts.Count <= 1)
+                return 0.82;
 
-            double[] nonZeroCounts = counts.Where(c => c > 0).ToArray();
+            // Sort descending
+            nonZeroCounts.Sort((a, b) => b.CompareTo(a));
 
-            double anchor = 0;
+            // Calculate walk and maxWalk
+            double walk = 0;
+            double maxWalk = 0;
 
-            if (nonZeroCounts.Length > 1)
+            for (int i = 0; i < nonZeroCounts.Count - 1; i++)
             {
-                double walk = Enumerable.Range(0, nonZeroCounts.Length - 1).Select(i => nonZeroCounts[i] * (1 - 4 * Math.Pow(0.5 - nonZeroCounts[i + 1] / nonZeroCounts[i], 2))).Sum();
+                double current = nonZeroCounts[i];
+                double next = nonZeroCounts[i + 1];
 
-                double maxWalk = Enumerable.Range(0, nonZeroCounts.Length - 1).Select(i => nonZeroCounts[i]).Sum();
+                maxWalk += current;
 
-                anchor = walk / maxWalk;
+                double ratio = next / current;
+                walk += current * (1 - 4 * Math.Pow(0.5 - ratio, 2));
             }
 
+            double anchor = walk / maxWalk;
+
+            // Final adjustment
             anchor = 1 + Math.Min(anchor - 0.18, 5 * Math.Pow(anchor - 0.22, 3));
 
             return anchor;
