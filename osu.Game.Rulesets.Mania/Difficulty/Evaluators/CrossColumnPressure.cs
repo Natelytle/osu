@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
@@ -33,44 +32,44 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double[] prevFastCross = new double[baseCorners.Length];
             int cornerPointer = 0;
 
+            double[] columnWeights = cross_matrix[totalColumns];
+
             for (int col = 0; col < totalColumns + 1; col++)
             {
                 IEnumerable<ManiaDifficultyHitObject> pairedNotesList;
 
                 if (col == 0)
-                {
                     pairedNotesList = perColumnNoteList[col];
-                }
                 else if (col == totalColumns)
-                {
                     pairedNotesList = perColumnNoteList[col - 1];
-                }
                 else
-                {
-                    // merges two columns together, forming pairs of notes adjacent in time
-                    pairedNotesList = perColumnNoteList[col].Concat(perColumnNoteList[col - 1]);
-                    pairedNotesList = pairedNotesList.OrderBy(obj => obj.StartTime);
-                }
+                    pairedNotesList = mergeSorted(perColumnNoteList[col], perColumnNoteList[col - 1]);
 
                 ManiaDifficultyHitObject? prevPrev = null;
                 ManiaDifficultyHitObject? prev = null;
+
+                double crossVal = columnWeights[col];
 
                 foreach (ManiaDifficultyHitObject note in pairedNotesList)
                 {
                     if (prev is not null && prevPrev is not null && prev.StartTime < note.StartTime)
                     {
-                        double delta = 0.001 * (prev.StartTime - prevPrev.StartTime);
-                        double val = 0.16 * Math.Pow(Math.Max(hitLeniency, delta), -2);
+                        double prevStart = prev.StartTime;
+                        double prevPrevStart = prevPrev.StartTime;
 
-                        double crossVal = cross_matrix[totalColumns][col];
+                        double delta = 0.001 * (prevStart - prevPrevStart);
+                        double safeDelta = Math.Max(hitLeniency, delta);
+                        double val = 0.16 * Math.Pow(safeDelta, -2);
 
                         if (col == 0 || col == totalColumns)
+                        {
                             val *= 1 - crossVal;
+                        }
                         else
                         {
                             // We provide a nerf to the value if either the adjacent and current columns don't include any notes within the past 150 milliseconds.
-                            bool adjacentKeyUsed = prev.StartTime - prev.CurrentHitObjects[col - 1]?.EndTime < 150 || prevPrev.StartTime - prevPrev.CurrentHitObjects[col - 1]?.EndTime < 150;
-                            bool currentKeyUsed = prev.StartTime - prev.CurrentHitObjects[col]?.EndTime < 150 || prevPrev.StartTime - prevPrev.CurrentHitObjects[col]?.EndTime < 150;
+                            bool adjacentKeyUsed = prevStart - prev.CurrentHitObjects[col - 1]?.EndTime < 150 || prevPrevStart - prevPrev.CurrentHitObjects[col - 1]?.EndTime < 150;
+                            bool currentKeyUsed = prevStart - prev.CurrentHitObjects[col]?.EndTime < 150 || prevPrevStart - prevPrev.CurrentHitObjects[col]?.EndTime < 150;
 
                             if (!(adjacentKeyUsed && currentKeyUsed))
                                 val *= 1 - crossVal;
@@ -88,10 +87,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                         for (int i = firstCornerIndex; i < lastCornerIndex; i++)
                         {
-                            crossColumnPressure[i] += val * cross_matrix[totalColumns][col];
+                            crossColumnPressure[i] += val * crossVal;
 
                             // fastCross only applies to n columns, since we're iterating over n+1 we ignore the first column.
-                            if (col != 0)
+                            if (col != 0 && prevFastCross[i] > 0)
                                 crossColumnPressure[i] += Math.Sqrt(prevFastCross[i] * fastCross);
 
                             prevFastCross[i] = fastCross;
@@ -110,6 +109,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             crossColumnPressure = CornerUtils.InterpolateValues(allCorners, baseCorners, crossColumnPressure);
 
             return crossColumnPressure;
+        }
+
+        private static IEnumerable<ManiaDifficultyHitObject> mergeSorted(List<ManiaDifficultyHitObject> a, List<ManiaDifficultyHitObject> b)
+        {
+            int i = 0, j = 0;
+
+            while (i < a.Count && j < b.Count)
+            {
+                if (a[i].StartTime <= b[j].StartTime)
+                    yield return a[i++];
+                else
+                    yield return b[j++];
+            }
+
+            while (i < a.Count) yield return a[i++];
+            while (j < b.Count) yield return b[j++];
         }
     }
 }
