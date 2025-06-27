@@ -9,13 +9,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class KeyUsage
     {
-        public static bool[][] GetKeyUsages(List<ManiaDifficultyHitObject>[] perColumnNoteList, double[] baseCorners)
+        public static double[] GetKeyUsages(List<ManiaDifficultyHitObject>[] perColumnNoteList, double[] baseCorners)
         {
-            bool[][] keyUsages = new bool[perColumnNoteList.Length][];
+            double[] keyUsages = new double[baseCorners.Length];
 
             for (int column = 0; column < perColumnNoteList.Length; column++)
             {
-                keyUsages[column] = new bool[baseCorners.Length];
                 int cornerPointer = 0;
 
                 foreach (ManiaDifficultyHitObject note in perColumnNoteList[column])
@@ -23,16 +22,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     double activeStart = Math.Max(note.StartTime - 150, 0);
                     double activeEnd = Math.Min(note.EndTime + 150, baseCorners[^1]);
 
-                    // find the first corner at activeStart.
-                    while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < activeStart - 150) cornerPointer++;
+                    // Move cornerPointer to first corner after activeStart
+                    while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < activeStart - 150)
+                        cornerPointer++;
                     int startIdx = cornerPointer;
 
-                    // find the first corner at activeEnd.
-                    while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < activeEnd + 150) cornerPointer++;
+                    // Move cornerPointer to first corner after activeEnd
+                    while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < activeEnd + 150)
+                        cornerPointer++;
                     int endIdx = cornerPointer;
 
                     for (int i = startIdx; i < endIdx; i++)
-                        keyUsages[column][i] = true;
+                        keyUsages[i] = 1; // OR across all columns
                 }
             }
 

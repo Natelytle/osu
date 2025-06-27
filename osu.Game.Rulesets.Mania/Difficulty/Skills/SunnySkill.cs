@@ -51,12 +51,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (noteList.Count <= 0)
                 return 0;
 
-            int noteCount = noteList.Count;
-            int lnCount = noteList.Count(obj => obj.BaseObject is HoldNote);
-
             double[] baseCorners = corners.BaseCorners.ToArray();
             double[] aCorners = corners.ACorners.ToArray();
             double[] allCorners = corners.AllCorners.ToArray();
+
+            int length = allCorners.Length;
 
             double[] x = CrossColumnPressure.EvaluateCrossColumnPressure(perColumnNoteList, totalColumns, hitLeniency, baseCorners, allCorners);
             double[] j = SameColumnPressure.EvaluateSameColumnPressure(perColumnNoteList, totalColumns, hitLeniency, baseCorners, allCorners);
@@ -64,52 +63,171 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, hitLeniency, baseCorners, allCorners);
             double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, aCorners, allCorners);
 
-            // --- Everything below this comment is all old and wrong ---
-
-            double sum1 = 0;
-            double sum2 = 0;
+            double[] c = new double[length];
 
             int start = 0;
             int end = 0;
 
-            for (int i = 0; i < allCorners.Length; i++)
+            for (int i = 0; i < noteList.Count; i++)
             {
-                // Clamp each pressure value to [0-inf]
-                x[i] = Math.Max(0, x[i]);
-                j[i] = Math.Max(0, j[i]);
-                p[i] = Math.Max(0, p[i]);
-                a[i] = Math.Max(0, a[i]);
-                r[i] = Math.Max(0, r[i]);
-
                 while (start < noteList.Count && noteList[start].StartTime < allCorners[i] - 500)
-                {
                     start += 1;
-                }
 
                 while (end < noteList.Count && noteList[end].StartTime < allCorners[i] + 500)
-                {
                     end += 1;
-                }
 
-                int c = end - start;
-
-                double strain = Math.Pow(0.37 * Math.Pow(Math.Pow(a[i], 1.0 / 2.0) * j[i], 1.5) + (1 - 0.37) * Math.Pow(Math.Pow(a[i], 2.0 / 3.0) * (p[i] + r[i]), 1.5), 2.0 / 3.0);
-                double twist = x[i] / (x[i] + strain + 1);
-
-                double deez = 2.7 * Math.Pow(strain, 1.0 / 2.0) * Math.Pow(twist, 1.5) + strain * 0.27;
-
-                sum1 += Math.Pow(deez, 4.0) * c;
-                sum2 += c;
+                c[i] = noteList[end].StartTime - noteList[start].StartTime;
             }
 
-            double starRating = Math.Pow(sum1 / sum2, 1.0 / 4.0);
-            starRating = Math.Pow(starRating, 1.2) / Math.Pow(8, 1.2) * 8;
+            double[] ks = KeyUsage.GetKeyUsages(perColumnNoteList, allCorners);
 
-            // Nerf short maps
-            starRating = starRating * (noteCount + 0.5 * lnCount) / (noteCount + 0.5 * lnCount + 60);
+            // Final star rating calculations.
+            double[] s = new double[length];
+            double[] t = new double[length];
+            double[] d = new double[length];
 
-            // Buff high column counts
-            return starRating * 1.4 * (0.88 + 0.03 * totalColumns);
+            for (int i = 0; i < length; i++)
+            {
+                double term1 = Math.Pow(Math.Pow(a[i], 3.0 / ks[i]) * Math.Min(j[i], 8 + 0.85 * j[i]), 1.5);
+                double term2 = Math.Pow(Math.Pow(a[i], 2.0 / 3.0) * (0.8 * p[i] + r[i] * 35.0 / (c[i] + 8)), 1.5);
+                double sVal = Math.Pow(0.4 * term1 + (1 - 0.4) * term2, 2.0 / 3.0);
+                double tVal = Math.Pow(a[i], 3.0 / ks[i]) * x[i] / (x[i] + sVal + 1);
+
+                s[i] = sVal;
+                t[i] = tVal;
+                d[i] = 2.7 * Math.Pow(sVal, 0.5) * Math.Pow(tVal, 1.5) + sVal * 0.27;
+            }
+
+            double[] gaps = new double[length];
+
+            if (length == 1)
+                gaps[0] = 0;
+            else
+            {
+                gaps[0] = (allCorners[1] - allCorners[0]) / 2.0;
+                gaps[^1] = (allCorners[^1] - allCorners[^2]) / 2.0;
+
+                for (int i = 1; i < length - 1; i++)
+                    gaps[i] = (allCorners[i + 1] - allCorners[i - 1]) / 2.0;
+            }
+
+            double[] effectiveWeights = new double[length];
+
+            for (int i = 0; i < length; i++)
+            {
+                effectiveWeights[i] = c[i] * gaps[i];
+            }
+
+            List<CornerData> cornerDataList = new List<CornerData>();
+
+            for (int i = 0; i < length; i++)
+            {
+                cornerDataList.Add(new CornerData
+                {
+                    Time = allCorners[i],
+                    J = j[i],
+                    X = x[i],
+                    P = p[i],
+                    A = a[i],
+                    R = r[i],
+                    C = c[i],
+                    Ks = ks[i],
+                    D = d[i],
+                    Weight = effectiveWeights[i]
+                });
+            }
+
+            var sortedList = cornerDataList.OrderBy(cd => cd.D).ToList();
+            double[] dSorted = sortedList.Select(cd => cd.D).ToArray();
+            double[] cumWeights = new double[sortedList.Count];
+
+            double sumW = 0.0;
+
+            for (int i = 0; i < sortedList.Count; i++)
+            {
+                sumW += sortedList[i].Weight;
+                cumWeights[i] = sumW;
+            }
+
+            double totalWeight = sumW;
+            double[] normCumWeights = cumWeights.Select(cw => cw / totalWeight).ToArray();
+
+            double[] targetPercentiles = new[] { 0.945, 0.935, 0.925, 0.915, 0.845, 0.835, 0.825, 0.815 };
+
+            List<int> indices = new List<int>();
+
+            foreach (double tp in targetPercentiles)
+            {
+                int idx = Array.FindIndex(normCumWeights, cw => cw >= tp);
+                if (idx < 0)
+                    idx = sortedList.Count - 1;
+                indices.Add(idx);
+            }
+
+            double percentile93, percentile83;
+
+            if (indices.Count >= 8)
+            {
+                double sum93 = 0.0;
+                for (int i = 0; i < 4; i++)
+                    sum93 += sortedList[indices[i]].D;
+                percentile93 = sum93 / 4.0;
+                double sum83 = 0.0;
+                for (int i = 4; i < 8; i++)
+                    sum83 += sortedList[indices[i]].D;
+                percentile83 = sum83 / 4.0;
+            }
+            else
+            {
+                percentile93 = sortedList.Average(cd => cd.D);
+                percentile83 = percentile93;
+            }
+
+            double numWeighted = 0.0;
+            double denWeighted = 0.0;
+
+            for (int i = 0; i < sortedList.Count; i++)
+            {
+                numWeighted += Math.Pow(sortedList[i].D, 5) * sortedList[i].Weight;
+                denWeighted += sortedList[i].Weight;
+            }
+
+            double weightedMean = Math.Pow(numWeighted / denWeighted, 1.0 / 5);
+
+            double sr = (0.88 * percentile93) * 0.25 + (0.94 * percentile83) * 0.2 + weightedMean * 0.55;
+
+            int noteCount = noteList.Count;
+
+            // Each LN is weighted as 1 note per 200 milliseconds, with a max of 5 notes per LN.
+            double lnCount = noteList.Where(obj => obj.BaseObject is HoldNote).Sum(obj => Math.Min(obj.EndTime - obj.StartTime, 1000)) / 200.0;
+
+            // length weighting
+            double totalNotes = noteCount + 0.5 * lnCount;
+            sr *= totalNotes / (totalNotes + 60);
+
+            if (sr > 9)
+                sr += (sr - 9) * (1.0 / 1.2);
+
+            sr *= 0.975;
+
+            return sr;
+        }
+
+        /// <summary>
+        /// Used to store various computed values at a corner (time point).
+        /// </summary>
+        public struct CornerData
+        {
+            public double Time;
+            public double J;
+            public double X;
+            public double P;
+            public double A;
+            public double R;
+            public double C;
+            public double Ks;
+            public double D;
+            public double Weight;
         }
     }
 }
