@@ -30,6 +30,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         public static double[] EvaluateCrossColumnPressure(List<ManiaDifficultyHitObject>[] perColumnNoteList, int totalColumns, double hitLeniency, double[] baseCorners, double[] allCorners)
         {
             double[] crossColumnPressure = new double[baseCorners.Length];
+            double[] prevFastCross = new double[baseCorners.Length];
             int cornerPointer = 0;
 
             for (int col = 0; col < totalColumns + 1; col++)
@@ -61,6 +62,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                         double delta = 0.001 * (prev.StartTime - prevPrev.StartTime);
                         double val = 0.16 * Math.Pow(Math.Max(hitLeniency, delta), -2);
 
+                        double crossVal = cross_matrix[totalColumns][col];
+
+                        if (col == 0 || col == totalColumns)
+                            val *= 1 - crossVal;
+                        else
+                        {
+                            // We provide a nerf to the value if either the adjacent and current columns don't include any notes within the past 150 milliseconds.
+                            bool adjacentKeyUsed = prev.StartTime - prev.CurrentHitObjects[col - 1]?.EndTime < 150 || prevPrev.StartTime - prevPrev.CurrentHitObjects[col - 1]?.EndTime < 150;
+                            bool currentKeyUsed = prev.StartTime - prev.CurrentHitObjects[col]?.EndTime < 150 || prevPrev.StartTime - prevPrev.CurrentHitObjects[col]?.EndTime < 150;
+
+                            if (!(adjacentKeyUsed && currentKeyUsed))
+                                val *= 1 - crossVal;
+                        }
+
+                        double fastCross = Math.Max(0, 0.4 * Math.Pow(Math.Max(Math.Max(delta, 0.06), -0.75 * hitLeniency), -2) - 80) * crossVal;
+
                         // find the first corner at the start time of the previous note
                         while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < prev.StartTime) cornerPointer++;
                         int firstCornerIndex = cornerPointer;
@@ -72,6 +89,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                         for (int i = firstCornerIndex; i < lastCornerIndex; i++)
                         {
                             crossColumnPressure[i] += val * cross_matrix[totalColumns][col];
+
+                            // fastCross only applies to n columns, since we're iterating over n+1 we ignore the first column.
+                            if (col != 0)
+                                crossColumnPressure[i] += Math.Sqrt(prevFastCross[i] * fastCross);
+
+                            prevFastCross[i] = fastCross;
                         }
                     }
 

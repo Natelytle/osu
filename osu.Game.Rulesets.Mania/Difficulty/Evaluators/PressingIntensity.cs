@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Objects;
@@ -11,10 +12,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class PressingIntensity
     {
-        public static double[] EvaluatePressingIntensity(List<ManiaDifficultyHitObject> noteList, double hitLeniency, double[] baseCorners, double[] allCorners)
+        public static double[] EvaluatePressingIntensity(List<ManiaDifficultyHitObject> noteList, List<ManiaDifficultyHitObject>[] perColumnNoteList, double hitLeniency, double[] baseCorners, double[] allCorners)
         {
             double[] pressingIntensity = new double[baseCorners.Length];
             int cornerPointer = 0;
+
+            // Anchor calculation
+            double[][] keyUsages = KeyUsage.GetKeyUsages400(perColumnNoteList, baseCorners);
 
             ManiaDifficultyHitObject? prev = null;
 
@@ -35,16 +39,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                         continue;
                     }
 
-                    double lnCount = calculateLnAmount(prev.StartTime, note.StartTime, prev.CurrentHitObjects, note.CurrentHitObjects);
-                    double val = (1.0 / deltaTime) * (1 + 5.0 * lnCount) * streamBooster(deltaTime);
+                    double lnSum = calculateLnAmount(prev.StartTime, note.StartTime, prev.CurrentHitObjects, note.CurrentHitObjects);
+                    double val = Math.Max((1.0 / deltaTime) * (1 + 6.0 * lnSum), streamBooster(deltaTime));
 
                     if (deltaTime < 2 * hitLeniency / 3.0)
-                        val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - 8.0 * (1.0 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0);
+                        val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - 24.0 * (1.0 / hitLeniency) * Math.Pow(deltaTime - hitLeniency / 2, 2)), 1 / 4.0);
                     else
-                        val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - 8.0 * (1.0 / hitLeniency) * Math.Pow(hitLeniency / 6, 2)), 1 / 4.0);
-
-                    // Uncomment when anchor is implemented
-                    // val = Math.Min(val * calculateAnchor(), Math.Max(val, val * 2 - 10));
+                        val *= Math.Pow(0.08 * (1 / hitLeniency) * (1 - 24.0 * (1.0 / hitLeniency) * Math.Pow(hitLeniency / 6, 2)), 1 / 4.0);
 
                     // find the first corner at the start time of the previous note
                     while (cornerPointer < baseCorners.Length && baseCorners[cornerPointer] < note.StartTime) cornerPointer++;
@@ -52,6 +53,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                     for (int i = firstCornerIndex; i < lastCornerIndex; i++)
                     {
+                        val = Math.Min(val * calculateAnchor(keyUsages, i), Math.Max(val, val * 2 - 10));
+
                         pressingIntensity[i] = val;
                     }
                 }
@@ -67,6 +70,36 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return pressingIntensity;
         }
 
+        private static double calculateAnchor(double[][] keyUsages, int index)
+        {
+            double[] counts = new double[keyUsages.Length];
+
+            for (int column = 0; column < keyUsages.Length; column++)
+            {
+                counts[column] = keyUsages[column][index];
+            }
+
+            Array.Sort(counts);
+            Array.Reverse(counts);
+
+            double[] nonZeroCounts = counts.Where(c => c > 0).ToArray();
+
+            double anchor = 0;
+
+            if (nonZeroCounts.Length > 1)
+            {
+                double walk = Enumerable.Range(0, nonZeroCounts.Length - 1).Select(i => nonZeroCounts[i] * (1 - 4 * Math.Pow(0.5 - nonZeroCounts[i + 1] / nonZeroCounts[i], 2))).Sum();
+
+                double maxWalk = Enumerable.Range(0, nonZeroCounts.Length - 1).Select(i => nonZeroCounts[i]).Sum();
+
+                anchor = walk / maxWalk;
+            }
+
+            anchor = 1 + Math.Min(anchor - 0.18, 5 * Math.Pow(anchor - 0.22, 3));
+
+            return anchor;
+        }
+
         private static double streamBooster(double delta)
         {
             double val = 7.5 / delta;
@@ -78,8 +111,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             return 1;
         }
-
-        private static double calculateAnchor() => 0;
 
         private static double calculateLnAmount(double startTime, double endTime, ManiaDifficultyHitObject?[] currentObjects, ManiaDifficultyHitObject?[] nextObjects)
         {

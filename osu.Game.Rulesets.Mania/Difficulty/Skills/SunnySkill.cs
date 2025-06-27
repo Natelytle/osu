@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             double[] x = CrossColumnPressure.EvaluateCrossColumnPressure(perColumnNoteList, totalColumns, hitLeniency, baseCorners, allCorners);
             double[] j = SameColumnPressure.EvaluateSameColumnPressure(perColumnNoteList, totalColumns, hitLeniency, baseCorners, allCorners);
-            double[] p = PressingIntensity.EvaluatePressingIntensity(noteList, hitLeniency, baseCorners, allCorners);
+            double[] p = PressingIntensity.EvaluatePressingIntensity(noteList, perColumnNoteList, hitLeniency, baseCorners, allCorners);
             double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, hitLeniency, baseCorners, allCorners);
             double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, aCorners, allCorners);
 
