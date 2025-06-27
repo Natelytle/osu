@@ -109,7 +109,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             starRating = starRating * (noteCount + 0.5 * lnCount) / (noteCount + 0.5 * lnCount + 60);
 
             // Buff high column counts
-            return starRating * (0.88 + 0.03 * totalColumns);
+            return starRating * 1.4 * (0.88 + 0.03 * totalColumns);
         }
     }
 }
