@@ -138,7 +138,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             }
 
             var sortedList = cornerDataList.OrderBy(cd => cd.D).ToList();
-            double[] dSorted = sortedList.Select(cd => cd.D).ToArray();
             double[] cumWeights = new double[sortedList.Count];
 
             double sumW = 0.0;
