@@ -63,16 +63,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double[] r = ReleaseFactor.EvaluateReleaseFactor(noteList, hitLeniency, baseCorners, allCorners);
             double[] a = Unevenness.EvaluateUnevenness(perColumnNoteList, totalColumns, aCorners, allCorners);
 
-            double xMax = x.Max();
-            double xMin = x.Min();
-            double jMax = j.Max();
-            double jMin = j.Min();
-            double pMax = p.Max();
-            double pMin = p.Min();
-            double rMax = r.Max();
-            double rMin = r.Min();
-            double aMax = a.Max();
-            double aMin = a.Min();
+            // double xMax = x.Max();
+            // double xMin = x.Min();
+            // double jMax = j.Max();
+            // double jMin = j.Min();
+            // double pMax = p.Max();
+            // double pMin = p.Min();
+            // double rMax = r.Max();
+            // double rMin = r.Min();
+            // double aMax = a.Max();
+            // double aMin = a.Min();
 
             double[] c = new double[length];
 
@@ -93,20 +93,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double[] ks = KeyUsage.GetKeyUsages(perColumnNoteList, allCorners);
 
             // Final star rating calculations.
-            double[] s = new double[length];
-            double[] t = new double[length];
-            double[] d = new double[length];
+            double[] difficulty = new double[length];
 
             for (int i = 0; i < length; i++)
             {
                 double term1 = Math.Pow(Math.Pow(a[i], 3.0 / ks[i]) * Math.Min(j[i], 8 + 0.85 * j[i]), 1.5);
                 double term2 = Math.Pow(Math.Pow(a[i], 2.0 / 3.0) * (0.8 * p[i] + r[i] * 35.0 / (c[i] + 8)), 1.5);
-                double sVal = Math.Pow(0.4 * term1 + (1 - 0.4) * term2, 2.0 / 3.0);
-                double tVal = Math.Pow(a[i], 3.0 / ks[i]) * x[i] / (x[i] + sVal + 1);
+                double strainVal = Math.Pow(0.4 * term1 + (1 - 0.4) * term2, 2.0 / 3.0);
+                double twistVal = Math.Pow(a[i], 3.0 / ks[i]) * x[i] / (x[i] + strainVal + 1);
 
-                s[i] = sVal;
-                t[i] = tVal;
-                d[i] = 2.7 * Math.Pow(sVal, 0.5) * Math.Pow(tVal, 1.5) + sVal * 0.27;
+                difficulty[i] = 2.7 * Math.Pow(strainVal, 0.5) * Math.Pow(twistVal, 1.5) + strainVal * 0.27;
             }
 
             double[] gaps = new double[length];
@@ -129,48 +125,34 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 effectiveWeights[i] = c[i] * gaps[i];
             }
 
-            List<CornerData> cornerDataList = new List<CornerData>();
+            List<(double Difficulty, double Weight)> data = new List<(double Difficulty, double Weight)>(length);
 
             for (int i = 0; i < length; i++)
-            {
-                cornerDataList.Add(new CornerData
-                {
-                    Time = allCorners[i],
-                    J = j[i],
-                    X = x[i],
-                    P = p[i],
-                    A = a[i],
-                    R = r[i],
-                    C = c[i],
-                    Ks = ks[i],
-                    D = d[i],
-                    Weight = effectiveWeights[i]
-                });
-            }
+                data.Add((difficulty[i], effectiveWeights[i]));
 
-            var sortedList = cornerDataList.OrderBy(cd => cd.D).ToList();
-            double[] cumWeights = new double[sortedList.Count];
+            data = data.OrderBy(datum => datum.Difficulty).ToList();
 
+            double[] normCumWeights = new double[data.Count];
             double sumW = 0.0;
 
-            for (int i = 0; i < sortedList.Count; i++)
+            for (int i = 0; i < data.Count; i++)
             {
-                sumW += sortedList[i].Weight;
-                cumWeights[i] = sumW;
+                sumW += data[i].Weight;
+                normCumWeights[i] = sumW;
             }
 
-            double totalWeight = sumW;
-            double[] normCumWeights = cumWeights.Select(cw => cw / totalWeight).ToArray();
+            for (int i = 0; i < normCumWeights.Length; i++)
+                normCumWeights[i] /= sumW;
 
             double[] targetPercentiles = new[] { 0.945, 0.935, 0.925, 0.915, 0.845, 0.835, 0.825, 0.815 };
-
             List<int> indices = new List<int>();
 
             foreach (double tp in targetPercentiles)
             {
                 int idx = Array.FindIndex(normCumWeights, cw => cw >= tp);
-                if (idx < 0)
-                    idx = sortedList.Count - 1;
+
+                if (idx < 0) idx = data.Count - 1;
+
                 indices.Add(idx);
             }
 
@@ -178,66 +160,44 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             if (indices.Count >= 8)
             {
-                double sum93 = 0.0;
-                for (int i = 0; i < 4; i++)
-                    sum93 += sortedList[indices[i]].D;
+                double sum93 = 0.0, sum83 = 0.0;
+                for (int i = 0; i < 4; i++) sum93 += data[indices[i]].Difficulty;
+                for (int i = 4; i < 8; i++) sum83 += data[indices[i]].Difficulty;
                 percentile93 = sum93 / 4.0;
-                double sum83 = 0.0;
-                for (int i = 4; i < 8; i++)
-                    sum83 += sortedList[indices[i]].D;
                 percentile83 = sum83 / 4.0;
             }
             else
             {
-                percentile93 = sortedList.Average(cd => cd.D);
-                percentile83 = percentile93;
+                percentile93 = percentile83 = data.Average(e => e.Difficulty);
             }
 
             double numWeighted = 0.0;
             double denWeighted = 0.0;
 
-            for (int i = 0; i < sortedList.Count; i++)
+            for (int i = 0; i < data.Count; i++)
             {
-                numWeighted += Math.Pow(sortedList[i].D, 5) * sortedList[i].Weight;
-                denWeighted += sortedList[i].Weight;
+                numWeighted += Math.Pow(data[i].Difficulty, 5) * data[i].Weight;
+                denWeighted += data[i].Weight;
             }
 
-            double weightedMean = Math.Pow(numWeighted / denWeighted, 1.0 / 5);
+            double weightedMean = Math.Pow(numWeighted / denWeighted, 1.0 / 5.0);
 
             double sr = (0.88 * percentile93) * 0.25 + (0.94 * percentile83) * 0.2 + weightedMean * 0.55;
 
             int noteCount = noteList.Count;
+            double lnCount = noteList
+                             .Where(obj => obj.BaseObject is HoldNote)
+                             .Sum(obj => Math.Min(obj.EndTime - obj.StartTime, 1000)) / 200.0;
 
-            // Each LN is weighted as 1 note per 200 milliseconds, with a max of 5 notes per LN.
-            double lnCount = noteList.Where(obj => obj.BaseObject is HoldNote).Sum(obj => Math.Min(obj.EndTime - obj.StartTime, 1000)) / 200.0;
-
-            // length weighting
             double totalNotes = noteCount + 0.5 * lnCount;
             sr *= totalNotes / (totalNotes + 60);
 
             if (sr > 9)
-                sr += (sr - 9) * (1.0 / 1.2);
+                sr += (sr - 9) / 1.2;
 
             sr *= 0.975;
 
             return sr;
-        }
-
-        /// <summary>
-        /// Used to store various computed values at a corner (time point).
-        /// </summary>
-        public struct CornerData
-        {
-            public double Time;
-            public double J;
-            public double X;
-            public double P;
-            public double A;
-            public double R;
-            public double C;
-            public double Ks;
-            public double D;
-            public double Weight;
         }
     }
 }

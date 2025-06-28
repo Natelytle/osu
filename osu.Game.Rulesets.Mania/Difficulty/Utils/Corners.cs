@@ -41,6 +41,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
         public readonly void AddCornersForNote(ManiaDifficultyHitObject note)
         {
+            BaseCorners.AddRange([0, mapEndTime]);
+            ACorners.AddRange([0, mapEndTime]);
+            AllCorners.AddRange([0, mapEndTime]);
+
             BaseCorners.AddRange([note.StartTime, note.EndTime]);
             ACorners.AddRange([note.StartTime, note.EndTime]);
             AllCorners.AddRange([note.StartTime, note.EndTime]);
