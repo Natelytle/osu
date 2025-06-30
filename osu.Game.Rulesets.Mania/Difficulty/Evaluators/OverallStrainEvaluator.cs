@@ -10,7 +10,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class OverallStrainEvaluator
     {
-        private const double difficulty_multiplier = 0.6;
+        private const double difficulty_multiplier = 0.3;
 
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
