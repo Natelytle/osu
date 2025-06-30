@@ -2,6 +2,8 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
@@ -10,46 +12,102 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Strain : StrainDecaySkill
+    public class Strain : StrainSkill
     {
         private const double individual_decay_base = 0.125;
         private const double overall_decay_base = 0.30;
 
-        protected override double SkillMultiplier => 1;
-        protected override double StrainDecayBase => 1;
+        private const double backwards_strain_influence = 1000;
 
-        private readonly double[] individualStrains;
-        private double highestIndividualStrain;
-        private double overallStrain;
+        private readonly List<(ManiaDifficultyHitObject, double)>[] previousIndividualStrains;
+        private readonly List<(ManiaDifficultyHitObject, double)> previousOverallStrains;
 
         public Strain(Mod[] mods, int totalColumns)
             : base(mods)
         {
-            individualStrains = new double[totalColumns];
-            overallStrain = 1;
+            previousIndividualStrains = new List<(ManiaDifficultyHitObject, double)>[totalColumns];
+
+            for (int i = 0; i < previousIndividualStrains.Length; i++)
+                previousIndividualStrains[i] = new List<(ManiaDifficultyHitObject, double)>();
+
+            previousOverallStrains = new List<(ManiaDifficultyHitObject, double)>();
         }
 
-        protected override double StrainValueOf(DifficultyHitObject current)
+        protected override double StrainValueAt(DifficultyHitObject current)
         {
             var maniaCurrent = (ManiaDifficultyHitObject)current;
 
-            individualStrains[maniaCurrent.Column] = applyDecay(individualStrains[maniaCurrent.Column], maniaCurrent.ColumnStrainTime, individual_decay_base);
-            individualStrains[maniaCurrent.Column] += IndividualStrainEvaluator.EvaluateDifficultyOf(current);
+            double individualDifficulty = IndividualStrainEvaluator.EvaluateDifficultyOf(current);
+            previousIndividualStrains[maniaCurrent.Column].Add((maniaCurrent, individualDifficulty));
 
-            // Take the hardest individualStrain for notes that happen at the same time (in a chord).
-            // This is to ensure the order in which the notes are processed does not affect the resultant total strain.
-            highestIndividualStrain = maniaCurrent.DeltaTime <= 1 ? Math.Max(highestIndividualStrain, individualStrains[maniaCurrent.Column]) : individualStrains[maniaCurrent.Column];
+            double individualStrain = getCurrentStrainValue(maniaCurrent, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
 
-            overallStrain = applyDecay(overallStrain, maniaCurrent.DeltaTime, overall_decay_base);
-            overallStrain += OverallStrainEvaluator.EvaluateDifficultyOf(current);
+            double overallDifficulty = OverallStrainEvaluator.EvaluateDifficultyOf(current);
+            previousOverallStrains.Add((maniaCurrent, overallDifficulty));
 
-            // By subtracting CurrentStrain, this skill effectively only considers the maximum strain of any one hitobject within each strain section.
-            return highestIndividualStrain + overallStrain - CurrentStrain;
+            double overallStrain = getCurrentStrainValue(maniaCurrent, previousOverallStrains, overall_decay_base);
+
+            return (individualStrain + overallStrain) * 8;
         }
 
-        protected override double CalculateInitialStrain(double offset, DifficultyHitObject current) =>
-            applyDecay(highestIndividualStrain, offset - current.Previous(0).StartTime, individual_decay_base)
-            + applyDecay(overallStrain, offset - current.Previous(0).StartTime, overall_decay_base);
+        private double getCurrentStrainValue(ManiaDifficultyHitObject current, List<(ManiaDifficultyHitObject Note, double Diff)> previousDifficulties, double strainDecayBase, double offset = 0)
+        {
+            if (previousDifficulties.Count < 2)
+                return 0;
+
+            double sum = 0;
+
+            double highestNoteVal = 0;
+            double prevDeltaTime = 0;
+
+            int index = 1;
+
+            while (index < previousDifficulties.Count)
+            {
+                ManiaDifficultyHitObject prevNote = previousDifficulties[index - 1].Note;
+                ManiaDifficultyHitObject note = previousDifficulties[index].Note;
+
+                double deltaTime = note.StartTime - prevNote.StartTime;
+                double prevDifficulty = previousDifficulties[index - 1].Diff;
+
+                // How much of the current deltaTime does not fall under the backwards strain influence value.
+                double startTimeOffset = Math.Max(0, current.StartTime - prevNote.StartTime - backwards_strain_influence);
+
+                // If the deltaTime doesn't fall into the backwards strain influence value at all, we can remove its corresponding difficulty.
+                // We don't iterate index because the list moves backwards.
+                if (startTimeOffset > deltaTime)
+                {
+                    previousDifficulties.RemoveAt(0);
+
+                    continue;
+                }
+
+                highestNoteVal = Math.Max(prevDifficulty, applyDecay(highestNoteVal, prevDeltaTime, strainDecayBase));
+                prevDeltaTime = deltaTime;
+
+                sum += highestNoteVal * (strainDecayAntiderivative(startTimeOffset) - strainDecayAntiderivative(deltaTime));
+
+                index++;
+            }
+
+            // CalculateInitialStrain stuff
+            highestNoteVal = Math.Max(previousDifficulties.Last().Diff, highestNoteVal);
+            sum += (strainDecayAntiderivative(0) - strainDecayAntiderivative(offset)) * highestNoteVal;
+
+            return sum;
+
+            double strainDecayAntiderivative(double t) => Math.Pow(strainDecayBase, t / 1000) / Math.Log(1.0 / strainDecayBase);
+        }
+
+        protected override double CalculateInitialStrain(double offset, DifficultyHitObject current)
+        {
+            var maniaCurrent = (ManiaDifficultyHitObject)current;
+
+            double individualStrain = getCurrentStrainValue(maniaCurrent, previousIndividualStrains[maniaCurrent.Column], individual_decay_base, offset);
+            double overallStrain = getCurrentStrainValue(maniaCurrent, previousOverallStrains, overall_decay_base, offset);
+
+            return (individualStrain + overallStrain) * 8;
+        }
 
         private double applyDecay(double value, double deltaTime, double decayBase)
             => value * Math.Pow(decayBase, deltaTime / 1000);
