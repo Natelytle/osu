@@ -42,12 +42,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             double individualStrain = getCurrentStrainValue(maniaCurrent, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
 
-            double overallDifficulty = OverallStrainEvaluator.EvaluateDifficultyOf(current);
+            double overallDifficulty = OverallStrainEvaluator.EvaluateDifficultyOf(maniaCurrent);
             previousOverallStrains.Add((maniaCurrent, overallDifficulty));
 
             double overallStrain = getCurrentStrainValue(maniaCurrent, previousOverallStrains, overall_decay_base);
 
-            return (individualStrain + overallStrain) * 8;
+            return individualStrain + overallStrain;
         }
 
         private double getCurrentStrainValue(ManiaDifficultyHitObject current, List<(ManiaDifficultyHitObject Note, double Diff)> previousDifficulties, double strainDecayBase, double offset = 0)
@@ -106,7 +106,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double individualStrain = getCurrentStrainValue(maniaCurrent, previousIndividualStrains[maniaCurrent.Column], individual_decay_base, offset);
             double overallStrain = getCurrentStrainValue(maniaCurrent, previousOverallStrains, overall_decay_base, offset);
 
-            return (individualStrain + overallStrain) * 8;
+            return individualStrain + overallStrain;
         }
 
         private double applyDecay(double value, double deltaTime, double decayBase)

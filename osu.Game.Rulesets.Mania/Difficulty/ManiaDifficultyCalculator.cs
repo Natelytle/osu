@@ -1,7 +1,6 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Beatmaps;
@@ -12,7 +11,6 @@ using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
-using osu.Game.Rulesets.Mania.MathUtils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Scoring;
@@ -64,22 +62,48 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
-            var sortedObjects = beatmap.HitObjects.ToArray();
-            int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
+            // Order notes by start time, then by column left to right.
+            var sortedObjects = beatmap.HitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToList();
 
-            LegacySortHelper<HitObject>.Sort(sortedObjects, Comparer<HitObject>.Create((a, b) => (int)Math.Round(a.StartTime) - (int)Math.Round(b.StartTime)));
+            int columns = ((ManiaBeatmap)beatmap).TotalColumns;
 
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
-            List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[totalColumns];
+            List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[columns];
 
-            for (int column = 0; column < totalColumns; column++)
+            for (int column = 0; column < columns; column++)
+            {
                 perColumnObjects[column] = new List<DifficultyHitObject>();
+            }
 
-            for (int i = 1; i < sortedObjects.Length; i++)
+            // Since we can only view previous objects, we need to temporarily store objects when we want to edit a property to be a next object.
+            List<ManiaDifficultyHitObject> currentTimeObjects = new List<ManiaDifficultyHitObject>();
+
+            for (int i = 1; i < sortedObjects.Count; i++)
             {
                 var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count);
                 objects.Add(currentObject);
-                perColumnObjects[currentObject.Column].Add(currentObject);
+                currentTimeObjects.Add(currentObject);
+
+                if (currentObject.BaseObject is not TailNote)
+                    perColumnObjects[currentObject.Column].Add(currentObject);
+
+                // Update the current objects of every note once we've processed every note in this chord.
+                if (i < sortedObjects.Count - 1 && sortedObjects[i].StartTime == sortedObjects[i + 1].StartTime)
+                    continue;
+
+                foreach (ManiaDifficultyHitObject previousNote in currentTimeObjects)
+                {
+                    // We set the current hit objects to the previous hit objects, and then we overwrite columns that have a more recent note in the current chord.
+                    previousNote.CurrentHitObjects = previousNote.PreviousHitObjects.ToArray();
+
+                    foreach (ManiaDifficultyHitObject concurrentObj in currentTimeObjects)
+                    {
+                        previousNote.CurrentHitObjects[concurrentObj.Column] = concurrentObj;
+                        previousNote.ConcurrentHitObjects[concurrentObj.Column] = concurrentObj;
+                    }
+                }
+
+                currentTimeObjects.Clear();
             }
 
             return objects;
