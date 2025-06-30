@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         {
             var maniaCurrent = (ManiaDifficultyHitObject)current;
 
-            double individualDifficulty = IndividualStrainEvaluator.EvaluateDifficultyOf(current);
+            double individualDifficulty = IndividualStrainEvaluator.EvaluateDifficultyOf(maniaCurrent);
             previousIndividualStrains[maniaCurrent.Column].Add((maniaCurrent, individualDifficulty));
 
             double individualStrain = getCurrentStrainValue(maniaCurrent, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
