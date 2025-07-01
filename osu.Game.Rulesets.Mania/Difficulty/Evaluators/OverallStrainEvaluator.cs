@@ -39,9 +39,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 // Chords are notes up to 15ms apart, which is our grace note tolerance.
                 chordValue += 8.5 * DifficultyCalculationUtils.Smootherstep(deltaTime, graceToleranceMax, graceToleranceMin);
 
-                double lnCount = calculateLnAmount(columnObj.StartTime, current.StartTime, currentObjects);
+                double lnCount = calculateLnAmount(current.StartTime - 200, current.StartTime, currentObjects);
 
-                double difficulty = (1000 / deltaTime) * (1 + 0.6 * lnCount / deltaTime) * streamBooster(columnObj.DeltaTime);
+                double difficulty = 1000 / deltaTime;
+
+                difficulty *= Math.Max(1 + lnCount / 400, streamBooster(columnObj.DeltaTime));
 
                 difficulty *= deltaTime < 50 ? 0.85 + 0.15 * (1 + Math.Pow((deltaTime - 50) / 50, 3)) : 1;
 
