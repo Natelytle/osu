@@ -53,13 +53,30 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
             if (index > 0)
             {
-                ManiaDifficultyHitObject prevNote = (ManiaDifficultyHitObject)objects[index - 1];
+                ManiaDifficultyHitObject? prevNote = (ManiaDifficultyHitObject)objects[index - 1];
 
-                for (int i = 0; i < prevNote.PreviousHitObjects.Length; i++)
-                    PreviousHitObjects[i] = prevNote.PreviousHitObjects[i];
+                PreviousHitObjects = [..prevNote.PreviousHitObjects];
 
-                // intentionally depends on processing order to match live.
-                PreviousHitObjects[prevNote.Column] = prevNote;
+                if (StartTime > prevNote.StartTime)
+                {
+                    do
+                    {
+                        PreviousHitObjects[prevNote.Column] = prevNote;
+                    }
+                    while (prevNote.DeltaTime == 0 && (prevNote = (ManiaDifficultyHitObject?)prevNote.Previous(0)) is not null);
+                }
+            }
+
+            // Fix some stuff for tail notes
+            if (hitObject is TailNote)
+            {
+                columnIndex -= 1;
+
+                // The first note isnt processed but the first tail is. In this case, the index will be -1 and the per column objects array will have no notes.
+                if (columnIndex > -1)
+                    Index = perColumnObjects[Column][columnIndex].Index;
+
+                columnIndex = Math.Max(columnIndex, 0);
             }
         }
 

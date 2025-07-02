@@ -10,7 +10,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class OverallStrainEvaluator
     {
-        private const double difficulty_multiplier = 0.3;
+        private const double difficulty_multiplier = 0.475;
 
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
@@ -39,11 +39,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 // Chords are notes up to 15ms apart, which is our grace note tolerance.
                 chordValue += 8.5 * DifficultyCalculationUtils.Smootherstep(deltaTime, graceToleranceMax, graceToleranceMin);
 
-                double lnCount = calculateLnAmount(current.StartTime - 200, current.StartTime, currentObjects);
+                double lnCount = calculateLnAmount(columnObj.StartTime, current.StartTime, currentObjects);
 
                 double difficulty = 1000 / deltaTime;
 
-                difficulty *= Math.Max(1 + lnCount / 400, streamBooster(columnObj.DeltaTime));
+                difficulty *= Math.Max(1 + lnCount / Math.Max(60, deltaTime), streamBooster(deltaTime));
 
                 difficulty *= deltaTime < 50 ? 0.85 + 0.15 * (1 + Math.Pow((deltaTime - 50) / 50, 3)) : 1;
 
@@ -54,6 +54,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             totalDifficulty += chordValue;
+
+            // Console.Write(Math.Round(chordValue, 2) + ", ");
 
             return totalDifficulty * difficulty_multiplier;
         }

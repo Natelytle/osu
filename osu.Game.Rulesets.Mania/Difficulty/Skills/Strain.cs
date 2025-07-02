@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
@@ -19,38 +20,41 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private const double backwards_strain_influence = 1000;
 
-        private readonly List<(ManiaDifficultyHitObject, double)>[] previousIndividualStrains;
-        private readonly List<(ManiaDifficultyHitObject, double)> previousOverallStrains;
+        private readonly List<(double, double)>[] previousIndividualStrains;
+        private readonly List<(double, double)> previousOverallStrains;
 
         public Strain(Mod[] mods, int totalColumns)
             : base(mods)
         {
-            previousIndividualStrains = new List<(ManiaDifficultyHitObject, double)>[totalColumns];
+            previousIndividualStrains = new List<(double, double)>[totalColumns];
 
             for (int i = 0; i < previousIndividualStrains.Length; i++)
-                previousIndividualStrains[i] = new List<(ManiaDifficultyHitObject, double)>();
+                previousIndividualStrains[i] = new List<(double, double)>();
 
-            previousOverallStrains = new List<(ManiaDifficultyHitObject, double)>();
+            previousOverallStrains = new List<(double, double)>();
         }
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
+            if (current.BaseObject is TailNote)
+                return 0;
+
             var maniaCurrent = (ManiaDifficultyHitObject)current;
 
             double individualDifficulty = IndividualStrainEvaluator.EvaluateDifficultyOf(maniaCurrent);
-            previousIndividualStrains[maniaCurrent.Column].Add((maniaCurrent, individualDifficulty));
+            previousIndividualStrains[maniaCurrent.Column].Add((maniaCurrent.StartTime, individualDifficulty));
 
-            double individualStrain = getCurrentStrainValue(maniaCurrent, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
+            double individualStrain = getCurrentStrainValue(maniaCurrent.StartTime, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
 
             double overallDifficulty = OverallStrainEvaluator.EvaluateDifficultyOf(maniaCurrent);
-            previousOverallStrains.Add((maniaCurrent, overallDifficulty));
+            previousOverallStrains.Add((maniaCurrent.StartTime, overallDifficulty));
 
-            double overallStrain = getCurrentStrainValue(maniaCurrent, previousOverallStrains, overall_decay_base);
+            double overallStrain = getCurrentStrainValue(maniaCurrent.StartTime, previousOverallStrains, overall_decay_base);
 
             return individualStrain + overallStrain;
         }
 
-        private double getCurrentStrainValue(ManiaDifficultyHitObject current, List<(ManiaDifficultyHitObject Note, double Diff)> previousDifficulties, double strainDecayBase, double offset = 0)
+        private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties, double strainDecayBase)
         {
             if (previousDifficulties.Count < 2)
                 return 0;
@@ -64,14 +68,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             while (index < previousDifficulties.Count)
             {
-                ManiaDifficultyHitObject prevNote = previousDifficulties[index - 1].Note;
-                ManiaDifficultyHitObject note = previousDifficulties[index].Note;
+                double prevTime = previousDifficulties[index - 1].Time;
+                double currTime = previousDifficulties[index].Time;
 
-                double deltaTime = note.StartTime - prevNote.StartTime;
+                double deltaTime = currTime - prevTime;
                 double prevDifficulty = previousDifficulties[index - 1].Diff;
 
                 // How much of the current deltaTime does not fall under the backwards strain influence value.
-                double startTimeOffset = Math.Max(0, current.StartTime - prevNote.StartTime - backwards_strain_influence);
+                double startTimeOffset = Math.Max(0, endTime - prevTime - backwards_strain_influence);
 
                 // If the deltaTime doesn't fall into the backwards strain influence value at all, we can remove its corresponding difficulty.
                 // We don't iterate index because the list moves backwards.
@@ -92,7 +96,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             // CalculateInitialStrain stuff
             highestNoteVal = Math.Max(previousDifficulties.Last().Diff, highestNoteVal);
-            sum += (strainDecayAntiderivative(0) - strainDecayAntiderivative(offset)) * highestNoteVal;
+            double lastTime = previousDifficulties.Last().Time;
+            sum += (strainDecayAntiderivative(0) - strainDecayAntiderivative(endTime - lastTime)) * highestNoteVal;
 
             return sum;
 
@@ -103,8 +108,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         {
             var maniaCurrent = (ManiaDifficultyHitObject)current;
 
-            double individualStrain = getCurrentStrainValue(maniaCurrent, previousIndividualStrains[maniaCurrent.Column], individual_decay_base, offset);
-            double overallStrain = getCurrentStrainValue(maniaCurrent, previousOverallStrains, overall_decay_base, offset);
+            double individualStrain = getCurrentStrainValue(offset, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
+            double overallStrain = getCurrentStrainValue(offset, previousOverallStrains, overall_decay_base);
 
             return individualStrain + overallStrain;
         }

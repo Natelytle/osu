@@ -62,12 +62,29 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
+            var nonNestedSortedObjects = beatmap.HitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToArray();
+
+            // We want to split LNs into their heads and tails.
+            List<HitObject> nestedHitObjects = new List<HitObject>();
+
+            foreach (var obj in beatmap.HitObjects)
+            {
+                if (obj.NestedHitObjects.Count == 0)
+                    nestedHitObjects.Add(obj);
+                else
+                {
+                    nestedHitObjects.Add(obj.NestedHitObjects.First());
+                    nestedHitObjects.Add(obj.NestedHitObjects.Last());
+                }
+            }
+
             // Order notes by start time, then by column left to right.
-            var sortedObjects = beatmap.HitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToList();
+            var nestedSortedObjects = nestedHitObjects.OrderBy(obj => obj.StartTime).ThenBy(obj => ((ManiaHitObject)obj).Column).ToArray();
 
             int columns = ((ManiaBeatmap)beatmap).TotalColumns;
 
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
+            List<DifficultyHitObject> nonNestedObjects = new List<DifficultyHitObject>();
             List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[columns];
 
             for (int column = 0; column < columns; column++)
@@ -78,32 +95,48 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             // Since we can only view previous objects, we need to temporarily store objects when we want to edit a property to be a next object.
             List<ManiaDifficultyHitObject> currentTimeObjects = new List<ManiaDifficultyHitObject>();
 
-            for (int i = 1; i < sortedObjects.Count; i++)
+            int nonNestedIndex = 1;
+
+            for (int i = 1; i < nestedSortedObjects.Length; i++)
             {
-                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count);
-                objects.Add(currentObject);
-                currentTimeObjects.Add(currentObject);
+                ManiaDifficultyHitObject currentObject;
 
-                if (currentObject.BaseObject is not TailNote)
-                    perColumnObjects[currentObject.Column].Add(currentObject);
-
-                // Update the current objects of every note once we've processed every note in this chord.
-                if (i < sortedObjects.Count - 1 && sortedObjects[i].StartTime == sortedObjects[i + 1].StartTime)
-                    continue;
-
-                foreach (ManiaDifficultyHitObject previousNote in currentTimeObjects)
+                // The most barebones calculation possible for tail notes. We do not want these in the evaluator, we only want these for the process method in difficulty.
+                if (nestedSortedObjects[i] is TailNote)
                 {
-                    // We set the current hit objects to the previous hit objects, and then we overwrite columns that have a more recent note in the current chord.
-                    previousNote.CurrentHitObjects = previousNote.PreviousHitObjects.ToArray();
+                    // currentObject = new ManiaDifficultyHitObject(nestedSortedObjects[i], nestedSortedObjects[i - 1], clockRate, nonNestedObjects, perColumnObjects, nonNestedIndex - 1);
 
-                    foreach (ManiaDifficultyHitObject concurrentObj in currentTimeObjects)
-                    {
-                        previousNote.CurrentHitObjects[concurrentObj.Column] = concurrentObj;
-                        previousNote.ConcurrentHitObjects[concurrentObj.Column] = concurrentObj;
-                    }
+                    // objects.Add(currentObject);
+
+                    continue;
                 }
 
-                currentTimeObjects.Clear();
+                currentObject = new ManiaDifficultyHitObject(nonNestedSortedObjects[nonNestedIndex], nonNestedSortedObjects[nonNestedIndex - 1], clockRate, nonNestedObjects, perColumnObjects, nonNestedObjects.Count);
+
+                objects.Add(currentObject);
+                nonNestedObjects.Add(currentObject);
+                currentTimeObjects.Add(currentObject);
+                perColumnObjects[currentObject.Column].Add(currentObject);
+
+                // Update the current objects of every note once we've processed every note in this chord.
+                if (nonNestedIndex + 1 == nonNestedSortedObjects.Length || nonNestedSortedObjects[nonNestedIndex].StartTime != nonNestedSortedObjects[nonNestedIndex + 1].StartTime)
+                {
+                    foreach (ManiaDifficultyHitObject previousNote in currentTimeObjects)
+                    {
+                        // We set the current hit objects to the previous hit objects, and then we overwrite columns that have a more recent note in the current chord.
+                        previousNote.CurrentHitObjects = previousNote.PreviousHitObjects.ToArray();
+
+                        foreach (ManiaDifficultyHitObject concurrentObj in currentTimeObjects)
+                        {
+                            previousNote.CurrentHitObjects[concurrentObj.Column] = concurrentObj;
+                            previousNote.ConcurrentHitObjects[concurrentObj.Column] = concurrentObj;
+                        }
+                    }
+
+                    currentTimeObjects.Clear();
+                }
+
+                nonNestedIndex++;
             }
 
             return objects;

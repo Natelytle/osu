@@ -8,11 +8,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class IndividualStrainEvaluator
     {
-        private const double difficulty_multiplier = 0.3;
+        private const double difficulty_multiplier = 0.475;
 
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
-            double difficulty = (1000 / current.ColumnDeltaTime) * (1000 / (current.ColumnDeltaTime + 60));
+            // A window slightly smaller than the average deltaTime of prevPrev to next. Capped to 50ms.
+            double averageDeltaTime = Math.Min((current.NextInColumn(0)?.StartTime - current.PrevInColumn(1)?.StartTime) / 4 ?? double.PositiveInfinity, 65);
+
+            // Anti-cheese for notes over 300bpm.
+            double cheesedDeltaTime = Math.Max(current.ColumnDeltaTime, averageDeltaTime);
+
+            double difficulty = (1000 / cheesedDeltaTime) * (1000 / (cheesedDeltaTime + 60));
 
             // Nerf jacks
             difficulty *= 1 - 7e-5 * (1 / Math.Pow((150 + Math.Abs(current.ColumnDeltaTime - 80)) / 1000, 4));
