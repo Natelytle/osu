@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
@@ -17,7 +18,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double totalDifficulty = 0;
             double chordValue = 0;
 
-            ManiaDifficultyHitObject?[] currentObjects = current.CurrentHitObjects;
+            // Includes all notes in the current chord and the first note in each column earlier than current.
+            ManiaDifficultyHitObject?[] currentObjects = current.CurrentHitObjects.Union(current.PreviousHitObjects).ToArray();
 
             foreach (ManiaDifficultyHitObject? columnObj in currentObjects)
             {
@@ -54,8 +56,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             totalDifficulty += chordValue;
-
-            // Console.Write(Math.Round(chordValue, 2) + ", ");
 
             return totalDifficulty * difficulty_multiplier;
         }
