@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
@@ -20,18 +21,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private const double backwards_strain_influence = 1000;
 
-        private readonly List<(double, double)>[] previousIndividualStrains;
-        private readonly List<(double, double)> previousOverallStrains;
+        private readonly List<(double, double)>[] individualDifficultiesHistory;
+        private readonly List<(double, double)> overallDifficultyHistory;
+
+        private readonly (double, double)[] previousIndividualStrains;
 
         public Strain(Mod[] mods, int totalColumns)
             : base(mods)
         {
-            previousIndividualStrains = new List<(double, double)>[totalColumns];
+            individualDifficultiesHistory = new List<(double, double)>[totalColumns];
 
-            for (int i = 0; i < previousIndividualStrains.Length; i++)
-                previousIndividualStrains[i] = new List<(double, double)>();
+            for (int i = 0; i < individualDifficultiesHistory.Length; i++)
+                individualDifficultiesHistory[i] = new List<(double, double)>();
 
-            previousOverallStrains = new List<(double, double)>();
+            overallDifficultyHistory = new List<(double, double)>();
+
+            previousIndividualStrains = new (double, double)[totalColumns];
         }
 
         protected override double StrainValueAt(DifficultyHitObject current)
@@ -42,16 +47,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             var maniaCurrent = (ManiaDifficultyHitObject)current;
 
             double individualDifficulty = IndividualStrainEvaluator.EvaluateDifficultyOf(maniaCurrent);
-            previousIndividualStrains[maniaCurrent.Column].Add((maniaCurrent.StartTime, individualDifficulty));
+            individualDifficultiesHistory[maniaCurrent.Column].Add((maniaCurrent.StartTime, individualDifficulty));
 
-            double individualStrain = getCurrentStrainValue(maniaCurrent.StartTime, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
+            double individualStrain = getCurrentStrainValue(maniaCurrent.StartTime, individualDifficultiesHistory[maniaCurrent.Column], individual_decay_base);
+            previousIndividualStrains[maniaCurrent.Column] = (maniaCurrent.StartTime, individualStrain);
+
+            // We LP norm the individual strains to prevent single columns from having too much influence.
+            double individualStrainSum = 0;
+
+            foreach ((double time, double strain) in previousIndividualStrains)
+            {
+                individualStrainSum = DifficultyCalculationUtils.Norm(4, individualStrainSum, applyDecay(strain, maniaCurrent.StartTime - time, individual_decay_base));
+            }
 
             double overallDifficulty = OverallStrainEvaluator.EvaluateDifficultyOf(maniaCurrent);
-            previousOverallStrains.Add((maniaCurrent.StartTime, overallDifficulty));
+            overallDifficultyHistory.Add((maniaCurrent.StartTime, overallDifficulty));
 
-            double overallStrain = getCurrentStrainValue(maniaCurrent.StartTime, previousOverallStrains, overall_decay_base);
+            double overallStrain = getCurrentStrainValue(maniaCurrent.StartTime, overallDifficultyHistory, overall_decay_base);
 
-            return individualStrain + overallStrain;
+            return individualStrainSum + overallStrain;
         }
 
         private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties, double strainDecayBase)
@@ -108,8 +122,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         {
             var maniaCurrent = (ManiaDifficultyHitObject)current;
 
-            double individualStrain = getCurrentStrainValue(offset, previousIndividualStrains[maniaCurrent.Column], individual_decay_base);
-            double overallStrain = getCurrentStrainValue(offset, previousOverallStrains, overall_decay_base);
+            double individualStrain = getCurrentStrainValue(offset, individualDifficultiesHistory[maniaCurrent.Column], individual_decay_base);
+            double overallStrain = getCurrentStrainValue(offset, overallDifficultyHistory, overall_decay_base);
 
             return individualStrain + overallStrain;
         }
