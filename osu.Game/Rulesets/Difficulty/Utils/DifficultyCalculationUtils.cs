@@ -190,5 +190,30 @@ namespace osu.Game.Rulesets.Difficulty.Utils
         /// </summary>
         /// <param name="x">Value to calculate the function for</param>
         public static double ErfcInv(double x) => ErfInv(1 - x);
+
+        public static double NormalPdf(double mean, double stdDev, double x)
+        {
+            const double sqrt2_pi = 2.5066282746310005024157652848110452530069867406099d;
+
+            if (stdDev < 0.0)
+            {
+                throw new ArgumentException("Invalid parametrization for the distribution.");
+            }
+
+            double d = (x - mean) / stdDev;
+            return Math.Exp(-0.5 * d * d) / (sqrt2_pi * stdDev);
+        }
+
+        public static double NormalCdf(double mean, double stdDev, double x)
+        {
+            const double sqrt2 = 1.4142135623730950488016887242096980785696718753769d;
+
+            if (stdDev < 0.0)
+            {
+                throw new ArgumentException("Invalid parametrization for the distribution.");
+            }
+
+            return 0.5 * Erfc((mean - x) / (stdDev * sqrt2));
+        }
     }
 }
