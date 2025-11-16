@@ -7,6 +7,7 @@ using JetBrains.Annotations;
 using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -25,6 +26,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         [JsonProperty("aim_difficult_slider_count")]
         public double AimDifficultSliderCount { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the aim skill.
+        /// </summary>
+        [JsonProperty("aim_penalty_constants")]
+        public Polynomial AimMissPenaltyCurve { get; set; }
 
         /// <summary>
         /// The difficulty corresponding to the speed skill.

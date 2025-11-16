@@ -206,7 +206,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
                 double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
 
-                aimValue *= calculateMissPenalty(relevantMissCount, attributes.AimDifficultStrainCount);
+                aimValue *= calculateCurveFittedMissPenalty(relevantMissCount, attributes.AimMissPenaltyCurve);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -488,6 +488,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             return adjustedSpeedValue / speedValue;
         }
+
+        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
+        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
+        // As a result, this exponent is not subject to balance.
+        private double calculateCurveFittedMissPenalty(double missCount, Polynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(missCount), 1.5);
 
         // Miss penalty assumes that a player will miss on the hardest parts of a map,
         // so we use the amount of relatively difficult sections to adjust miss penalty

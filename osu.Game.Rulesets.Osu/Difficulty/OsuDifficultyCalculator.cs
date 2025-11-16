@@ -8,7 +8,9 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
@@ -58,11 +60,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedNotes = speed.RelevantNoteCount();
 
-            double aimDifficultStrainCount = aim.CountTopWeightedStrains();
+            double aimDifficultStrainCount = aim.CountTopWeightedNotes();
             double speedDifficultStrainCount = speed.CountTopWeightedStrains();
 
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
-            double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
+            double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedNotes();
 
             double aimTopWeightedSliderFactor = aimNoSlidersTopWeightedSliderCount / Math.Max(1, aimNoSlidersDifficultStrainCount - aimNoSlidersTopWeightedSliderCount);
 
@@ -101,6 +103,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double sliderNestedScorePerObject = LegacyScoreUtils.CalculateNestedScorePerObject(beatmap, totalHits);
             double legacyScoreBaseMultiplier = LegacyScoreUtils.CalculateDifficultyPeppyStars(beatmap);
+            Polynomial aimMissPenaltyCurve = ((OsuTimeSkill)skills[0]).GetMissPenaltyCurve();
+            double speedDifficultyStrainCount = ((OsuStrainSkill)skills[2]).CountTopWeightedStrains();
 
             var simulator = new OsuLegacyScoreSimulator();
             var scoreAttributes = simulator.Simulate(WorkingBeatmap, beatmap);
@@ -129,6 +133,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
                 AimDifficultStrainCount = aimDifficultStrainCount,
+                AimMissPenaltyCurve = aimMissPenaltyCurve,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
