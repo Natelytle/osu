@@ -8,8 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
-using osu.Framework.Bindables;
 using osu.Game.Extensions;
+using osu.Game.Online.Metadata;
 using osu.Game.Users;
 
 namespace osu.Game.Online.API.Requests.Responses
@@ -22,35 +22,44 @@ namespace osu.Game.Online.API.Requests.Responses
         /// </summary>
         public const int SYSTEM_USER_ID = 0;
 
-        [JsonProperty(@"id")]
+        // In osu-web, deleted users have a null ID. When deserializing, we ignore the null value and use 1 instead.
+        [JsonProperty(@"id", NullValueHandling = NullValueHandling.Ignore)]
         public int Id { get; set; } = 1;
 
         [JsonProperty(@"join_date")]
         public DateTimeOffset JoinDate;
 
         [JsonProperty(@"username")]
-        public string Username { get; set; }
+        public string Username { get; set; } = string.Empty;
 
         [JsonProperty(@"previous_usernames")]
         public string[] PreviousUsernames;
 
-        private CountryCode? countryCode;
+        [JsonProperty(@"rank_highest")]
+        [CanBeNull]
+        public UserRankHighest RankHighest;
+
+        public class UserRankHighest
+        {
+            [JsonProperty(@"rank")]
+            public int Rank;
+
+            [JsonProperty(@"updated_at")]
+            public DateTimeOffset UpdatedAt;
+        }
+
+        [JsonProperty(@"country_code")]
+        private string countryCodeString;
 
         public CountryCode CountryCode
         {
-            get => countryCode ??= (Enum.TryParse(country?.Code, out CountryCode result) ? result : default);
-            set => countryCode = value;
+            get => Enum.TryParse(countryCodeString, out CountryCode result) ? result : CountryCode.Unknown;
+            set => countryCodeString = value.ToString();
         }
 
-#pragma warning disable 649
+        [JsonProperty(@"team")]
         [CanBeNull]
-        [JsonProperty(@"country")]
-        private Country country;
-#pragma warning restore 649
-
-        public readonly Bindable<UserStatus> Status = new Bindable<UserStatus>();
-
-        public readonly Bindable<UserActivity> Activity = new Bindable<UserActivity>();
+        public APITeam Team { get; set; }
 
         [JsonProperty(@"profile_colour")]
         public string Colour;
@@ -104,8 +113,13 @@ namespace osu.Game.Online.API.Requests.Responses
         [JsonProperty(@"is_active")]
         public bool Active;
 
+        /// <summary>
+        /// From osu-web's perspective, whether a user was recently online.
+        /// This doesn't imply the user is online in a lazer client (may be updated from stable or web browser).
+        /// Use <see cref="MetadataClient.GetPresence"/> for real-time lazer online status checks.
+        /// </summary>
         [JsonProperty(@"is_online")]
-        public bool IsOnline;
+        public bool WasRecentlyOnline;
 
         [JsonProperty(@"pm_friends_only")]
         public bool PMFriendsOnly;
@@ -193,6 +207,9 @@ namespace osu.Game.Online.API.Requests.Responses
         [JsonProperty(@"playmode")]
         public string PlayMode;
 
+        [JsonProperty(@"profile_hue")]
+        public int? ProfileHue;
+
         [JsonProperty(@"profile_order")]
         public string[] ProfileOrder;
 
@@ -212,8 +229,10 @@ namespace osu.Game.Online.API.Requests.Responses
 
         /// <summary>
         /// User statistics for the requested ruleset (in the case of a <see cref="GetUserRequest"/> or <see cref="GetFriendsRequest"/> response).
-        /// Otherwise empty.
         /// </summary>
+        /// <remarks>
+        /// This returns null when accessed from <see cref="IAPIProvider.LocalUser"/>. Use <see cref="LocalUserStatisticsProvider"/> instead.
+        /// </remarks>
         [JsonProperty(@"statistics")]
         public UserStatistics Statistics
         {
@@ -234,9 +253,8 @@ namespace osu.Game.Online.API.Requests.Responses
             set => Statistics.RankHistory = value;
         }
 
-        [JsonProperty(@"active_tournament_banner")]
-        [CanBeNull]
-        public TournamentBanner TournamentBanner;
+        [JsonProperty(@"active_tournament_banners")]
+        public TournamentBanner[] TournamentBanners;
 
         [JsonProperty("badges")]
         public Badge[] Badges;
@@ -251,7 +269,7 @@ namespace osu.Game.Online.API.Requests.Responses
         public APIUserHistoryCount[] ReplaysWatchedCounts;
 
         /// <summary>
-        /// All user statistics per ruleset's short name (in the case of a <see cref="GetUsersRequest"/> response).
+        /// All user statistics per ruleset's short name (in the case of a <see cref="GetUsersRequest"/> or <see cref="GetMeRequest"/> response).
         /// Otherwise empty. Can be altered for testing purposes.
         /// </summary>
         // todo: this should likely be moved to a separate UserCompact class at some point.
@@ -261,6 +279,9 @@ namespace osu.Game.Online.API.Requests.Responses
 
         [JsonProperty("groups")]
         public APIUserGroup[] Groups;
+
+        [JsonProperty("daily_challenge_user_stats")]
+        public APIUserDailyChallengeStatistics DailyChallengeStatistics = new APIUserDailyChallengeStatistics();
 
         public override string ToString() => Username;
 

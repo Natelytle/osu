@@ -9,7 +9,7 @@ using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
-using osu.Game.Configuration;
+using osu.Game.Input;
 using osu.Game.Input.Bindings;
 using osu.Game.Localisation;
 using osu.Game.Overlays.OSD;
@@ -30,20 +30,14 @@ namespace osu.Game.Overlays.Music
         [Resolved]
         private OnScreenDisplay? onScreenDisplay { get; set; }
 
-        [Resolved]
-        private OsuGame game { get; set; } = null!;
-
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
         {
-            if (e.Repeat)
+            if (e.Repeat || !musicController.AllowTrackControl.Value)
                 return false;
 
             switch (e.Action)
             {
                 case GlobalAction.MusicPlay:
-                    if (game.LocalUserPlaying.Value)
-                        return false;
-
                     // use previous state as TogglePause may not update the track's state immediately (state update is run on the audio thread see https://github.com/ppy/osu/issues/9880#issuecomment-674668842)
                     bool wasPlaying = musicController.IsPlaying;
 
@@ -98,9 +92,9 @@ namespace osu.Game.Overlays.Music
             }
 
             [BackgroundDependencyLoader]
-            private void load(OsuConfigManager config)
+            private void load(RealmKeyBindingStore keyBindingStore)
             {
-                ShortcutText.Text = config.LookupKeyBindings(action).ToUpper();
+                ShortcutText.Text = keyBindingStore.GetBindingsStringFor(action).ToUpper();
             }
         }
     }

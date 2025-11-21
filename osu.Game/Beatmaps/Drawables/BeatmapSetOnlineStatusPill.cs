@@ -19,7 +19,15 @@ namespace osu.Game.Beatmaps.Drawables
 {
     public partial class BeatmapSetOnlineStatusPill : CircularContainer, IHasTooltip
     {
-        private BeatmapOnlineStatus status;
+        /// <summary>
+        /// Whether to show <see cref="BeatmapOnlineStatus.None"/> as "unknown" instead of fading out.
+        /// </summary>
+        public bool ShowUnknownStatus { get; init; }
+
+        /// <summary>
+        /// Whether changing status performs transition transforms.
+        /// </summary>
+        public bool Animated { get; init; } = true;
 
         public BeatmapOnlineStatus Status
         {
@@ -36,20 +44,22 @@ namespace osu.Game.Beatmaps.Drawables
             }
         }
 
+        private BeatmapOnlineStatus status;
+
         public float TextSize
         {
-            get => statusText.Font.Size;
-            set => statusText.Font = statusText.Font.With(size: value);
+            init => statusText.Font = statusText.Font.With(size: value);
         }
 
         public MarginPadding TextPadding
         {
-            get => statusText.Padding;
-            set => statusText.Padding = value;
+            init => statusText.Padding = value;
         }
 
         private readonly OsuSpriteText statusText;
         private readonly Box background;
+
+        private const double animation_duration = 400;
 
         [Resolved]
         private OsuColour colours { get; set; } = null!;
@@ -59,7 +69,10 @@ namespace osu.Game.Beatmaps.Drawables
 
         public BeatmapSetOnlineStatusPill()
         {
+            AutoSizeAxes = Axes.Both;
             Masking = true;
+
+            Alpha = 0;
 
             Children = new Drawable[]
             {
@@ -77,27 +90,54 @@ namespace osu.Game.Beatmaps.Drawables
             };
 
             Status = BeatmapOnlineStatus.None;
-            TextPadding = new MarginPadding { Horizontal = 5, Bottom = 1 };
+            TextPadding = new MarginPadding { Horizontal = 4, Bottom = 1 };
         }
 
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
             updateState();
+            FinishTransforms(true);
         }
 
         private void updateState()
         {
-            Alpha = Status == BeatmapOnlineStatus.None ? 0 : 1;
+            double duration = Animated ? animation_duration : 0;
 
-            statusText.Text = Status.GetLocalisableDescription().ToUpper();
+            if (Status == BeatmapOnlineStatus.None && !ShowUnknownStatus)
+            {
+                this.FadeOut(duration, Easing.OutQuint);
+                return;
+            }
+
+            // The autosize animation on this component is intended to animate horizontal sizing only.
+            // To avoid vertical autosize animating from zero to non-zero, only apply the duration
+            // after we have a valid size.
+            if (Height > 0)
+            {
+                AutoSizeDuration = (float)duration;
+                AutoSizeEasing = Easing.OutQuint;
+            }
+
+            this.FadeIn(duration, Easing.OutQuint);
+
+            // Handle the case where transition from hidden to non-hidden may cause
+            // a fade from a colour that doesn't make sense (due to not being able to see the previous colour).
+            if (Alpha == 0)
+                duration = 0;
+
+            Color4 statusTextColour;
 
             if (colourProvider != null)
-                statusText.Colour = status == BeatmapOnlineStatus.Graveyard ? colourProvider.Background1 : colourProvider.Background3;
+                statusTextColour = status == BeatmapOnlineStatus.Graveyard ? colourProvider.Background1 : colourProvider.Background3;
             else
-                statusText.Colour = status == BeatmapOnlineStatus.Graveyard ? colours.GreySeaFoamLight : Color4.Black;
+                statusTextColour = status == BeatmapOnlineStatus.Graveyard ? colours.GreySeaFoamLight : Color4.Black;
 
-            background.Colour = OsuColour.ForBeatmapSetOnlineStatus(Status) ?? colourProvider?.Light1 ?? colours.GreySeaFoamLighter;
+            statusText.FadeColour(statusTextColour, duration, Easing.OutQuint);
+            background.FadeColour(OsuColour.ForBeatmapSetOnlineStatus(Status) ?? colourProvider?.Light1 ?? colours.GreySeaFoamLighter, duration, Easing.OutQuint);
+
+            statusText.Text = Status.GetLocalisableDescription().ToUpper();
         }
 
         public LocalisableString TooltipText

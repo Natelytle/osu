@@ -1,15 +1,13 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-#nullable disable
-
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Threading;
-using osu.Game.Graphics.UserInterface;
+using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Overlays.Settings;
 using osu.Game.Tournament.Components;
 using osu.Game.Tournament.IPC;
@@ -26,21 +24,22 @@ namespace osu.Game.Tournament.Screens.Gameplay
         private readonly BindableBool warmup = new BindableBool();
 
         public readonly Bindable<TourneyState> State = new Bindable<TourneyState>();
-        private OsuButton warmupButton;
-        private MatchIPCInfo ipc;
-
-        [Resolved(canBeNull: true)]
-        private TournamentSceneManager sceneManager { get; set; }
+        private MatchIPCInfo ipc = null!;
 
         [Resolved]
-        private TournamentMatchChatDisplay chat { get; set; }
+        private TournamentSceneManager? sceneManager { get; set; }
 
-        private Drawable chroma;
+        [Resolved]
+        private TournamentMatchChatDisplay chat { get; set; } = null!;
+
+        private Drawable chroma = null!;
 
         [BackgroundDependencyLoader]
-        private void load(LadderInfo ladder, MatchIPCInfo ipc)
+        private void load(MatchIPCInfo ipc)
         {
             this.ipc = ipc;
+
+            LabelledSwitchButton chatToggle;
 
             AddRangeInternal(new Drawable[]
             {
@@ -51,7 +50,7 @@ namespace osu.Game.Tournament.Screens.Gameplay
                 },
                 header = new MatchHeader
                 {
-                    ShowLogo = false
+                    ShowLogo = false,
                 },
                 new Container
                 {
@@ -97,17 +96,14 @@ namespace osu.Game.Tournament.Screens.Gameplay
                 {
                     Children = new Drawable[]
                     {
-                        warmupButton = new TourneyButton
+                        new LabelledSwitchButton
                         {
-                            RelativeSizeAxes = Axes.X,
-                            Text = "Toggle warmup",
-                            Action = () => warmup.Toggle()
+                            Label = "Warmup",
+                            Current = warmup,
                         },
-                        new TourneyButton
+                        chatToggle = new LabelledSwitchButton
                         {
-                            RelativeSizeAxes = Axes.X,
-                            Text = "Toggle chat",
-                            Action = () => { State.Value = State.Value == TourneyState.Idle ? TourneyState.Playing : TourneyState.Idle; }
+                            Label = "Show chat",
                         },
                         new SettingsSlider<int>
                         {
@@ -120,18 +116,17 @@ namespace osu.Game.Tournament.Screens.Gameplay
                             LabelText = "Players per team",
                             Current = LadderInfo.PlayersPerTeam,
                             KeyboardStep = 1,
-                        }
+                        },
                     }
                 }
             });
 
-            ladder.ChromaKeyWidth.BindValueChanged(width => chroma.Width = width.NewValue, true);
+            State.BindValueChanged(state => chatToggle.Current.Value = State.Value == TourneyState.Idle, true);
+            chatToggle.Current.BindValueChanged(v => State.Value = v.NewValue ? TourneyState.Idle : TourneyState.Playing);
 
-            warmup.BindValueChanged(w =>
-            {
-                warmupButton.Alpha = !w.NewValue ? 0.5f : 1;
-                header.ShowScores = !w.NewValue;
-            }, true);
+            LadderInfo.ChromaKeyWidth.BindValueChanged(width => chroma.Width = width.NewValue, true);
+
+            warmup.BindValueChanged(w => header.ShowScores = !w.NewValue, true);
         }
 
         protected override void LoadComplete()
@@ -139,10 +134,10 @@ namespace osu.Game.Tournament.Screens.Gameplay
             base.LoadComplete();
 
             State.BindTo(ipc.State);
-            State.BindValueChanged(stateChanged, true);
+            State.BindValueChanged(_ => updateState(), true);
         }
 
-        protected override void CurrentMatchChanged(ValueChangedEvent<TournamentMatch> match)
+        protected override void CurrentMatchChanged(ValueChangedEvent<TournamentMatch?> match)
         {
             base.CurrentMatchChanged(match);
 
@@ -150,20 +145,53 @@ namespace osu.Game.Tournament.Screens.Gameplay
                 return;
 
             warmup.Value = match.NewValue.Team1Score.Value + match.NewValue.Team2Score.Value == 0;
-            scheduledOperation?.Cancel();
+            scheduledScreenChange?.Cancel();
         }
 
-        private ScheduledDelegate scheduledOperation;
-        private TournamentMatchScoreDisplay scoreDisplay;
+        private ScheduledDelegate? scheduledScreenChange;
+        private ScheduledDelegate? scheduledContract;
+
+        private TournamentMatchScoreDisplay scoreDisplay = null!;
 
         private TourneyState lastState;
-        private MatchHeader header;
+        private MatchHeader header = null!;
 
-        private void stateChanged(ValueChangedEvent<TourneyState> state)
+        private void contract()
+        {
+            if (!IsLoaded)
+                return;
+
+            scheduledContract?.Cancel();
+
+            SongBar.Expanded = false;
+            scoreDisplay.FadeOut(100);
+            using (chat.BeginDelayedSequence(500))
+                chat.Expand();
+        }
+
+        private void expand()
+        {
+            if (!IsLoaded)
+                return;
+
+            scheduledContract?.Cancel();
+
+            chat.Contract();
+
+            using (BeginDelayedSequence(300))
+            {
+                scoreDisplay.FadeIn(100);
+                SongBar.Expanded = true;
+            }
+        }
+
+        private void updateState()
         {
             try
             {
-                if (state.NewValue == TourneyState.Ranking)
+                scheduledScreenChange?.Cancel();
+
+                if (State.Value == TourneyState.Ranking)
                 {
                     if (warmup.Value || CurrentMatch.Value == null) return;
 
@@ -173,28 +201,7 @@ namespace osu.Game.Tournament.Screens.Gameplay
                         CurrentMatch.Value.Team2Score.Value++;
                 }
 
-                scheduledOperation?.Cancel();
-
-                void expand()
-                {
-                    chat?.Contract();
-
-                    using (BeginDelayedSequence(300))
-                    {
-                        scoreDisplay.FadeIn(100);
-                        SongBar.Expanded = true;
-                    }
-                }
-
-                void contract()
-                {
-                    SongBar.Expanded = false;
-                    scoreDisplay.FadeOut(100);
-                    using (chat?.BeginDelayedSequence(500))
-                        chat?.Expand();
-                }
-
-                switch (state.NewValue)
+                switch (State.Value)
                 {
                     case TourneyState.Idle:
                         contract();
@@ -208,34 +215,45 @@ namespace osu.Game.Tournament.Screens.Gameplay
                             if (lastState == TourneyState.Ranking && !warmup.Value)
                             {
                                 if (CurrentMatch.Value?.Completed.Value == true)
-                                    scheduledOperation = Scheduler.AddDelayed(() => { sceneManager?.SetScreen(typeof(TeamWinScreen)); }, delay_before_progression);
+                                    scheduledScreenChange = Scheduler.AddDelayed(() => { sceneManager?.SetScreen(typeof(TeamWinScreen)); }, delay_before_progression);
                                 else if (CurrentMatch.Value?.Completed.Value == false)
-                                    scheduledOperation = Scheduler.AddDelayed(() => { sceneManager?.SetScreen(typeof(MapPoolScreen)); }, delay_before_progression);
+                                    scheduledScreenChange = Scheduler.AddDelayed(() => { sceneManager?.SetScreen(typeof(MapPoolScreen)); }, delay_before_progression);
                             }
                         }
 
                         break;
 
                     case TourneyState.Ranking:
-                        scheduledOperation = Scheduler.AddDelayed(contract, 10000);
+                        scheduledContract = Scheduler.AddDelayed(contract, 10000);
                         break;
 
                     default:
-                        chat.Contract();
                         expand();
                         break;
                 }
             }
             finally
             {
-                lastState = state.NewValue;
+                lastState = State.Value;
             }
+        }
+
+        public override void Hide()
+        {
+            scheduledScreenChange?.Cancel();
+            base.Hide();
+        }
+
+        public override void Show()
+        {
+            updateState();
+            base.Show();
         }
 
         private partial class ChromaArea : CompositeDrawable
         {
             [Resolved]
-            private LadderInfo ladder { get; set; }
+            private LadderInfo ladder { get; set; } = null!;
 
             [BackgroundDependencyLoader]
             private void load()

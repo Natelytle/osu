@@ -5,7 +5,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Mods
 {
-    public class ManiaModHalfTime : ModHalfTime
+    public class ManiaModHalfTime : ModHalfTime, IManiaRateAdjustmentMod
     {
     }
 }

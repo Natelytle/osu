@@ -18,6 +18,8 @@ namespace osu.Game.Overlays.Mods
 {
     public partial class AddPresetButton : ShearedToggleButton, IHasPopover
     {
+        protected override bool PlayToggleSamples => false;
+
         [Resolved]
         private OsuColour colours { get; set; } = null!;
 
@@ -31,7 +33,7 @@ namespace osu.Game.Overlays.Mods
             Height = ModSelectPanel.HEIGHT;
 
             // shear will be applied at a higher level in `ModPresetColumn`.
-            Content.Shear = Vector2.Zero;
+            Shear = Vector2.Zero;
             Padding = new MarginPadding();
 
             Text = "+";

@@ -11,6 +11,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.Localisation;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
+using osu.Game.Graphics;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
@@ -26,11 +27,12 @@ namespace osu.Game.Rulesets.Osu.Mods
         public override LocalisableString Description => "Play with blinds on your screen.";
         public override string Acronym => "BL";
 
-        public override IconUsage? Icon => FontAwesome.Solid.Adjust;
+        public override IconUsage? Icon => OsuIcon.ModBlinds;
         public override ModType Type => ModType.DifficultyIncrease;
 
         public override double ScoreMultiplier => UsesDefaultConfiguration ? 1.12 : 1;
         public override Type[] IncompatibleMods => new[] { typeof(OsuModFlashlight) };
+        public override bool Ranked => true;
 
         private DrawableOsuBlinds blinds = null!;
 
@@ -139,12 +141,12 @@ namespace osu.Game.Rulesets.Osu.Mods
 
                 if (Precision.AlmostEquals(restrictTo.Rotation, 0))
                 {
-                    start = Parent.ToLocalSpace(restrictTo.ScreenSpaceDrawQuad.TopLeft).X;
-                    end = Parent.ToLocalSpace(restrictTo.ScreenSpaceDrawQuad.TopRight).X;
+                    start = Parent!.ToLocalSpace(restrictTo.ScreenSpaceDrawQuad.TopLeft).X;
+                    end = Parent!.ToLocalSpace(restrictTo.ScreenSpaceDrawQuad.TopRight).X;
                 }
                 else
                 {
-                    float center = restrictTo.ToSpaceOfOtherDrawable(restrictTo.OriginPosition, Parent).X;
+                    float center = restrictTo.ToSpaceOfOtherDrawable(restrictTo.OriginPosition, Parent!).X;
                     float halfDiagonal = (restrictTo.DrawSize / 2).LengthFast;
 
                     start = center - halfDiagonal;

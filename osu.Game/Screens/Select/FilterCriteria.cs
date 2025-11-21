@@ -10,6 +10,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Collections;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Filter;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Select.Filter;
 
 namespace osu.Game.Screens.Select
@@ -29,10 +30,16 @@ namespace osu.Game.Screens.Select
         public OptionalRange<double> Length;
         public OptionalRange<double> BPM;
         public OptionalRange<int> BeatDivisor;
-        public OptionalRange<BeatmapOnlineStatus> OnlineStatus;
+        public OptionalSet<BeatmapOnlineStatus> OnlineStatus = new OptionalSet<BeatmapOnlineStatus>();
+        public OptionalRange<DateTimeOffset> LastPlayed;
+        public OptionalRange<DateTimeOffset> DateRanked;
+        public OptionalRange<DateTimeOffset> DateSubmitted;
         public OptionalTextFilter Creator;
         public OptionalTextFilter Artist;
         public OptionalTextFilter Title;
+        public OptionalTextFilter DifficultyName;
+        public OptionalTextFilter Source;
+        public List<OptionalTextFilter> UserTags = [];
 
         public OptionalRange<double> UserStarDifficulty = new OptionalRange<double>
         {
@@ -43,7 +50,11 @@ namespace osu.Game.Screens.Select
         public OptionalTextFilter[] SearchTerms = Array.Empty<OptionalTextFilter>();
 
         public RulesetInfo? Ruleset;
+        public IReadOnlyList<Mod>? Mods;
         public bool AllowConvertedBeatmaps;
+        public int? BeatmapSetId;
+
+        public bool? HasOnlineID;
 
         private string searchText = string.Empty;
 
@@ -63,8 +74,23 @@ namespace osu.Game.Screens.Select
 
                 string remainingText = value;
 
+                // Match either an open difficulty tag to the end of string,
+                // or match a closed one with a whitespace after it.
+                //
+                // To keep things simple, the closing ']' may be included in the match group,
+                // and is trimmed post-match.
+                foreach (Match quotedSegment in Regex.Matches(value, "(^|\\s)\\[(.*)(\\]\\s|$)"))
+                {
+                    DifficultyName = new OptionalTextFilter
+                    {
+                        SearchTerm = quotedSegment.Groups[2].Value.Trim(']')
+                    };
+
+                    remainingText = remainingText.Replace(quotedSegment.Value, string.Empty);
+                }
+
                 // First handle quoted segments to ensure we keep inline spaces in exact matches.
-                foreach (Match quotedSegment in Regex.Matches(searchText, "(\"[^\"]+\"[!]?)"))
+                foreach (Match quotedSegment in Regex.Matches(value, "(\"[^\"]+\"[!]?)"))
                 {
                     terms.Add(new OptionalTextFilter { SearchTerm = quotedSegment.Value });
                     remainingText = remainingText.Replace(quotedSegment.Value, string.Empty);
@@ -92,6 +118,35 @@ namespace osu.Game.Screens.Select
 
         public IRulesetFilterCriteria? RulesetCriteria { get; set; }
 
+        /// <summary>
+        /// The user ID of the current local user, used to filter to own maps when <see cref="GroupMode.MyMaps"/> is selected.
+        /// Or null if the user is not logged in.
+        /// </summary>
+        public int? LocalUserId { get; set; }
+
+        /// <summary>
+        /// The username of the current local user, used to filter to own maps when <see cref="GroupMode.MyMaps"/> is selected.
+        /// Or null if the user is not logged in.
+        /// </summary>
+        public string? LocalUserUsername { get; set; }
+
+        public readonly struct OptionalSet<T> : IEquatable<OptionalSet<T>>
+            where T : struct, Enum
+        {
+            public bool HasFilter => true;
+
+            public bool IsInRange(T value) => Values.Contains(value);
+
+            public HashSet<T> Values { get; }
+
+            public OptionalSet()
+            {
+                Values = Enum.GetValues<T>().ToHashSet();
+            }
+
+            public bool Equals(OptionalSet<T> other) => Values.SetEquals(other.Values);
+        }
+
         public struct OptionalRange<T> : IEquatable<OptionalRange<T>>
             where T : struct
         {
@@ -99,35 +154,36 @@ namespace osu.Game.Screens.Select
 
             public bool IsInRange(T value)
             {
+                bool lowerRangeSatisfied = true;
+                bool upperRangeSatisfied = true;
+
                 if (Min != null)
                 {
                     int comparison = Comparer<T>.Default.Compare(value, Min.Value);
-
-                    if (comparison < 0)
-                        return false;
-
-                    if (comparison == 0 && !IsLowerInclusive)
-                        return false;
+                    lowerRangeSatisfied = comparison > 0 || (comparison == 0 && IsLowerInclusive);
                 }
 
                 if (Max != null)
                 {
                     int comparison = Comparer<T>.Default.Compare(value, Max.Value);
-
-                    if (comparison > 0)
-                        return false;
-
-                    if (comparison == 0 && !IsUpperInclusive)
-                        return false;
+                    upperRangeSatisfied = comparison < 0 || (comparison == 0 && IsUpperInclusive);
                 }
 
-                return true;
+                bool result = lowerRangeSatisfied && upperRangeSatisfied;
+                if (InvertRange)
+                    result = !result;
+                return result;
             }
 
             public T? Min;
             public T? Max;
             public bool IsLowerInclusive;
             public bool IsUpperInclusive;
+
+            /// <summary>
+            /// When <see langword="true"/>, the meaning of this filter is inverted, i.e. it will <i>exclude</i> items that satisfy this range.
+            /// </summary>
+            public bool InvertRange;
 
             public bool Equals(OptionalRange<T> other)
                 => EqualityComparer<T?>.Default.Equals(Min, other.Min)
@@ -149,21 +205,38 @@ namespace osu.Game.Screens.Select
 
                 // search term is guaranteed to be non-empty, so if the string we're comparing is empty, it's not matching
                 if (string.IsNullOrEmpty(value))
-                    return false;
+                    return ExcludeTerm;
+
+                bool result;
 
                 switch (MatchMode)
                 {
                     default:
                     case MatchMode.Substring:
-                        return value.Contains(SearchTerm, StringComparison.InvariantCultureIgnoreCase);
+                        // Note that we are using ordinal here to avoid performance issues caused by globalisation concerns.
+                        // See https://github.com/ppy/osu/issues/11571 / https://github.com/dotnet/docs/issues/18423.
+                        result = value.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase);
+                        break;
 
                     case MatchMode.IsolatedPhrase:
-                        return Regex.IsMatch(value, $@"(^|\s){Regex.Escape(searchTerm)}($|\s)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                        result = Regex.IsMatch(value, $@"(^|\s){Regex.Escape(searchTerm)}($|\s)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                        break;
 
                     case MatchMode.FullPhrase:
-                        return CultureInfo.InvariantCulture.CompareInfo.Compare(value, searchTerm, CompareOptions.IgnoreCase) == 0;
+                        result = CultureInfo.InvariantCulture.CompareInfo.Compare(value, searchTerm, CompareOptions.OrdinalIgnoreCase) == 0;
+                        break;
                 }
+
+                if (ExcludeTerm)
+                    result = !result;
+
+                return result;
             }
+
+            /// <summary>
+            /// When <see langword="true"/>, the meaning of this filter is inverted, i.e. it will <i>exclude</i> items which match <see cref="SearchTerm"/>.
+            /// </summary>
+            public bool ExcludeTerm;
 
             private string searchTerm;
 
@@ -194,6 +267,44 @@ namespace osu.Game.Screens.Select
             }
 
             public bool Equals(OptionalTextFilter other) => SearchTerm == other.SearchTerm;
+        }
+
+        /// <summary>
+        /// Given a new filter criteria, decide whether a full sort needs to be performed.
+        /// </summary>
+        /// <param name="newCriteria"></param>
+        /// <returns></returns>
+        public bool RequiresSorting(FilterCriteria newCriteria)
+        {
+            if (Sort != newCriteria.Sort)
+                return true;
+
+            switch (Sort)
+            {
+                // Some sorts are stable across all other changes.
+                // Running these sorts will sort all items, including currently hidden items.
+                case SortMode.Artist:
+                case SortMode.Author:
+                case SortMode.DateSubmitted:
+                case SortMode.DateAdded:
+                case SortMode.DateRanked:
+                case SortMode.Source:
+                case SortMode.Title:
+                    return false;
+
+                // Some sorts use aggregate max comparisons, which will change based on filtered items.
+                // These sorts generally ignore items hidden by filtered state, so we must force a sort under all circumstances here.
+                //
+                // This makes things very slow when typing a text search, and we probably want to consider a way to optimise things going forward.
+                case SortMode.LastPlayed:
+                case SortMode.BPM:
+                case SortMode.Length:
+                case SortMode.Difficulty:
+                    return true;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(Sort), Sort, "Unknown sort mode");
+            }
         }
 
         public enum MatchMode

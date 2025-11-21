@@ -12,9 +12,11 @@ using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Localisation;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Game.Online;
 using osu.Game.Users;
+using osu.Game.Localisation;
 
 namespace osu.Game.Graphics.Containers
 {
@@ -46,9 +48,16 @@ namespace osu.Game.Graphics.Containers
 
             foreach (var link in links)
             {
+                string displayText = text.Substring(link.Index, link.Length);
+
+                if (previousLinkEnd > link.Index)
+                {
+                    Logger.Log($@"Link ""{link.Url}"" with text ""{displayText}"" overlaps previous link, ignoring.");
+                    continue;
+                }
+
                 AddText(text[previousLinkEnd..link.Index]);
 
-                string displayText = text.Substring(link.Index, link.Length);
                 object linkArgument = link.Argument;
                 string tooltip = displayText == link.Url ? null : link.Url;
 
@@ -74,7 +83,7 @@ namespace osu.Game.Graphics.Containers
         }
 
         public void AddUserLink(IUser user, Action<SpriteText> creationParameters = null)
-            => createLink(CreateChunkFor(user.Username, true, CreateSpriteText, creationParameters), new LinkDetails(LinkAction.OpenUserProfile, user), "view profile");
+            => createLink(CreateChunkFor(user.Username, true, CreateSpriteText, creationParameters), new LinkDetails(LinkAction.OpenUserProfile, user), ContextMenuStrings.ViewProfile);
 
         private void createLink(ITextPart textPart, LinkDetails link, LocalisableString tooltipText, Action action = null)
         {
@@ -125,9 +134,14 @@ namespace osu.Game.Graphics.Containers
 
         protected virtual DrawableLinkCompiler CreateLinkCompiler(ITextPart textPart) => new DrawableLinkCompiler(textPart);
 
-        // We want the compilers to always be visible no matter where they are, so RelativeSizeAxes is used.
-        // However due to https://github.com/ppy/osu-framework/issues/2073, it's possible for the compilers to be relative size in the flow's auto-size axes - an unsupported operation.
-        // Since the compilers don't display any content and don't affect the layout, it's simplest to exclude them from the flow.
-        public override IEnumerable<Drawable> FlowingChildren => base.FlowingChildren.Where(c => !(c is DrawableLinkCompiler));
+        protected override InnerFlow CreateFlow() => new LinkFlow();
+
+        private partial class LinkFlow : InnerFlow
+        {
+            // We want the compilers to always be visible no matter where they are, so RelativeSizeAxes is used.
+            // However due to https://github.com/ppy/osu-framework/issues/2073, it's possible for the compilers to be relative size in the flow's auto-size axes - an unsupported operation.
+            // Since the compilers don't display any content and don't affect the layout, it's simplest to exclude them from the flow.
+            public override IEnumerable<Drawable> FlowingChildren => base.FlowingChildren.Where(c => !(c is DrawableLinkCompiler));
+        }
     }
 }

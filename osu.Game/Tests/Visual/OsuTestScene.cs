@@ -16,6 +16,7 @@ using osu.Framework.Audio;
 using osu.Framework.Audio.Track;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.IO.Stores;
 using osu.Framework.Platform;
@@ -23,6 +24,7 @@ using osu.Framework.Testing;
 using osu.Framework.Timing;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
+using osu.Game.Graphics;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Overlays;
@@ -158,19 +160,24 @@ namespace osu.Game.Tests.Visual
             return Dependencies;
         }
 
+        [Resolved]
+        private OsuColour colours { get; set; }
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
 
-            var parentBeatmap = Parent.Dependencies.Get<Bindable<WorkingBeatmap>>();
+            ChangeBackgroundColour(ColourInfo.GradientVertical(colours.GreyCarmine, colours.GreyCarmineDarker));
+
+            var parentBeatmap = Parent!.Dependencies.Get<Bindable<WorkingBeatmap>>();
             parentBeatmap.Value = Beatmap.Value;
             Beatmap.BindTo(parentBeatmap);
 
-            var parentRuleset = Parent.Dependencies.Get<Bindable<RulesetInfo>>();
+            var parentRuleset = Parent!.Dependencies.Get<Bindable<RulesetInfo>>();
             parentRuleset.Value = Ruleset.Value;
             Ruleset.BindTo(parentRuleset);
 
-            var parentMods = Parent.Dependencies.Get<Bindable<IReadOnlyList<Mod>>>();
+            var parentMods = Parent!.Dependencies.Get<Bindable<IReadOnlyList<Mod>>>();
             parentMods.Value = SelectedMods.Value;
             SelectedMods.BindTo(parentMods);
         }
@@ -265,7 +272,7 @@ namespace osu.Game.Tests.Visual
         {
             Debug.Assert(original.BeatmapSet != null);
 
-            return new APIBeatmapSet
+            var result = new APIBeatmapSet
             {
                 OnlineID = original.BeatmapSet.OnlineID,
                 Status = BeatmapOnlineStatus.Ranked,
@@ -299,8 +306,15 @@ namespace osu.Game.Tests.Visual
                         StarRating = original.StarRating,
                         DifficultyName = original.DifficultyName,
                     }
-                }
+                },
+                HasFavourited = false,
+                FavouriteCount = 0,
             };
+
+            foreach (var beatmap in result.Beatmaps)
+                beatmap.BeatmapSet = result;
+
+            return result;
         }
 
         protected WorkingBeatmap CreateWorkingBeatmap(RulesetInfo ruleset) =>
@@ -318,6 +332,9 @@ namespace osu.Game.Tests.Visual
             if (MusicController?.TrackLoaded == true)
                 MusicController.Stop();
 
+            if (realm?.IsValueCreated == true)
+                Realm.Dispose();
+
             RecycleLocalStorage(true);
         }
 
@@ -326,8 +343,6 @@ namespace osu.Game.Tests.Visual
         public class ClockBackedTestWorkingBeatmap : TestWorkingBeatmap
         {
             private readonly Track track;
-
-            private readonly TrackVirtualStore store;
 
             /// <summary>
             /// Create an instance which creates a <see cref="TestBeatmap"/> for the provided ruleset when requested.
@@ -358,7 +373,7 @@ namespace osu.Game.Tests.Visual
 
                 if (referenceClock != null)
                 {
-                    store = new TrackVirtualStore(referenceClock);
+                    var store = new TrackVirtualStore(referenceClock);
                     audio.AddItem(store);
                     track = store.GetVirtual(trackLength);
                 }
@@ -369,12 +384,6 @@ namespace osu.Game.Tests.Visual
                 // To ease testability, ensure the track is available from point of construction.
                 // (Usually this would be done by MusicController for us).
                 LoadTrack();
-            }
-
-            ~ClockBackedTestWorkingBeatmap()
-            {
-                // Remove the track store from the audio manager
-                store?.Dispose();
             }
 
             protected override Track GetBeatmapTrack() => track;
@@ -419,6 +428,11 @@ namespace osu.Game.Tests.Visual
                 private readonly IFrameBasedClock referenceClock;
 
                 private bool running;
+
+                public override double Rate => base.Rate
+                                               // This is mainly to allow some tests to override the rate to zero
+                                               // and avoid interpolation.
+                                               * referenceClock.Rate;
 
                 public TrackVirtualManual(IFrameBasedClock referenceClock, string name = "virtual")
                     : base(name)

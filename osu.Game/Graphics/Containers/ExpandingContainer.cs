@@ -1,8 +1,6 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-#nullable disable
-
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -16,6 +14,8 @@ namespace osu.Game.Graphics.Containers
     /// </summary>
     public partial class ExpandingContainer : Container, IExpandingContainer
     {
+        public const double TRANSITION_DURATION = 500;
+
         private readonly float contractedWidth;
         private readonly float expandedWidth;
 
@@ -25,6 +25,8 @@ namespace osu.Game.Graphics.Containers
         /// Delay before the container switches to expanded state from hover.
         /// </summary>
         protected virtual double HoverExpansionDelay => 0;
+
+        protected virtual bool ExpandOnHover => true;
 
         protected override Container<Drawable> Content => FillFlow;
 
@@ -38,22 +40,25 @@ namespace osu.Game.Graphics.Containers
             RelativeSizeAxes = Axes.Y;
             Width = contractedWidth;
 
-            InternalChild = new OsuScrollContainer
+            InternalChild = CreateScrollContainer().With(s =>
             {
-                RelativeSizeAxes = Axes.Both,
-                ScrollbarVisible = false,
-                Child = FillFlow = new FillFlowContainer
+                s.RelativeSizeAxes = Axes.Both;
+                s.ScrollbarVisible = false;
+            }).WithChild(
+                FillFlow = new FillFlowContainer
                 {
                     Origin = Anchor.CentreLeft,
                     Anchor = Anchor.CentreLeft,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
-                },
-            };
+                }
+            );
         }
 
-        private ScheduledDelegate hoverExpandEvent;
+        protected virtual OsuScrollContainer CreateScrollContainer() => new OsuScrollContainer();
+
+        private ScheduledDelegate? hoverExpandEvent;
 
         protected override void LoadComplete()
         {
@@ -61,7 +66,7 @@ namespace osu.Game.Graphics.Containers
 
             Expanded.BindValueChanged(v =>
             {
-                this.ResizeWidthTo(v.NewValue ? expandedWidth : contractedWidth, 500, Easing.OutQuint);
+                this.ResizeWidthTo(v.NewValue ? expandedWidth : contractedWidth, TRANSITION_DURATION, Easing.OutQuint);
             }, true);
         }
 
@@ -69,12 +74,6 @@ namespace osu.Game.Graphics.Containers
         {
             updateHoverExpansion();
             return true;
-        }
-
-        protected override bool OnMouseMove(MouseMoveEvent e)
-        {
-            updateHoverExpansion();
-            return base.OnMouseMove(e);
         }
 
         protected override void OnHoverLost(HoverLostEvent e)
@@ -93,6 +92,9 @@ namespace osu.Game.Graphics.Containers
 
         private void updateHoverExpansion()
         {
+            if (!ExpandOnHover)
+                return;
+
             hoverExpandEvent?.Cancel();
 
             if (IsHovered && !Expanded.Value)

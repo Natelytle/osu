@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -8,6 +9,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Ranking;
+using osu.Game.Screens.Select.Leaderboards;
 
 namespace osu.Game.Screens.OnlinePlay.Multiplayer.Spectate
 {
@@ -23,6 +25,10 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer.Spectate
 
         private readonly AudioAdjustments clockAdjustmentsFromMods = new AudioAdjustments();
         private readonly SpectatorPlayerClock spectatorPlayerClock;
+
+        // purposefully cached as empty - the multi spectator screen already has one leaderboard, on the left of all the player instances
+        [Cached(typeof(IGameplayLeaderboardProvider))]
+        private readonly EmptyGameplayLeaderboardProvider leaderboardProvider = new EmptyGameplayLeaderboardProvider();
 
         /// <summary>
         /// Creates a new <see cref="MultiSpectatorPlayer"/>.
@@ -42,6 +48,12 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer.Spectate
             if (cancellationToken.IsCancellationRequested)
                 return;
 
+            if (!LoadedBeatmapSuccessfully)
+                return;
+
+            // also applied in `MultiplayerPlayer.load()`
+            ScoreProcessor.ApplyNewJudgementsWhenFailed = true;
+
             HUDOverlay.PlayerSettingsOverlay.Expire();
             HUDOverlay.HoldToQuit.Expire();
         }
@@ -49,7 +61,7 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer.Spectate
         protected override void Update()
         {
             // The player clock's running state is controlled externally, but the local pausing state needs to be updated to start/stop gameplay.
-            if (GameplayClockContainer.SourceClock.IsRunning)
+            if (GameplayClockContainer.IsRunning)
                 GameplayClockContainer.Start();
             else
                 GameplayClockContainer.Stop();
@@ -67,11 +79,24 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer.Spectate
 
         protected override GameplayClockContainer CreateGameplayClockContainer(WorkingBeatmap beatmap, double gameplayStart)
         {
-            var gameplayClockContainer = new GameplayClockContainer(spectatorPlayerClock);
+            // Importantly, we don't want to apply decoupling because SpectatorPlayerClock updates its IsRunning directly.
+            // If we applied decoupling, this state change wouldn't actually cause the clock to stop.
+            // TODO: Can we just use Start/Stop rather than this workaround, now that DecouplingClock is more sane?
+            var gameplayClockContainer = new GameplayClockContainer(spectatorPlayerClock, applyOffsets: false, requireDecoupling: false);
             clockAdjustmentsFromMods.BindAdjustments(gameplayClockContainer.AdjustmentsFromMods);
             return gameplayClockContainer;
         }
 
         protected override ResultsScreen CreateResults(ScoreInfo score) => new MultiSpectatorResultsScreen(score);
+
+        protected override void PerformFail()
+        {
+            // base logic intentionally suppressed - failing in multiplayer only marks the score with F rank
+            // see also: `MultiplayerPlayer.PerformFail()`
+            ScoreProcessor.FailScore(Score.ScoreInfo);
+        }
+
+        protected override void ConcludeFailedScore(Score score)
+            => throw new NotSupportedException($"{nameof(MultiSpectatorPlayer)} should never be calling {nameof(ConcludeFailedScore)}. Failing in multiplayer only marks the score with F rank.");
     }
 }

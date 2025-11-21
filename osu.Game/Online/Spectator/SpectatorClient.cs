@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Development;
@@ -13,6 +14,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Logging;
 using osu.Game.Beatmaps;
 using osu.Game.Online.API;
+using osu.Game.Online.Multiplayer;
 using osu.Game.Replays.Legacy;
 using osu.Game.Rulesets.Replays;
 using osu.Game.Rulesets.Replays.Types;
@@ -36,39 +38,46 @@ namespace osu.Game.Online.Spectator
         public abstract IBindable<bool> IsConnected { get; }
 
         /// <summary>
-        /// The states of all users currently being watched.
+        /// The states of all users currently being watched by the local user.
         /// </summary>
+        [UsedImplicitly] // Marked virtual due to mock use in testing
         public virtual IBindableDictionary<int, SpectatorState> WatchedUserStates => watchedUserStates;
 
         /// <summary>
-        /// A global list of all players currently playing.
+        /// All users who are currently watching the local user.
         /// </summary>
-        public IBindableList<int> PlayingUsers => playingUsers;
+        public IBindableList<SpectatorUser> WatchingUsers => watchingUsers;
 
         /// <summary>
         /// Whether the local user is playing.
         /// </summary>
-        protected internal bool IsPlaying { get; private set; }
+        private bool isPlaying { get; set; }
 
         /// <summary>
         /// Called whenever new frames arrive from the server.
         /// </summary>
+        [UsedImplicitly] // Marked virtual due to mock use in testing
         public virtual event Action<int, FrameDataBundle>? OnNewFrames;
 
         /// <summary>
         /// Called whenever a user starts a play session, or immediately if the user is being watched and currently in a play session.
         /// </summary>
-        public virtual event Action<int, SpectatorState>? OnUserBeganPlaying;
+        public event Action<int, SpectatorState>? OnUserBeganPlaying;
 
         /// <summary>
         /// Called whenever a user finishes a play session.
         /// </summary>
-        public virtual event Action<int, SpectatorState>? OnUserFinishedPlaying;
+        public event Action<int, SpectatorState>? OnUserFinishedPlaying;
 
         /// <summary>
         /// Called whenever a user-submitted score has been fully processed.
         /// </summary>
-        public virtual event Action<int, long>? OnUserScoreProcessed;
+        public event Action<int, long>? OnUserScoreProcessed;
+
+        /// <summary>
+        /// Invoked just prior to disconnection requested by the server via <see cref="IStatefulUserHubClient.DisconnectRequested"/>.
+        /// </summary>
+        public event Action? Disconnecting;
 
         /// <summary>
         /// A dictionary containing all users currently being watched, with the number of watching components for each user.
@@ -77,7 +86,7 @@ namespace osu.Game.Online.Spectator
 
         private readonly BindableDictionary<int, SpectatorState> watchedUserStates = new BindableDictionary<int, SpectatorState>();
 
-        private readonly BindableList<int> playingUsers = new BindableList<int>();
+        private readonly BindableList<SpectatorUser> watchingUsers = new BindableList<SpectatorUser>();
         private readonly SpectatorState currentState = new SpectatorState();
 
         private IBeatmap? currentBeatmap;
@@ -87,7 +96,7 @@ namespace osu.Game.Online.Spectator
 
         private readonly Queue<FrameDataBundle> pendingFrameBundles = new Queue<FrameDataBundle>();
 
-        private readonly Queue<LegacyReplayFrame> pendingFrames = new Queue<LegacyReplayFrame>();
+        private readonly List<LegacyReplayFrame> pendingFrames = new List<LegacyReplayFrame>();
 
         private double lastPurgeTime;
 
@@ -114,14 +123,14 @@ namespace osu.Game.Online.Spectator
                     }
 
                     // re-send state in case it wasn't received
-                    if (IsPlaying)
+                    if (isPlaying)
                         // TODO: this is likely sent out of order after a reconnect scenario. needs further consideration.
                         BeginPlayingInternal(currentScoreToken, currentState);
                 }
                 else
                 {
-                    playingUsers.Clear();
                     watchedUserStates.Clear();
+                    watchingUsers.Clear();
                 }
             }), true);
         }
@@ -130,9 +139,6 @@ namespace osu.Game.Online.Spectator
         {
             Schedule(() =>
             {
-                if (!playingUsers.Contains(userId))
-                    playingUsers.Add(userId);
-
                 if (watchedUsersRefCounts.ContainsKey(userId))
                     watchedUserStates[userId] = state;
 
@@ -146,8 +152,6 @@ namespace osu.Game.Online.Spectator
         {
             Schedule(() =>
             {
-                playingUsers.Remove(userId);
-
                 if (watchedUsersRefCounts.ContainsKey(userId))
                     watchedUserStates[userId] = state;
 
@@ -174,15 +178,45 @@ namespace osu.Game.Online.Spectator
             return Task.CompletedTask;
         }
 
+        Task ISpectatorClient.UserStartedWatching(SpectatorUser[] users)
+        {
+            Schedule(() =>
+            {
+                foreach (var user in users)
+                {
+                    if (!watchingUsers.Contains(user))
+                        watchingUsers.Add(user);
+                }
+            });
+
+            return Task.CompletedTask;
+        }
+
+        Task ISpectatorClient.UserEndedWatching(int userId)
+        {
+            Schedule(() =>
+            {
+                watchingUsers.RemoveAll(u => u.OnlineID == userId);
+            });
+
+            return Task.CompletedTask;
+        }
+
+        Task IStatefulUserHubClient.DisconnectRequested()
+        {
+            Schedule(() => DisconnectInternal().FireAndForget());
+            return Task.CompletedTask;
+        }
+
         public void BeginPlaying(long? scoreToken, GameplayState state, Score score)
         {
             // This schedule is only here to match the one below in `EndPlaying`.
             Schedule(() =>
             {
-                if (IsPlaying)
+                if (isPlaying)
                     throw new InvalidOperationException($"Cannot invoke {nameof(BeginPlaying)} when already playing");
 
-                IsPlaying = true;
+                isPlaying = true;
 
                 // transfer state at point of beginning play
                 currentState.BeatmapID = score.ScoreInfo.BeatmapInfo!.OnlineID;
@@ -202,7 +236,7 @@ namespace osu.Game.Online.Spectator
 
         public void HandleFrame(ReplayFrame frame) => Schedule(() =>
         {
-            if (!IsPlaying)
+            if (!isPlaying)
             {
                 Logger.Log($"Frames arrived at {nameof(SpectatorClient)} outside of gameplay scope and will be ignored.");
                 return;
@@ -211,7 +245,16 @@ namespace osu.Game.Online.Spectator
             if (frame is IConvertibleReplayFrame convertible)
             {
                 Debug.Assert(currentBeatmap != null);
-                pendingFrames.Enqueue(convertible.ToLegacy(currentBeatmap));
+
+                var convertedFrame = convertible.ToLegacy(currentBeatmap);
+
+                // this reduces redundancy of frames in the resulting replay.
+                // it is also done at `ReplayRecorder`, but needs to be done here as well
+                // due to the flow being handled differently.
+                if (pendingFrames.LastOrDefault()?.IsEquivalentTo(convertedFrame) == true)
+                    pendingFrames[^1] = convertedFrame;
+                else
+                    pendingFrames.Add(convertedFrame);
             }
 
             if (pendingFrames.Count > max_pending_frames)
@@ -224,7 +267,7 @@ namespace osu.Game.Online.Spectator
             // We probably need to find a better way to handle this...
             Schedule(() =>
             {
-                if (!IsPlaying)
+                if (!isPlaying)
                     return;
 
                 // Disposal can take some time, leading to EndPlaying potentially being called after a future play session.
@@ -235,8 +278,11 @@ namespace osu.Game.Online.Spectator
                 if (pendingFrames.Count > 0)
                     purgePendingFrames();
 
-                IsPlaying = false;
+                isPlaying = false;
                 currentBeatmap = null;
+                currentScore = null;
+                currentScoreProcessor = null;
+                currentScoreToken = null;
 
                 if (state.HasPassed)
                     currentState.State = SpectatedUserState.Passed;
@@ -245,7 +291,7 @@ namespace osu.Game.Online.Spectator
                 else
                     currentState.State = SpectatedUserState.Quit;
 
-                EndPlayingInternal(currentState);
+                EndPlayingInternal(currentState).FireAndForget();
             });
         }
 
@@ -253,14 +299,13 @@ namespace osu.Game.Online.Spectator
         {
             Debug.Assert(ThreadSafety.IsUpdateThread);
 
-            if (watchedUsersRefCounts.ContainsKey(userId))
+            if (!watchedUsersRefCounts.TryAdd(userId, 1))
             {
                 watchedUsersRefCounts[userId]++;
                 return;
             }
 
-            watchedUsersRefCounts.Add(userId, 1);
-            WatchUserInternal(userId);
+            WatchUserInternal(userId).FireAndForget();
         }
 
         public void StopWatchingUser(int userId)
@@ -277,7 +322,7 @@ namespace osu.Game.Online.Spectator
 
                 watchedUsersRefCounts.Remove(userId);
                 watchedUserStates.Remove(userId);
-                StopWatchingUserInternal(userId);
+                StopWatchingUserInternal(userId).FireAndForget();
             });
         }
 
@@ -290,6 +335,12 @@ namespace osu.Game.Online.Spectator
         protected abstract Task WatchUserInternal(int userId);
 
         protected abstract Task StopWatchingUserInternal(int userId);
+
+        protected virtual Task DisconnectInternal()
+        {
+            Disconnecting?.Invoke();
+            return Task.CompletedTask;
+        }
 
         protected override void Update()
         {

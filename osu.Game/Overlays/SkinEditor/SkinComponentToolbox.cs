@@ -13,6 +13,7 @@ using osu.Framework.Threading;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
+using osu.Game.Rulesets;
 using osu.Game.Screens.Edit.Components;
 using osu.Game.Skinning;
 using osuTK;
@@ -23,14 +24,22 @@ namespace osu.Game.Overlays.SkinEditor
     {
         public Action<Type>? RequestPlacement;
 
-        private readonly SkinComponentsContainer? target;
+        private readonly SkinnableContainer target;
+
+        private readonly RulesetInfo? ruleset;
 
         private FillFlowContainer fill = null!;
 
-        public SkinComponentToolbox(SkinComponentsContainer? target = null)
-            : base(target?.Lookup.Ruleset == null ? SkinEditorStrings.Components : LocalisableString.Interpolate($"{SkinEditorStrings.Components} ({target.Lookup.Ruleset.Name})"))
+        /// <summary>
+        /// Create a new component toolbox for the specified taget.
+        /// </summary>
+        /// <param name="target">The target. This is mainly used as a dependency source to find candidate components.</param>
+        /// <param name="ruleset">A ruleset to filter components by. If null, only components which are not ruleset-specific will be included.</param>
+        public SkinComponentToolbox(SkinnableContainer target, RulesetInfo? ruleset)
+            : base(ruleset == null ? SkinEditorStrings.Components : LocalisableString.Interpolate($"{SkinEditorStrings.Components} ({ruleset.Name})"))
         {
             this.target = target;
+            this.ruleset = ruleset;
         }
 
         [BackgroundDependencyLoader]
@@ -51,7 +60,7 @@ namespace osu.Game.Overlays.SkinEditor
         {
             fill.Clear();
 
-            var skinnableTypes = SerialisedDrawableInfo.GetAllAvailableDrawables(target?.Lookup.Ruleset);
+            var skinnableTypes = SerialisedDrawableInfo.GetAllAvailableDrawables(ruleset);
             foreach (var type in skinnableTypes)
                 attemptAddComponent(type);
         }
@@ -210,7 +219,7 @@ namespace osu.Game.Overlays.SkinEditor
             }
         }
 
-        public partial class DependencyBorrowingContainer : Container
+        private partial class DependencyBorrowingContainer : Container
         {
             protected override bool ShouldBeConsideredForInput(Drawable child) => false;
 
@@ -223,8 +232,19 @@ namespace osu.Game.Overlays.SkinEditor
                 this.donor = donor;
             }
 
-            protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent) =>
-                new DependencyContainer(donor?.Dependencies ?? base.CreateChildDependencies(parent));
+            protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+            {
+                var baseDependencies = base.CreateChildDependencies(parent);
+                if (donor == null)
+                    return baseDependencies;
+
+                var dependencies = new DependencyContainer(donor.Dependencies);
+                // inject `SkinEditor` again *on top* of the borrowed dependencies.
+                // this is designed to let components know when they are being displayed in the context of the skin editor
+                // via attempting to resolve `SkinEditor`.
+                dependencies.CacheAs(baseDependencies.Get<SkinEditor>());
+                return dependencies;
+            }
         }
     }
 }

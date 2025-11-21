@@ -4,9 +4,10 @@
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Testing;
+using osu.Game.Online.API;
+using osu.Game.Online.API.Requests;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Online.Chat;
 using osu.Game.Overlays.Chat;
@@ -62,13 +63,32 @@ namespace osu.Game.Tournament.Tests.Components
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
             });
-
-            chatDisplay.Channel.Value = testChannel;
         }
 
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            AddStep("set up API", () =>
+            {
+                ((DummyAPIAccess)API).HandleRequest = req =>
+                {
+                    switch (req)
+                    {
+                        case JoinChannelRequest joinChannelRequest:
+                            joinChannelRequest.TriggerSuccess();
+                            return true;
+
+                        case LeaveChannelRequest leaveChannelRequest:
+                            leaveChannelRequest.TriggerSuccess();
+                            return true;
+
+                        default:
+                            return false;
+                    }
+                };
+            });
+            AddStep("set channel", () => chatDisplay.Channel.Value = testChannel);
 
             AddStep("message from admin", () => testChannel.AddNewMessages(new Message(nextMessageId())
             {
@@ -80,11 +100,11 @@ namespace osu.Game.Tournament.Tests.Components
             {
                 Team1 =
                 {
-                    Value = new TournamentTeam { Players = new BindableList<TournamentUser> { redUser } }
+                    Value = new TournamentTeam { Players = { redUser } }
                 },
                 Team2 =
                 {
-                    Value = new TournamentTeam { Players = new BindableList<TournamentUser> { blueUser, blueUserWithCustomColour } }
+                    Value = new TournamentTeam { Players = { blueUser, blueUserWithCustomColour } }
                 }
             });
 
@@ -153,6 +173,12 @@ namespace osu.Game.Tournament.Tests.Components
             AddStep("change channel to 2", () => chatDisplay.Channel.Value = testChannel2);
 
             AddStep("change channel to 1", () => chatDisplay.Channel.Value = testChannel);
+
+            AddStep("!mp message (shouldn't display)", () => testChannel.AddNewMessages(new Message(nextMessageId())
+            {
+                Sender = redUser.ToAPIUser(),
+                Content = "!mp wangs"
+            }));
         }
 
         private int messageId;

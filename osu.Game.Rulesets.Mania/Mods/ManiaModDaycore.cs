@@ -5,7 +5,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Mods
 {
-    public class ManiaModDaycore : ModDaycore
+    public class ManiaModDaycore : ModDaycore, IManiaRateAdjustmentMod
     {
     }
 }

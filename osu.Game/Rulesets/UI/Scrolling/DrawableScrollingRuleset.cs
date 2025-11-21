@@ -1,8 +1,6 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-#nullable disable
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,6 +19,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Timing;
 using osu.Game.Rulesets.UI.Scrolling.Algorithms;
+using osu.Game.Screens.Play;
 
 namespace osu.Game.Rulesets.UI.Scrolling
 {
@@ -64,14 +63,16 @@ namespace osu.Game.Rulesets.UI.Scrolling
             MaxValue = time_span_max
         };
 
-        protected virtual ScrollVisualisationMethod VisualisationMethod => ScrollVisualisationMethod.Sequential;
-
-        ScrollVisualisationMethod IDrawableScrollingRuleset.VisualisationMethod => VisualisationMethod;
-
         /// <summary>
         /// Whether the player can change <see cref="TimeRange"/>.
         /// </summary>
         protected virtual bool UserScrollSpeedAdjustment => true;
+
+        /// <summary>
+        /// Whether at the current point in time, whether scroll speed adjustments should be applied to gameplay.
+        /// This can potentially become false at some point during gameplay for game balance reasons.
+        /// </summary>
+        protected bool AllowScrollSpeedAdjustment => UserScrollSpeedAdjustment && player?.AllowCriticalSettingsAdjustment != false;
 
         /// <summary>
         /// Whether <see cref="TimingControlPoint"/> beat lengths should scale relative to the most common beat length in the <see cref="Beatmap"/>.
@@ -83,12 +84,15 @@ namespace osu.Game.Rulesets.UI.Scrolling
         /// </summary>
         protected readonly SortedList<MultiplierControlPoint> ControlPoints = new SortedList<MultiplierControlPoint>(Comparer<MultiplierControlPoint>.Default);
 
-        protected IScrollingInfo ScrollingInfo => scrollingInfo;
+        public IScrollingInfo ScrollingInfo => scrollingInfo;
 
         [Cached(Type = typeof(IScrollingInfo))]
         private readonly LocalScrollingInfo scrollingInfo;
 
-        protected DrawableScrollingRuleset(Ruleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod> mods = null)
+        [Resolved]
+        private Player? player { get; set; }
+
+        protected DrawableScrollingRuleset(Ruleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod>? mods = null)
             : base(ruleset, beatmap, mods)
         {
             scrollingInfo = new LocalScrollingInfo();
@@ -99,20 +103,7 @@ namespace osu.Game.Rulesets.UI.Scrolling
         [BackgroundDependencyLoader]
         private void load()
         {
-            switch (VisualisationMethod)
-            {
-                case ScrollVisualisationMethod.Sequential:
-                    scrollingInfo.Algorithm = new SequentialScrollAlgorithm(ControlPoints);
-                    break;
-
-                case ScrollVisualisationMethod.Overlapping:
-                    scrollingInfo.Algorithm = new OverlappingScrollAlgorithm(ControlPoints);
-                    break;
-
-                case ScrollVisualisationMethod.Constant:
-                    scrollingInfo.Algorithm = new ConstantScrollAlgorithm();
-                    break;
-            }
+            updateScrollAlgorithm();
 
             double lastObjectTime = Beatmap.HitObjects.Any() ? Beatmap.GetLastObjectTime() : double.MaxValue;
             double baseBeatLength = TimingControlPoint.DEFAULT_BEAT_LENGTH;
@@ -178,32 +169,64 @@ namespace osu.Game.Rulesets.UI.Scrolling
                 throw new ArgumentException($"{nameof(Playfield)} must be a {nameof(ScrollingPlayfield)} when using {nameof(DrawableScrollingRuleset<TObject>)}.");
         }
 
+        private ScrollVisualisationMethod visualisationMethod = ScrollVisualisationMethod.Sequential;
+
+        public ScrollVisualisationMethod VisualisationMethod
+        {
+            get => visualisationMethod;
+            set
+            {
+                visualisationMethod = value;
+                updateScrollAlgorithm();
+            }
+        }
+
+        private void updateScrollAlgorithm()
+        {
+            switch (VisualisationMethod)
+            {
+                case ScrollVisualisationMethod.Sequential:
+                    scrollingInfo.Algorithm.Value = new SequentialScrollAlgorithm(ControlPoints);
+                    break;
+
+                case ScrollVisualisationMethod.Overlapping:
+                    scrollingInfo.Algorithm.Value = new OverlappingScrollAlgorithm(ControlPoints);
+                    break;
+
+                case ScrollVisualisationMethod.Constant:
+                    scrollingInfo.Algorithm.Value = new ConstantScrollAlgorithm();
+                    break;
+            }
+        }
+
         /// <summary>
         /// Adjusts the scroll speed of <see cref="HitObject"/>s.
         /// </summary>
         /// <param name="amount">The amount to adjust by. Greater than 0 if the scroll speed should be increased, less than 0 if it should be decreased.</param>
-        protected virtual void AdjustScrollSpeed(int amount) => this.TransformBindableTo(TimeRange, TimeRange.Value - amount * time_span_step, 200, Easing.OutQuint);
+        protected virtual void AdjustScrollSpeed(int amount)
+        {
+            this.TransformBindableTo(TimeRange, TimeRange.Value - amount * time_span_step, 200, Easing.OutQuint);
+        }
 
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
         {
-            if (!UserScrollSpeedAdjustment)
-                return false;
-
             switch (e.Action)
             {
                 case GlobalAction.IncreaseScrollSpeed:
-                    AdjustScrollSpeed(1);
+                    if (AllowScrollSpeedAdjustment)
+                        AdjustScrollSpeed(1);
                     return true;
 
                 case GlobalAction.DecreaseScrollSpeed:
-                    AdjustScrollSpeed(-1);
+                    if (AllowScrollSpeedAdjustment)
+                        AdjustScrollSpeed(-1);
                     return true;
             }
 
             return false;
         }
 
-        private ScheduledDelegate scheduledScrollSpeedAdjustment;
+        private ScheduledDelegate? scheduledScrollSpeedAdjustment;
 
         public void OnReleased(KeyBindingReleaseEvent<GlobalAction> e)
         {
@@ -217,7 +240,9 @@ namespace osu.Game.Rulesets.UI.Scrolling
 
             public IBindable<double> TimeRange { get; } = new BindableDouble();
 
-            public IScrollAlgorithm Algorithm { get; set; }
+            public readonly Bindable<IScrollAlgorithm> Algorithm = new Bindable<IScrollAlgorithm>(new ConstantScrollAlgorithm());
+
+            IBindable<IScrollAlgorithm> IScrollingInfo.Algorithm => Algorithm;
         }
     }
 }

@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
             ScaleBindable.BindValueChanged(scale => PathRadius = OsuHitObject.OBJECT_RADIUS * scale.NewValue, true);
 
             pathVersion = drawableSlider.PathVersion.GetBoundCopy();
-            pathVersion.BindValueChanged(_ => Refresh());
+            pathVersion.BindValueChanged(_ => Scheduler.AddOnce(Refresh));
 
             AccentColourBindable = drawableObject.AccentColour.GetBoundCopy();
             AccentColourBindable.BindValueChanged(accent => AccentColour = GetBodyAccentColour(skin, accent.NewValue), true);
@@ -44,27 +44,11 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
 
             SnakingOut.BindTo(configSnakingOut);
 
-            BorderSize = skin.GetConfig<OsuSkinConfiguration, float>(OsuSkinConfiguration.SliderBorderSize)?.Value ?? 1;
-            BorderColour = skin.GetConfig<OsuSkinColour, Color4>(OsuSkinColour.SliderBorder)?.Value ?? Color4.White;
-
-            drawableObject.HitObjectApplied += onHitObjectApplied;
+            BorderColour = GetBorderColour(skin);
         }
 
-        private void onHitObjectApplied(DrawableHitObject obj)
-        {
-            var drawableSlider = (DrawableSlider)obj;
-            if (drawableSlider.HitObject == null)
-                return;
+        protected virtual Color4 GetBorderColour(ISkinSource skin) => Color4.White;
 
-            // When not tracking the follow circle, unbind from the config and forcefully disable snaking out - it looks better that way.
-            if (!drawableSlider.HeadCircle.TrackFollowCircle)
-            {
-                SnakingOut.UnbindFrom(configSnakingOut);
-                SnakingOut.Value = false;
-            }
-        }
-
-        protected virtual Color4 GetBodyAccentColour(ISkinSource skin, Color4 hitObjectAccentColour) =>
-            skin.GetConfig<OsuSkinColour, Color4>(OsuSkinColour.SliderTrackOverride)?.Value ?? hitObjectAccentColour;
+        protected virtual Color4 GetBodyAccentColour(ISkinSource skin, Color4 hitObjectAccentColour) => hitObjectAccentColour;
     }
 }

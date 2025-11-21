@@ -4,10 +4,10 @@
 #nullable disable
 
 using osu.Framework.Allocation;
+using osu.Framework.Audio.Track;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Testing;
-using osu.Framework.Timing;
 using osu.Game.Overlays.SkinEditor;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Osu;
@@ -15,6 +15,7 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Edit;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
+using osu.Game.Screens.Select.Leaderboards;
 using osu.Game.Tests.Gameplay;
 using osuTK.Input;
 
@@ -32,10 +33,13 @@ namespace osu.Game.Tests.Visual.Gameplay
         private GameplayState gameplayState = TestGameplayState.Create(new OsuRuleset());
 
         [Cached(typeof(IGameplayClock))]
-        private readonly IGameplayClock gameplayClock = new GameplayClockContainer(new FramedClock());
+        private readonly IGameplayClock gameplayClock = new GameplayClockContainer(new TrackVirtual(60000), false, false);
 
         [Cached]
         public readonly EditorClipboard Clipboard = new EditorClipboard();
+
+        [Cached(typeof(IGameplayLeaderboardProvider))]
+        private EmptyGameplayLeaderboardProvider leaderboardProvider = new EmptyGameplayLeaderboardProvider();
 
         public TestSceneSkinEditorMultipleSkins()
         {

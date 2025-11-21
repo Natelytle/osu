@@ -4,12 +4,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
 using osu.Framework.Utils;
+using osu.Game.Database;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Overlays;
@@ -30,6 +32,8 @@ namespace osu.Game.Tests.Visual.UserInterface
         private SpriteText displayedCount = null!;
 
         public double TimeToCompleteProgress { get; set; } = 2000;
+
+        private readonly UserLookupCache userLookupCache = new TestUserLookupCache();
 
         [SetUp]
         public void SetUp() => Schedule(() =>
@@ -76,6 +80,40 @@ namespace osu.Game.Tests.Visual.UserInterface
             checkDisplayedCount(33);
 
             waitForCompletion();
+        }
+
+        [Test]
+        public void TestNormalDoesForwardToOverlay()
+        {
+            SimpleNotification notification = null!;
+
+            AddStep(@"simple #1", () => notificationOverlay.Post(notification = new SimpleNotification
+            {
+                Text = @"This shouldn't annoy you too much",
+                Transient = false,
+            }));
+
+            AddAssert("notification in toast tray", () => notification.IsInToastTray, () => Is.True);
+            AddUntilStep("wait for dismissed", () => notification.IsInToastTray, () => Is.False);
+
+            checkDisplayedCount(1);
+        }
+
+        [Test]
+        public void TestTransientDoesNotForwardToOverlay()
+        {
+            SimpleNotification notification = null!;
+
+            AddStep(@"simple #1", () => notificationOverlay.Post(notification = new SimpleNotification
+            {
+                Text = @"This shouldn't annoy you too much",
+                Transient = true,
+            }));
+
+            AddAssert("notification in toast tray", () => notification.IsInToastTray, () => Is.True);
+            AddUntilStep("wait for dismissed", () => notification.IsInToastTray, () => Is.False);
+
+            checkDisplayedCount(0);
         }
 
         [Test]
@@ -417,7 +455,7 @@ namespace osu.Game.Tests.Visual.UserInterface
             {
                 applyUpdate = false;
 
-                var updateNotification = new UpdateManager.UpdateProgressNotification
+                var updateNotification = new UpdateManager.UpdateDownloadProgressNotification(CancellationToken.None)
                 {
                     CompletionClickAction = () => applyUpdate = true
                 };
@@ -429,9 +467,9 @@ namespace osu.Game.Tests.Visual.UserInterface
             checkProgressingCount(1);
             waitForCompletion();
 
-            UpdateManager.UpdateApplicationCompleteNotification? completionNotification = null;
+            UpdateManager.UpdateReadyNotification? completionNotification = null;
             AddUntilStep("wait for completion notification",
-                () => (completionNotification = notificationOverlay.ChildrenOfType<UpdateManager.UpdateApplicationCompleteNotification>().SingleOrDefault()) != null);
+                () => (completionNotification = notificationOverlay.ChildrenOfType<UpdateManager.UpdateReadyNotification>().SingleOrDefault()) != null);
             AddStep("click notification", () => completionNotification?.TriggerClick());
 
             AddUntilStep("wait for update applied", () => applyUpdate);
@@ -619,12 +657,18 @@ namespace osu.Game.Tests.Visual.UserInterface
 
         private partial class BackgroundNotification : SimpleNotification
         {
-            public override bool IsImportant => false;
+            public BackgroundNotification()
+            {
+                IsImportant = false;
+            }
         }
 
         private partial class BackgroundProgressNotification : ProgressNotification
         {
-            public override bool IsImportant => false;
+            public BackgroundProgressNotification()
+            {
+                IsImportant = false;
+            }
         }
     }
 }

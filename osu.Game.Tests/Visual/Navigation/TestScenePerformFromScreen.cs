@@ -13,12 +13,13 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Overlays;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Screens;
 using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
+using osu.Game.Screens.SelectV2;
 using osu.Game.Tests.Beatmaps.IO;
 using osuTK.Input;
-using static osu.Game.Tests.Visual.Navigation.TestSceneScreenNavigation;
 
 namespace osu.Game.Tests.Visual.Navigation
 {
@@ -43,17 +44,17 @@ namespace osu.Game.Tests.Visual.Navigation
         [Test]
         public void TestPerformAtSongSelect()
         {
-            PushAndConfirm(() => new TestPlaySongSelect());
+            PushAndConfirm(() => new SoloSongSelect());
 
-            AddStep("perform immediately", () => Game.PerformFromScreen(_ => actionPerformed = true, new[] { typeof(TestPlaySongSelect) }));
+            AddStep("perform immediately", () => Game.PerformFromScreen(_ => actionPerformed = true, new[] { typeof(SoloSongSelect) }));
             AddAssert("did perform", () => actionPerformed);
-            AddAssert("screen didn't change", () => Game.ScreenStack.CurrentScreen is TestPlaySongSelect);
+            AddAssert("screen didn't change", () => Game.ScreenStack.CurrentScreen is SoloSongSelect);
         }
 
         [Test]
         public void TestPerformAtMenuFromSongSelect()
         {
-            PushAndConfirm(() => new TestPlaySongSelect());
+            PushAndConfirm(() => new SoloSongSelect());
 
             AddStep("try to perform", () => Game.PerformFromScreen(_ => actionPerformed = true));
             AddUntilStep("returned to menu", () => Game.ScreenStack.CurrentScreen is MainMenu);
@@ -68,8 +69,8 @@ namespace osu.Game.Tests.Visual.Navigation
             AddStep("Press enter", () => InputManager.Key(Key.Enter));
             AddUntilStep("Wait for new screen", () => Game.ScreenStack.CurrentScreen is PlayerLoader);
 
-            AddStep("try to perform", () => Game.PerformFromScreen(_ => actionPerformed = true, new[] { typeof(TestPlaySongSelect) }));
-            AddUntilStep("returned to song select", () => Game.ScreenStack.CurrentScreen is TestPlaySongSelect);
+            AddStep("try to perform", () => Game.PerformFromScreen(_ => actionPerformed = true, new[] { typeof(SoloSongSelect) }));
+            AddUntilStep("returned to song select", () => Game.ScreenStack.CurrentScreen is SoloSongSelect);
             AddAssert("did perform", () => actionPerformed);
         }
 
@@ -84,6 +85,29 @@ namespace osu.Game.Tests.Visual.Navigation
             AddStep("try to perform", () => Game.PerformFromScreen(_ => actionPerformed = true));
             AddUntilStep("returned to song select", () => Game.ScreenStack.CurrentScreen is MainMenu);
             AddAssert("did perform", () => actionPerformed);
+        }
+
+        [Test]
+        public void TestPerformAtMenuFromPlayerLoaderWithAutoplayShortcut()
+        {
+            importAndWaitForSongSelect();
+
+            AddStep("press ctrl+enter", () =>
+            {
+                InputManager.PressKey(Key.ControlLeft);
+                InputManager.Key(Key.Enter);
+                InputManager.ReleaseKey(Key.ControlLeft);
+            });
+
+            AddUntilStep("Wait for new screen", () => Game.ScreenStack.CurrentScreen is PlayerLoader);
+
+            AddAssert("Mods include autoplay", () => Game.SelectedMods.Value.Any(m => m is ModAutoplay));
+
+            AddStep("try to perform", () => Game.PerformFromScreen(_ => actionPerformed = true));
+            AddUntilStep("returned to main menu", () => Game.ScreenStack.CurrentScreen is MainMenu);
+            AddAssert("did perform", () => actionPerformed);
+
+            AddAssert("Mods don't include autoplay", () => !Game.SelectedMods.Value.Any(m => m is ModAutoplay));
         }
 
         [Test]
@@ -233,7 +257,7 @@ namespace osu.Game.Tests.Visual.Navigation
         private void importAndWaitForSongSelect()
         {
             AddStep("import beatmap", () => BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
-            PushAndConfirm(() => new TestPlaySongSelect());
+            PushAndConfirm(() => new SoloSongSelect());
             AddUntilStep("beatmap updated", () => Game.Beatmap.Value.BeatmapSetInfo.OnlineID == 241526);
         }
 

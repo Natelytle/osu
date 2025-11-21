@@ -157,6 +157,8 @@ namespace osu.Game.Rulesets.UI
 
             public IBindable<double> AggregateTempo => throw new NotSupportedException();
 
+            public void Invalidate(string name) => throw new NotSupportedException();
+
             public int PlaybackConcurrency
             {
                 get => throw new NotSupportedException();
@@ -186,7 +188,7 @@ namespace osu.Game.Rulesets.UI
                 this.fallback = fallback;
             }
 
-            public override Texture Get(string name, WrapMode wrapModeS, WrapMode wrapModeT)
+            public override Texture? Get(string name, WrapMode wrapModeS, WrapMode wrapModeT)
                 => primary.Get(name, wrapModeS, wrapModeT) ?? fallback.Get(name, wrapModeS, wrapModeT);
 
             protected override void Dispose(bool disposing)

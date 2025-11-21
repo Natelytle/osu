@@ -107,7 +107,7 @@ namespace osu.Game.Tests.Visual.Online
             {
                 Version = "2018.712.0",
                 DisplayVersion = "2018.712.0",
-                UpdateStream = streams[OsuGameBase.CLIENT_STREAM_NAME],
+                UpdateStream = streams["lazer"],
                 CreatedAt = new DateTime(2018, 7, 12),
                 ChangelogEntries = new List<APIChangelogEntry>
                 {
@@ -154,7 +154,14 @@ namespace osu.Game.Tests.Visual.Online
                         Type = ChangelogEntryType.Misc,
                         Category = "Code quality",
                         Title = "Clean up another thing"
-                    }
+                    },
+                    new APIChangelogEntry
+                    {
+                        Type = ChangelogEntryType.Add,
+                        Category = "osu!",
+                        Title = "Add entry with news url",
+                        Url = "https://osu.ppy.sh/home/news/2023-07-27-summer-splash"
+                    },
                 }
             });
 
