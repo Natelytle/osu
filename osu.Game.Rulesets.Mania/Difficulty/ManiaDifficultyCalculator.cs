@@ -24,11 +24,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 0.018;
+        private const double difficulty_multiplier = 1.0;
 
         private readonly bool isForCurrentRuleset;
 
-        public override int Version => 20241007;
+        public override int Version => 20251121;
 
         public ManiaDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)
@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = skills.OfType<Strain>().Single().DifficultyValue() * difficulty_multiplier,
+                StarRating = skills.OfType<ManiaSkill>().Single().DifficultyValue() * difficulty_multiplier,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -88,10 +88,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         // Sorting is done in CreateDifficultyHitObjects, since the full list of hitobjects is required.
         protected override IEnumerable<DifficultyHitObject> SortObjects(IEnumerable<DifficultyHitObject> input) => input;
 
-        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
+        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate)
         {
-            new Strain(mods, ((ManiaBeatmap)Beatmap).TotalColumns)
-        };
+            return new Skill[]
+            {
+                new ManiaSkill(mods)
+            };
+        }
 
         protected override Mod[] DifficultyAdjustmentMods
         {
