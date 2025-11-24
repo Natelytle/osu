@@ -9,6 +9,7 @@ using osu.Game.Extensions;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
@@ -24,7 +25,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 1.0;
+        private const double difficulty_multiplier = 0.125;
+        private const double chordjack_multiplier = 1.0;
+        private const double chordstream_multiplier = 1.0;
+        private const double speedjack_multiplier = 1.0;
+        private const double speedstream_multiplier = 1.0;
+
+        private const double peak_norm = 4.0;
 
         private readonly bool isForCurrentRuleset;
 
@@ -44,9 +51,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
+            var chordJack = skills.OfType<ChordJack>().Single();
+            var chordStream = skills.OfType<ChordStream>().Single();
+            var speedJack = skills.OfType<SpeedJack>().Single();
+            var speedStream = skills.OfType<SpeedStream>().Single();
+
+            // double chordJackSkill = chordJack.DifficultyValue() * chordjack_multiplier;
+            // double chordStreamSkill = chordStream.DifficultyValue() * chordstream_multiplier;
+            // double speedJackSkill = speedJack.DifficultyValue() * speedjack_multiplier;
+            // double speedStreamSkill = speedStream.DifficultyValue() * speedstream_multiplier;
+
+            double combinedRating = combinedDifficultyValue(chordJack, chordStream, speedJack, speedStream) * difficulty_multiplier;
+
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = skills.OfType<ManiaSkill>().Single().DifficultyValue() * difficulty_multiplier,
+                StarRating = combinedRating,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -92,7 +111,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             return new Skill[]
             {
-                new ManiaSkill(mods)
+                new ChordJack(mods),
+                new ChordStream(mods),
+                new SpeedJack(mods),
+                new SpeedStream(mods)
             };
         }
 
@@ -130,6 +152,62 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                     new MultiMod(new ManiaModKey9(), new ManiaModDualStages()),
                 }).ToArray();
             }
+        }
+
+        /// <summary>
+        /// Returns the combined star rating of the beatmap, calculated using peak strains from all sections of the map.
+        /// </summary>
+        /// <remarks>
+        /// For each section, the peak strains of all separate skills are combined into a single peak strain for the section.
+        /// The resulting partial rating of the beatmap is a weighted sum of the combined peaks (higher peaks are weighted more).
+        /// </remarks>
+        private double combinedDifficultyValue(ChordJack chordJack, ChordStream chordStream, SpeedJack speedJack, SpeedStream speedStream)
+        {
+            List<double> peaks = combinePeaks(
+                chordJack.GetCurrentStrainPeaks().ToList(),
+                chordStream.GetCurrentStrainPeaks().ToList(),
+                speedJack.GetCurrentStrainPeaks().ToList(),
+                speedStream.GetCurrentStrainPeaks().ToList()
+            );
+
+            if (peaks.Count == 0)
+                return 0;
+
+            double difficulty = 0;
+            double weight = 1;
+
+            foreach (double strain in peaks.OrderDescending())
+            {
+                difficulty += strain * weight;
+                weight *= 0.9;
+            }
+
+            return difficulty;
+        }
+
+        /// <summary>
+        /// Combines lists of peak strains from multiple skills into a list of single peak strains for each section.
+        /// </summary>
+        private List<double> combinePeaks(List<double> chordJackPeaks, List<double> chordStreamPeaks, List<double> speedJackPeaks, List<double> speedStreamPeaks)
+        {
+            var combinedPeaks = new List<double>();
+
+            for (int i = 0; i < chordJackPeaks.Count; i++)
+            {
+                double chordJackPeak = chordJackPeaks[i] * chordjack_multiplier;
+                double chordStreamPeak = chordStreamPeaks[i] * chordstream_multiplier;
+                double speedJackPeak = speedJackPeaks[i] * speedjack_multiplier;
+                double speedStreamPeak = speedStreamPeaks[i] * speedstream_multiplier;
+
+                double peak = DifficultyCalculationUtils.Norm(peak_norm, chordJackPeak, chordStreamPeak, speedJackPeak, speedStreamPeak);
+
+                // Sections with 0 strain are excluded to avoid worst-case time complexity of the following sort (e.g. /b/2351871).
+                // These sections will not contribute to the difficulty.
+                if (peak > 0)
+                    combinedPeaks.Add(peak);
+            }
+
+            return combinedPeaks;
         }
     }
 }

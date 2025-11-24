@@ -2,28 +2,22 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
-    public class ChordstreamEvaluator
+    public static class ChordstreamEvaluator
     {
-        private const double convergence_time_seconds = 20.0;
-
-        private static readonly double tau = convergence_time_seconds / Math.Log(100);
-
-        private double stamina;
-        // private double lastInterval;
-
-        public double EvaluateDifficultyOf(ManiaDifficultyHitObject obj)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            if (obj.Previous(0) is null)
+            if (current.Previous(0) is null)
                 return 0;
 
-            double dt = Math.Max(0, (obj.StartTime - obj.Previous(0).StartTime) / 1000.0);
+            ManiaDifficultyHitObject currObj = (ManiaDifficultyHitObject)current;
 
-            var currChord = obj.CurrentChord;
-            var prevChord = obj.PreviousChord(0);
+            var currChord = currObj.CurrentChord;
+            var prevChord = currObj.PreviousChord(0);
 
             if (prevChord == null)
                 return 0;
@@ -31,7 +25,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             int chordSize = currChord.Notes.Count;
 
             if (chordSize <= 1)
-                return stamina;
+                return 0;
 
             double chordWeight = Math.Pow(chordSize, 1.0);
 
@@ -47,12 +41,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double bpmFactor = Math.Pow(currChord.HalfBpm / 200.0, 1.2);
             double baseValue = chordWeight * bpmFactor * uniformity;
 
-            double k = 1.0 - Math.Exp(-dt / tau);
-            stamina += (baseValue - stamina) * k;
-
-            stamina = Math.Clamp(stamina, 0.0, 14.0);
-
-            return stamina;
+            return baseValue;
         }
     }
 }
