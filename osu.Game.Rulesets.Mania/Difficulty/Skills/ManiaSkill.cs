@@ -47,10 +47,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         {
             var maniaObject = (ManiaDifficultyHitObject)current;
 
-            chordjackEvaluator ??= new ChordjackEvaluator(maniaObject);
-            speedjackEvaluator ??= new SpeedjackEvaluator(maniaObject);
-            speedstreamEvaluator ??= new SpeedstreamEvaluator(maniaObject);
-            chordstreamEvaluator ??= new ChordstreamEvaluator(maniaObject);
+            chordjackEvaluator ??= new ChordjackEvaluator();
+            speedjackEvaluator ??= new SpeedjackEvaluator();
+            speedstreamEvaluator ??= new SpeedstreamEvaluator();
+            chordstreamEvaluator ??= new ChordstreamEvaluator();
 
             chordjackPeak = Math.Max(chordjackPeak, chordjackEvaluator.EvaluateDifficultyOf(maniaObject));
             speedjackPeak = Math.Max(speedjackPeak, speedjackEvaluator.EvaluateDifficultyOf(maniaObject));

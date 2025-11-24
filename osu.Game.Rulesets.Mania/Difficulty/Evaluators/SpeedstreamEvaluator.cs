@@ -2,53 +2,46 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using FFmpeg.AutoGen;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
-    internal sealed class SpeedstreamEvaluator : ManiaEvaluator
+    public class SpeedstreamEvaluator
     {
         private const double convergence_time_seconds = 30.0;
 
         private readonly double tau = convergence_time_seconds / Math.Log(100);
 
         private double stamina;
-        private double lastTime;
-        private double lastInterval;
+        // private double lastInterval;
 
-        public SpeedstreamEvaluator(ManiaDifficultyHitObject firstObj)
-            : base(firstObj)
+        public double EvaluateDifficultyOf(ManiaDifficultyHitObject obj)
         {
-            lastTime = firstObj.StartTime;
-        }
-
-        public override double EvaluateDifficultyOf(ManiaDifficultyHitObject obj)
-        {
-            double dt = Math.Max(0, (obj.StartTime - lastTime) / 1000.0);
-            lastTime = obj.StartTime;
-
-            var currentChord = GetChordFor(obj);
-            var previousChord = GetPreviousChord(currentChord);
-
-            if (previousChord == null)
+            if (obj.Previous(0) is null)
                 return 0;
 
-            double chordSize = currentChord.Notes.Count;
+            double dt = Math.Max(0, (obj.StartTime - obj.Previous(0).StartTime) / 1000.0);
+
+            var currChord = obj.CurrentChord;
+            var prevChord = obj.PreviousChord(0);
+
+            if (prevChord == null)
+                return 0;
+
+            double chordSize = currChord.Notes.Count;
 
             double densityScore = 1.0 / Math.Pow(chordSize, 0.75);
 
-            double interval = obj.StartTime - previousChord.StartTime;
-            double uniformity = lastInterval > 0
-                ? 1.0 - Math.Abs(interval - lastInterval) / interval
-                : 1.0;
+            // Old implementation (gives 1 uniformity for every note in a chord except the first)
+            // double interval = obj.StartTime - prevChord.StartTime;
+            // double uniformity = lastInterval > 0 ? 1.0 - Math.Abs(interval - lastInterval) / interval : 1.0;
+            // lastInterval = interval;
 
+            // New implementation (same uniformity for every note in a chord)
+            double uniformity = 1.0 - Math.Abs(currChord.DeltaTime - prevChord.DeltaTime) / currChord.DeltaTime;
             uniformity = Math.Clamp(uniformity, 0.0, 1.0);
-            lastInterval = interval;
 
-            double baseValue = BpmToRatingCurve(currentChord.Bpm2)
-                             * densityScore
-                             * uniformity;
+            double baseValue = BpmToRatingCurve(currChord.HalfBpm) * densityScore * uniformity;
 
             double k = 1.0 - Math.Exp(-dt / tau);
 
@@ -59,7 +52,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return stamina;
         }
 
-        protected override double BpmToRatingCurve(double bpm) =>
-            Math.Pow(bpm / 300.0, 2.0);
+        protected static double BpmToRatingCurve(double bpm) => Math.Pow(bpm / 300.0, 2.0);
     }
 }

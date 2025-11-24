@@ -7,28 +7,23 @@ using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
-    internal sealed class ChordjackEvaluator : ManiaEvaluator
+    public class ChordjackEvaluator
     {
         private const double convergence_time_seconds = 60.0;
 
-        private readonly double tau = convergence_time_seconds / Math.Log(100);
+        private static readonly double tau = convergence_time_seconds / Math.Log(100);
 
         private double stamina;
-        private double lastTime;
 
-        public ChordjackEvaluator(ManiaDifficultyHitObject firstObj)
-            : base(firstObj)
+        public double EvaluateDifficultyOf(ManiaDifficultyHitObject obj)
         {
-            lastTime = firstObj.StartTime;
-        }
+            if (obj.Previous(0) is null)
+                return 0;
 
-        public override double EvaluateDifficultyOf(ManiaDifficultyHitObject obj)
-        {
-            double dt = Math.Max(0, (obj.StartTime - lastTime) / 1000.0);
-            lastTime = obj.StartTime;
+            double dt = Math.Max(0, (obj.StartTime - obj.Previous(0).StartTime) / 1000.0);
 
-            var currentChord = GetChordFor(obj);
-            var previousChord = GetPreviousChord(currentChord);
+            var currentChord = obj.CurrentChord;
+            var previousChord = obj.PreviousChord(0);
 
             if (previousChord == null)
                 return 0;
@@ -42,7 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 return 0;
 
             double density = Math.Min(1, (double)sharedColumns / currentChord.Notes.Count);
-            double baseValue = BpmToRatingCurve(currentChord.Bpm4) * Math.Pow(density, 3);
+            double baseValue = bpmToRatingCurve(currentChord.QuarterBpm) * Math.Pow(density, 3);
 
             double k = 1.0 - Math.Exp(-dt / tau);
             stamina += (baseValue - stamina) * k;
@@ -52,7 +47,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return stamina;
         }
 
-        protected override double BpmToRatingCurve(double bpm) =>
-            Math.Pow(2.0, bpm / 47.0);
+        private static double bpmToRatingCurve(double bpm) => Math.Pow(2.0, bpm / 47.0);
     }
 }
