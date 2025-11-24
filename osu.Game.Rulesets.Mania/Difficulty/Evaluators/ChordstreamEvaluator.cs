@@ -9,6 +9,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public static class ChordstreamEvaluator
     {
+        private static double multiplier => 1.0;
+
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             if (current.Previous(0) is null)
@@ -41,7 +43,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double bpmFactor = Math.Pow(currChord.HalfBpm / 200.0, 1.2);
             double baseValue = chordWeight * bpmFactor * uniformity;
 
-            return baseValue;
+            return baseValue * multiplier;
         }
     }
 }

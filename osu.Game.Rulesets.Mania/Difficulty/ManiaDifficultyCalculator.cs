@@ -26,10 +26,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
         private const double difficulty_multiplier = 0.125;
-        private const double chordjack_multiplier = 1.0;
-        private const double chordstream_multiplier = 1.0;
-        private const double speedjack_multiplier = 1.0;
-        private const double speedstream_multiplier = 1.0;
 
         private const double peak_norm = 4.0;
 
@@ -56,16 +52,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             var speedJack = skills.OfType<SpeedJack>().Single();
             var speedStream = skills.OfType<SpeedStream>().Single();
 
-            // double chordJackSkill = chordJack.DifficultyValue() * chordjack_multiplier;
-            // double chordStreamSkill = chordStream.DifficultyValue() * chordstream_multiplier;
-            // double speedJackSkill = speedJack.DifficultyValue() * speedjack_multiplier;
-            // double speedStreamSkill = speedStream.DifficultyValue() * speedstream_multiplier;
+            double chordJackSkill = chordJack.DifficultyValue() * difficulty_multiplier;
+            double chordStreamSkill = chordStream.DifficultyValue() * difficulty_multiplier;
+            double speedJackSkill = speedJack.DifficultyValue() * difficulty_multiplier;
+            double speedStreamSkill = speedStream.DifficultyValue() * difficulty_multiplier;
 
             double combinedRating = combinedDifficultyValue(chordJack, chordStream, speedJack, speedStream) * difficulty_multiplier;
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
                 StarRating = combinedRating,
+                ChordJackDifficulty = chordJackSkill,
+                ChordStreamDifficulty = chordStreamSkill,
+                SpeedJackDifficulty = speedJackSkill,
+                SpeedStreamDifficulty = speedStreamSkill,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -194,10 +194,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             for (int i = 0; i < chordJackPeaks.Count; i++)
             {
-                double chordJackPeak = chordJackPeaks[i] * chordjack_multiplier;
-                double chordStreamPeak = chordStreamPeaks[i] * chordstream_multiplier;
-                double speedJackPeak = speedJackPeaks[i] * speedjack_multiplier;
-                double speedStreamPeak = speedStreamPeaks[i] * speedstream_multiplier;
+                double chordJackPeak = chordJackPeaks[i];
+                double chordStreamPeak = chordStreamPeaks[i];
+                double speedJackPeak = speedJackPeaks[i];
+                double speedStreamPeak = speedStreamPeaks[i];
 
                 double peak = DifficultyCalculationUtils.Norm(peak_norm, chordJackPeak, chordStreamPeak, speedJackPeak, speedStreamPeak);
 

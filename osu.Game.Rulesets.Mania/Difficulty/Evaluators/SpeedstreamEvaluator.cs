@@ -9,11 +9,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public static class SpeedstreamEvaluator
     {
-        private const double convergence_time_seconds = 30.0;
-
-        // private readonly double tau = convergence_time_seconds / Math.Log(100);
-
-        // private double lastInterval;
+        private static double multiplier => 1.0;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -45,15 +41,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double baseValue = bpmToRatingCurve(currChord.HalfBpm) * densityScore * uniformity;
 
-            return baseValue;
-
-            // double k = 1.0 - Math.Exp(-dt / tau);
-            //
-            // stamina += (baseValue - stamina) * k;
-            //
-            // stamina = Math.Clamp(stamina, 0.0, 14.0);
-            //
-            // return stamina;
+            return baseValue * multiplier;
         }
 
         private static double bpmToRatingCurve(double bpm) => Math.Pow(bpm / 300.0, 2.0);

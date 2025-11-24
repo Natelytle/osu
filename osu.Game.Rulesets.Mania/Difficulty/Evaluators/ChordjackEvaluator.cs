@@ -10,6 +10,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public static class ChordjackEvaluator
     {
+        private static double multiplier => 1.0;
+
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             if (current.Previous(0) is null)
@@ -34,7 +36,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double density = Math.Min(1, (double)sharedColumns / currentChord.Notes.Count);
             double baseValue = bpmToRatingCurve(currentChord.QuarterBpm) * Math.Pow(density, 3);
 
-            return baseValue;
+            return baseValue * multiplier;
         }
 
         private static double bpmToRatingCurve(double bpm) => Math.Pow(2.0, bpm / 47.0);
