@@ -190,5 +190,27 @@ namespace osu.Game.Rulesets.Difficulty.Utils
         /// </summary>
         /// <param name="x">Value to calculate the function for</param>
         public static double ErfcInv(double x) => ErfInv(1 - x);
+
+        /// <summary>
+        /// Computes the cumulative distribution (CDF) of the distribution at x, i.e. P(X ≤ x).
+        /// </summary>
+        /// <param name="x">The location at which to compute the cumulative distribution function.</param>
+        /// <param name="mean">The mean (μ) of the normal distribution.</param>
+        /// <param name="stddev">The standard deviation (σ) of the normal distribution. Range: σ ≥ 0.</param>
+        /// <returns>the cumulative distribution at location <paramref name="x"/>.</returns>
+        public static double NormalCdf(double mean, double stddev, double x)
+        {
+            const double sqrt2 = 1.4142135623730950488016887242096980785696718753769d;
+
+            if (stddev < 0.0)
+            {
+                throw new ArgumentException("Invalid parametrization for the distribution.");
+            }
+
+            if (mean == x && stddev == 0)
+                return 0;
+
+            return 0.5 * Erfc((mean - x) / (stddev * sqrt2));
+        }
     }
 }
