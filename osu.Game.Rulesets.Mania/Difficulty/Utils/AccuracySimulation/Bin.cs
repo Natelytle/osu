@@ -12,43 +12,45 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
         public double Difficulty;
         public double Count;
 
-        /// <summary>
-        /// Create an array of spaced bins. Count is linearly interpolated into each bin.
-        /// For example, if we have bins with values [1,2,3,4,5] and want to insert the value 3.2,
-        /// we will add 0.8 to the count of 3's and 0.2 to the count of 4's
-        /// </summary>
         public static List<Bin> CreateBins(List<double> difficulties, int totalBins)
         {
+            var bins = new List<Bin>(totalBins);
+
             if (difficulties.Count == 0)
-                return new List<Bin>();
+                return bins;
 
-            double maxDifficulty = difficulties.Max();
+            // Sort the difficulties
+            var sorted = difficulties.OrderBy(d => d).ToList();
+            int n = sorted.Count;
 
-            var binsArray = new Bin[totalBins];
-
+            // Divide into quantiles
             for (int i = 0; i < totalBins; i++)
             {
-                binsArray[i].Difficulty = maxDifficulty * i / (totalBins - 1);
+                int start = (int)((long)i * n / totalBins);
+                int end = (int)((long)(i + 1) * n / totalBins);
+
+                if (start >= end)
+                {
+                    bins.Add(new Bin { Difficulty = sorted[Math.Min(start, n - 1)], Count = 0 });
+                    continue;
+                }
+
+                double count = end - start;
+                double avgDifficulty = 0;
+
+                for (int j = start; j < end; j++)
+                    avgDifficulty += sorted[j];
+
+                avgDifficulty /= count;
+
+                bins.Add(new Bin
+                {
+                    Difficulty = avgDifficulty,
+                    Count = count
+                });
             }
 
-            foreach (double d in difficulties)
-            {
-                double binIndex = maxDifficulty > 0 ? (totalBins - 1) * (d / maxDifficulty) : 0;
-
-                int lowerBound = (int)binIndex;
-                int upperBound = Math.Min(lowerBound + 1, totalBins - 1);
-                double t = binIndex - lowerBound;
-
-                binsArray[lowerBound].Count += 1 - t;
-                binsArray[upperBound].Count += t;
-            }
-
-            var binsList = binsArray.ToList();
-
-            // For a slight performance improvement, we remove bins that don't contribute to difficulty.
-            // binsList.RemoveAll(bin => bin.Count == 0);
-
-            return binsList;
+            return bins;
         }
     }
 }
