@@ -9,13 +9,10 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
 {
-    public abstract class AccuracySimulator
+    public class AccuracySimulator
     {
         // The value of the max judgement. Increasing this value increases the value of high ratios.
         public const double MAX_JUDGEMENT_WEIGHT = 305;
-
-        // Star rating for a map is the difficulty of achieving 98% accuracy.
-        private const double star_rating_accuracy = 0.95;
 
         // The player has a 2% chance of achieving the score's accuracy.
         private const double accuracy_prob = 0.02;
@@ -25,6 +22,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
 
         // The UR a player is expected to get when mashing, the very highest their UR can ever be.
         private const double mash_ur = 100;
+
+        // Constant threshold for binning
+        private const int bin_threshold = 128;
 
         // How much the player's UR should change relative to the note's difficulty, when it is higher or lower.
         private double accuracyExponent => 3.2;
@@ -38,21 +38,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
         private readonly List<double> noteDifficulties;
         private readonly List<double> tailDifficulties;
 
-        private readonly List<Bin>? binNotes;
-        private readonly List<Bin>? binTails;
+        private readonly List<Bin> binNotes;
+        private readonly List<Bin> binTails;
 
-        protected AccuracySimulator(Mod[] mods, double od, List<double> noteDifficulties, List<double> tailDifficulties)
+        public AccuracySimulator(Mod[] mods, double od, List<double> noteDifficulties, List<double> tailDifficulties)
         {
             hitWindows = new DifficultyHitWindows(mods, od);
 
             this.noteDifficulties = noteDifficulties;
             this.tailDifficulties = tailDifficulties;
 
-            binNotes = Bin.CreateBins(noteDifficulties, 24);
-            binTails = Bin.CreateBins(tailDifficulties, 24);
+            binNotes = Bin.CreateBins(noteDifficulties, 64);
+            binTails = Bin.CreateBins(tailDifficulties, 64);
         }
-
-        public double SSValue() => skillLevelAtAccuracy(1);
 
         public double[] AccuracyCurve(double ssValue)
         {
@@ -73,7 +71,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
             return accuracies;
         }
 
-        private double skillLevelAtAccuracy(double accuracy)
+        public double SkillLevelAtAccuracy(double accuracy)
         {
             if (noteDifficulties.Count == 0)
                 return 0;
@@ -100,69 +98,50 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
             if (skill == 0)
                 return 0;
 
-            return noteDifficulties.Count > 128 || tailDifficulties.Count > 128 ? accuracyProbBinned(accuracy, skill) : accuracyProbExact(accuracy, skill);
-        }
-
-        private double accuracyProbExact(double accuracy, double skill)
-        {
-            double count = noteDifficulties.Count + tailDifficulties.Count;
-
-            double sum = 0;
-            double varSum = 0;
-
-            for (int i = 0; i < noteDifficulties.Count; i++)
+            // Special handling for SS scores, which don't play nice with the normal approximation.
+            if (accuracy >= 1)
             {
-                var noteProbs = getNoteProbabilities(noteDifficulties[i], skill);
+                double p = 1;
 
-                sum += noteProbs.Score;
-                varSum += noteProbs.AdjustedVariance;
+                if (noteDifficulties.Count < bin_threshold)
+                {
+                    for (int i = 0; i < noteDifficulties.Count; i++)
+                    {
+                        double unstableRate = skillToUr(skill, noteDifficulties[i]);
+
+                        p *= hitWindows.HitProbability(hitWindows.HMax, unstableRate);
+                    }
+
+                    for (int i = 0; i < tailDifficulties.Count; i++)
+                    {
+                        double unstableRate = skillToUr(skill, tailDifficulties[i]);
+
+                        p *= hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < binNotes.Count; i++)
+                    {
+                        double unstableRate = skillToUr(skill, binNotes[i].Difficulty);
+
+                        p *= Math.Pow(hitWindows.HitProbability(hitWindows.HMax, unstableRate), binNotes[i].Count);
+                    }
+
+                    for (int i = 0; i < binTails.Count; i++)
+                    {
+                        double unstableRate = skillToUr(skill, binTails[i].Difficulty);
+
+                        p *= Math.Pow(hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate), binTails[i].Count);
+                    }
+                }
+
+                return p;
             }
 
-            for (int i = 0; i < tailDifficulties.Count; i++)
-            {
-                var tailProbs = getTailProbabilities(tailDifficulties[i], skill);
+            (double mean, double dev) = accuracyDistributionAt(skill);
 
-                sum += tailProbs.Score;
-                varSum += tailProbs.AdjustedVariance;
-            }
-
-            double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
-            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
-
-            double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
-
-            return p;
-        }
-
-        private double accuracyProbBinned(double accuracy, double skill)
-        {
-            double count = noteDifficulties.Count + tailDifficulties.Count;
-
-            double sum = 0;
-            double varSum = 0;
-
-            for (int i = 0; i < binNotes!.Count; i++)
-            {
-                var noteProbs = getNoteProbabilities(binNotes[i].Difficulty, skill);
-
-                sum += binNotes[i].Count * noteProbs.Score;
-                varSum += binNotes[i].Count * noteProbs.AdjustedVariance;
-            }
-
-            for (int i = 0; i < binTails!.Count; i++)
-            {
-                var tailProbs = getTailProbabilities(binTails![i].Difficulty, skill);
-
-                sum += binTails[i].Count * tailProbs.Score;
-                varSum += binTails[i].Count * tailProbs.AdjustedVariance;
-            }
-
-            double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
-            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
-
-            double p = 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
-
-            return p;
+            return 1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy);
         }
 
         /// <summary>
@@ -175,69 +154,62 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
             if (skill == 0)
                 return 0;
 
-            return noteDifficulties.Count > 512 || tailDifficulties.Count > 512 ? binnedAccuracyAt(skill) : exactAccuracyAt(skill);
-        }
-
-        private double exactAccuracyAt(double skill)
-        {
-            double count = noteDifficulties.Count + tailDifficulties.Count;
-
-            double sum = 0;
-            double varSum = 0;
-
-            for (int i = 0; i < noteDifficulties.Count; i++)
-            {
-                var noteProbs = getNoteProbabilities(noteDifficulties[i], skill);
-
-                sum += noteProbs.Score;
-                varSum += noteProbs.AdjustedVariance;
-            }
-
-            for (int i = 0; i < tailDifficulties.Count; i++)
-            {
-                var tailProbs = getTailProbabilities(tailDifficulties[i], skill);
-
-                sum += tailProbs.Score;
-                varSum += tailProbs.AdjustedVariance;
-            }
-
-            double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
-            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
+            (double mean, double dev) = accuracyDistributionAt(skill);
 
             double accuracy = RootFinding.FindRootExpand(accuracy => (1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy)) - accuracy_prob, 0, 1);
 
             return accuracy;
         }
 
-        private double binnedAccuracyAt(double skill)
+        private (double mean, double deviation) accuracyDistributionAt(double skill)
         {
             double count = noteDifficulties.Count + tailDifficulties.Count;
 
             double sum = 0;
             double varSum = 0;
 
-            for (int i = 0; i < binNotes!.Count; i++)
+            // Threshold for binning
+            if (noteDifficulties.Count < bin_threshold)
             {
-                var noteProbs = getNoteProbabilities(binNotes[i].Difficulty, skill);
+                for (int i = 0; i < noteDifficulties.Count; i++)
+                {
+                    var noteProbs = getNoteProbabilities(noteDifficulties[i], skill);
 
-                sum += binNotes[i].Count * noteProbs.Score;
-                varSum += binNotes[i].Count * noteProbs.AdjustedVariance;
+                    sum += noteProbs.Score;
+                    varSum += noteProbs.Variance;
+                }
+
+                for (int i = 0; i < tailDifficulties.Count; i++)
+                {
+                    var tailProbs = getTailProbabilities(tailDifficulties[i], skill);
+
+                    sum += tailProbs.Score;
+                    varSum += tailProbs.Variance;
+                }
             }
-
-            for (int i = 0; i < binTails!.Count; i++)
+            else
             {
-                var tailProbs = getTailProbabilities(binTails![i].Difficulty, skill);
+                for (int i = 0; i < binNotes.Count; i++)
+                {
+                    var noteProbs = getNoteProbabilities(binNotes[i].Difficulty, skill);
 
-                sum += binTails[i].Count * tailProbs.Score;
-                varSum += binTails[i].Count * tailProbs.AdjustedVariance;
+                    sum += binNotes[i].Count * noteProbs.Score;
+                    varSum += binNotes[i].Count * noteProbs.Variance;
+                }
+
+                for (int i = 0; i < binTails.Count; i++)
+                {
+                    var tailProbs = getTailProbabilities(binTails[i].Difficulty, skill);
+
+                    sum += binTails[i].Count * tailProbs.Score;
+                    varSum += binTails[i].Count * tailProbs.Variance;
+                }
             }
 
             double mean = sum / count / MAX_JUDGEMENT_WEIGHT;
-            double dev = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
+            double deviation = Math.Sqrt(varSum) / count / MAX_JUDGEMENT_WEIGHT + 1e-6;
 
-            double accuracy = RootFinding.FindRootExpand(accuracy => (1 - DifficultyCalculationUtils.NormalCdf(mean, dev, accuracy)) - accuracy_prob, 0, 1);
-
-            return accuracy;
+            return (mean, deviation);
         }
 
         private JudgementProbabilities getNoteProbabilities(double difficulty, double skill)
