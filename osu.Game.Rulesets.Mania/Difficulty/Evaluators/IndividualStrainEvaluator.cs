@@ -3,6 +3,7 @@
 
 using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
@@ -32,6 +33,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             return 2.0 * holdFactor;
+        }
+
+        public static double EvaluateTailDifficultyOf(DifficultyHitObject current)
+        {
+            var maniaCurrent = (ManiaDifficultyHitObject)current;
+            double startTime = maniaCurrent.StartTime;
+            double endTime = maniaCurrent.EndTime;
+
+            return 2.0 * DifficultyCalculationUtils.Smoothstep(endTime - startTime, 30, 500);
         }
     }
 }

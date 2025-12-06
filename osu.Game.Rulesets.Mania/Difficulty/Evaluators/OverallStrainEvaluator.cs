@@ -57,5 +57,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             return (1 + holdAddition) * holdFactor;
         }
+
+        public static double EvaluateTailDifficultyOf(DifficultyHitObject current)
+        {
+            var maniaCurrent = (ManiaDifficultyHitObject)current;
+            double startTime = maniaCurrent.StartTime;
+            double endTime = maniaCurrent.EndTime;
+
+            return 1.0 * DifficultyCalculationUtils.Smoothstep(endTime - startTime, 30, 500);
+        }
     }
 }
