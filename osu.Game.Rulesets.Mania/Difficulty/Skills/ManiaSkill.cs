@@ -4,6 +4,8 @@
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
@@ -14,29 +16,33 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         protected ManiaSkill(Mod[] mods)
             : base(mods)
         {
-            Difficulties = new List<(double, double, bool)>();
+            ProcessedDifficultyInfo = new List<NestedObjectDifficultyInfo>();
         }
 
-        protected List<(double difficulty, double time, bool isTail)> Difficulties;
+        protected List<NestedObjectDifficultyInfo> ProcessedDifficultyInfo;
 
         public override void Process(DifficultyHitObject current)
         {
+            ManiaDifficultyHitObject maniaCurrent = (ManiaDifficultyHitObject)current;
+
             if (current.BaseObject is Note)
             {
-                Difficulties.Add((EvaluatorValueAt(current, false), current.StartTime, false));
+                ProcessedDifficultyInfo.Add(new NestedObjectDifficultyInfo(DifficultyOnPress(current), maniaCurrent));
             }
             else
             {
-                double headDifficulty = EvaluatorValueAt(current, false);
-                double tailDifficulty = EvaluatorValueAt(current, true) - headDifficulty;
-
-                Difficulties.Add((headDifficulty, current.StartTime, false));
-                Difficulties.Add((tailDifficulty, current.EndTime, true));
+                ProcessedDifficultyInfo.Add(new NestedObjectDifficultyInfo(DifficultyOnPress(current), maniaCurrent));
+                ProcessedDifficultyInfo.Add(new NestedObjectDifficultyInfo(DifficultyOnRelease(current), maniaCurrent, true));
             }
         }
 
-        protected abstract double EvaluatorValueAt(DifficultyHitObject current, bool includeTail);
+        protected abstract double DifficultyOnPress(DifficultyHitObject current);
+        protected abstract double DifficultyOnRelease(DifficultyHitObject current);
 
-        public abstract List<(double value, bool isTail)> GetStrainValues();
+        // Unused
+        public override double DifficultyValue()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

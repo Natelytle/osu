@@ -4,7 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
@@ -57,11 +59,37 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double difficultyValue = 8.0 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
-                                         * Math.Max(0, 5 * scoreAccuracy - 4) // From 80% accuracy, 1/20th of total pp is awarded per additional 1% accuracy
-                                         * (1 + 0.1 * Math.Min(1, totalHits / 1500)); // Length bonus, capped at 1500 notes
+            double skill = accuracyAdjustedSkillLevel(attributes);
+
+            double difficultyValue = 6 * Math.Pow(skill, 2.2); // Star rating to pp curve
 
             return difficultyValue;
+        }
+
+        private double accuracyAdjustedSkillLevel(ManiaDifficultyAttributes attributes)
+        {
+            double[] skillLevels = { 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0 };
+            double[] accuracies = attributes.AccuracyCurve!;
+
+            if (scoreAccuracy == 1)
+                return attributes.SSValue * skillLevels[0];
+
+            for (int i = 1; i < accuracies.Length; i++)
+            {
+                if (accuracies[i] > scoreAccuracy) continue;
+
+                double highAccBound = accuracies[i - 1];
+                double highAccSkill = skillLevels[i - 1];
+
+                double lowAccBound = accuracies[i];
+                double lowAccSkill = skillLevels[i];
+
+                double scoreSkill = attributes.SSValue * Interpolation.Lerp(lowAccSkill, highAccSkill, (scoreAccuracy - lowAccBound) / (highAccBound - lowAccBound));
+
+                return scoreSkill;
+            }
+
+            return 0;
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;
@@ -74,7 +102,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (totalHits == 0)
                 return 0;
 
-            return (countPerfect * 320 + countGreat * 300 + countGood * 200 + countOk * 100 + countMeh * 50) / (totalHits * 320);
+            return (countPerfect * AccuracySimulator.MAX_JUDGEMENT_WEIGHT + countGreat * 300 + countGood * 200 + countOk * 100 + countMeh * 50) / (totalHits * AccuracySimulator.MAX_JUDGEMENT_WEIGHT);
         }
     }
 }

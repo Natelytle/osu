@@ -1,7 +1,6 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Beatmaps;
@@ -9,10 +8,12 @@ using osu.Game.Extensions;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
-using osu.Game.Rulesets.Mania.MathUtils;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
+using osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Scoring;
@@ -24,7 +25,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 0.018;
+        private const double star_rating_accuracy = 0.97;
 
         private readonly bool isForCurrentRuleset;
 
@@ -44,9 +45,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
+            var individualStrainSkill = skills.OfType<IndividualStrain>().Single();
+            var overallStrainSkill = skills.OfType<OverallStrain>().Single();
+
+            getCombinedStrainValues(individualStrainSkill, overallStrainSkill, out List<double> noteStrains, out List<double> tailStrains);
+
+            AccuracySimulator accuracySimulator = new AccuracySimulator(mods, beatmap.Difficulty.OverallDifficulty, noteStrains, tailStrains);
+
+            // Get the skill level at star rating's accuracy threshold
+            double skillLevel = accuracySimulator.SkillLevelAtAccuracy(star_rating_accuracy);
+
+            // We need a skill level for SS for the accuracy curve because all accuracy values are computed with fractions of SS skill
+            double ssSkillLevel = accuracySimulator.SkillLevelAtAccuracy(1);
+            double[] accuracyCurve = accuracySimulator.AccuracyCurve(ssSkillLevel);
+
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = skills.OfType<Strain>().Single().DifficultyValue() * difficulty_multiplier,
+                StarRating = skillLevel,
+                AccuracyCurve = accuracyCurve,
+                SSValue = ssSkillLevel,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -64,10 +81,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
-            var sortedObjects = beatmap.HitObjects.ToArray();
+            var sortedObjects = beatmap.HitObjects.OrderBy(a => a.StartTime).ToArray();
             int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
-
-            LegacySortHelper<HitObject>.Sort(sortedObjects, Comparer<HitObject>.Create((a, b) => (int)Math.Round(a.StartTime) - (int)Math.Round(b.StartTime)));
 
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
             List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[totalColumns];
@@ -90,7 +105,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new Strain(mods, ((ManiaBeatmap)Beatmap).TotalColumns)
+            new IndividualStrain(mods, ((ManiaBeatmap)Beatmap).TotalColumns),
+            new OverallStrain(mods)
         };
 
         protected override Mod[] DifficultyAdjustmentMods
@@ -126,6 +142,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                     new ManiaModKey9(),
                     new MultiMod(new ManiaModKey9(), new ManiaModDualStages()),
                 }).ToArray();
+            }
+        }
+
+        private void getCombinedStrainValues(IndividualStrain individual, OverallStrain overall, out List<double> noteStrains, out List<double> tailStrains)
+        {
+            List<NestedObjectDifficultyInfo> individualDifficulties = individual.GetStrainValues();
+            List<NestedObjectDifficultyInfo> overallDifficulties = overall.GetStrainValues();
+
+            noteStrains = new List<double>();
+            tailStrains = new List<double>();
+
+            for (int i = 0; i < individualDifficulties.Count; i++)
+            {
+                double combinedDifficulty = DifficultyCalculationUtils.Norm(2, individualDifficulties[i].Difficulty, overallDifficulties[i].Difficulty);
+
+                if (individualDifficulties[i].IsTail)
+                    tailStrains.Add(combinedDifficulty);
+                else
+                    noteStrains.Add(combinedDifficulty);
             }
         }
     }
