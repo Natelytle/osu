@@ -30,9 +30,5 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
                                   (100 - Score) * (100 - Score) * p100 +
                                   (50 - Score) * (50 - Score) * p50 +
                                   (0 - Score) * (0 - Score) * p0;
-
-        // Due to real world factors (such as variance in skill), standard deviation is actually around 2.5x higher than it appears.
-        // We account for this by multiplying variance used in the model by 2.5^2.
-        public double AdjustedVariance => Variance * 6.25;
     }
 }
