@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
         private const int bin_threshold = 128;
 
         // How much the player's UR should change relative to the note's difficulty, when it is higher or lower.
-        private double accuracyExponent => 3.2;
+        private double accuracyExponent => 5.0;
 
         // How much long note tails should increase the player's UR.
         private double tailDeviationMultiplier => 1.8;

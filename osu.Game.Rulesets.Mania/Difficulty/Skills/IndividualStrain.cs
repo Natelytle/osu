@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class IndividualStrain : ManiaSkill
     {
-        private double difficultyMultiplier => 0.25;
+        private double difficultyMultiplier => 0.22;
 
         public IndividualStrain(Mod[] mods, int totalColumns)
             : base(mods)

@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class OverallStrain : ManiaSkill
     {
-        private double difficultyMultiplier => 0.27;
+        private double difficultyMultiplier => 0.24;
 
         public OverallStrain(Mod[] mods)
             : base(mods)
