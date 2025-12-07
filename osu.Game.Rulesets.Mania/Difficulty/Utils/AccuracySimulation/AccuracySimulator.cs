@@ -38,8 +38,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
         private readonly List<double> noteDifficulties;
         private readonly List<double> tailDifficulties;
 
-        private readonly List<Bin> binNotes;
-        private readonly List<Bin> binTails;
+        private readonly List<Bin> binNotes = new List<Bin>();
+        private readonly List<Bin> binTails = new List<Bin>();
 
         public AccuracySimulator(Mod[] mods, double od, List<double> noteDifficulties, List<double> tailDifficulties)
         {
@@ -48,8 +48,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
             this.noteDifficulties = noteDifficulties;
             this.tailDifficulties = tailDifficulties;
 
-            binNotes = Bin.CreateBins(noteDifficulties, 64);
-            binTails = Bin.CreateBins(tailDifficulties, 64);
+            if (noteDifficulties.Count >= bin_threshold)
+            {
+                binNotes = Bin.CreateBins(noteDifficulties, 64);
+                binTails = Bin.CreateBins(tailDifficulties, 64);
+            }
         }
 
         public double[] AccuracyCurve(double ssValue)
@@ -114,7 +117,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
 
                     for (int i = 0; i < tailDifficulties.Count; i++)
                     {
-                        double unstableRate = skillToUr(skill, tailDifficulties[i]);
+                        double unstableRate = skillToUrTail(skill, tailDifficulties[i]);
 
                         p *= hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
                     }
@@ -216,11 +219,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
         {
             double unstableRate = skillToUr(skill, difficulty);
 
-            double pMax = hitWindows.HitProbability(hitWindows.HMax, unstableRate);
-            double p300 = hitWindows.HitProbability(hitWindows.H300, unstableRate) - hitWindows.HitProbability(hitWindows.HMax, unstableRate);
-            double p200 = hitWindows.HitProbability(hitWindows.H200, unstableRate) - hitWindows.HitProbability(hitWindows.H300, unstableRate);
-            double p100 = hitWindows.HitProbability(hitWindows.H100, unstableRate) - hitWindows.HitProbability(hitWindows.H200, unstableRate);
-            double p50 = hitWindows.HitProbability(hitWindows.H50, unstableRate) - hitWindows.HitProbability(hitWindows.H100, unstableRate);
+            // Probability of landing in each hit window
+            double hMax = hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
+            double h300 = hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate);
+            double h200 = hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate);
+            double h100 = hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate);
+            double h50 = hitWindows.HitProbability(hitWindows.H50 * 1.5, unstableRate);
+
+            // Probability of getting each hit judgement
+            double pMax = hMax;
+            double p300 = h300 - hMax;
+            double p200 = h200 - h300;
+            double p100 = h100 - h200;
+            double p50 = h50 - h100;
 
             return new JudgementProbabilities(pMax, p300, p200, p100, p50);
         }
@@ -229,11 +240,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils.AccuracySimulation
         {
             double unstableRate = skillToUrTail(skill, difficulty);
 
-            double pMax = hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
-            double p300 = hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
-            double p200 = hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate);
-            double p100 = hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate);
-            double p50 = hitWindows.HitProbability(hitWindows.H50 * 1.5, unstableRate) - hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate);
+            // Probability of landing in each hit window
+            double hMax = hitWindows.HitProbability(hitWindows.HMax * 1.5, unstableRate);
+            double h300 = hitWindows.HitProbability(hitWindows.H300 * 1.5, unstableRate);
+            double h200 = hitWindows.HitProbability(hitWindows.H200 * 1.5, unstableRate);
+            double h100 = hitWindows.HitProbability(hitWindows.H100 * 1.5, unstableRate);
+            double h50 = hitWindows.HitProbability(hitWindows.H50 * 1.5, unstableRate);
+
+            // Probability of getting each hit judgement
+            double pMax = hMax;
+            double p300 = h300 - hMax;
+            double p200 = h200 - h300;
+            double p100 = h100 - h200;
+            double p50 = h50 - h100;
 
             return new JudgementProbabilities(pMax, p300, p200, p100, p50);
         }
