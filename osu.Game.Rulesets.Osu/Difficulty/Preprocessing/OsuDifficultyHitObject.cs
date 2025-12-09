@@ -297,7 +297,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
         private void adjustPreviousObjectMovements()
         {
-            if (lastDifficultyObject == null)
+            if (lastDifficultyObject?.BaseObject is not Slider slider)
                 return;
 
             float scalingFactor = NORMALISED_RADIUS / (float)BaseObject.Radius;
@@ -315,25 +315,28 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
             var movementsToRemove = new List<Movement>();
 
-            for (int i = 1; i < lastDifficultyObject.Movements.Count; i++)
+            if (slider.RepeatCount < 1)
             {
-                var nestedMovement = lastDifficultyObject.Movements[i];
-                if (!nestedMovement.IsNested)
-                    continue;
+                for (int i = 1; i < lastDifficultyObject.Movements.Count; i++)
+                {
+                    var nestedMovement = lastDifficultyObject.Movements[i];
+                    if (!nestedMovement.IsNested)
+                        continue;
 
-                if (staysWithinRadius(headToHeadMovement, nestedMovement, redundant_slider_radius / scalingFactor))
-                {
-                    //if (nestedMovement.Distance > headToHeadMovement.Distance)
+                    if (staysWithinRadius(headToHeadMovement, nestedMovement, redundant_slider_radius / scalingFactor))
                     {
-                        // if a movement repeats head-to-head movement it can be removed, but only if all subsequent movements also follow the same line
-                        movementsToRemove.Add(nestedMovement);
+                        //if (nestedMovement.Distance > headToHeadMovement.Distance)
+                        {
+                            // if a movement repeats head-to-head movement it can be removed, but only if all subsequent movements also follow the same line
+                            movementsToRemove.Add(nestedMovement);
+                        }
                     }
-                }
-                else if (movementsToRemove.Count > 0)
-                {
-                    // cancel movement removal if the next movement doesn't also stay within radius since we'll need to move the cursor for both this and all previous movements to complete the slider
-                    movementsToRemove.Clear();
-                    break;
+                    else if (movementsToRemove.Count > 0)
+                    {
+                        // cancel movement removal if the next movement doesn't also stay within radius since we'll need to move the cursor for both this and all previous movements to complete the slider
+                        movementsToRemove.Clear();
+                        break;
+                    }
                 }
             }
 
@@ -361,14 +364,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             }
 
             // set path to movement length ratio after we're done removing all the redundant movements
-            if (lastDifficultyObject.BaseObject is Slider slider)
-            {
-                double movementDistance = lastDifficultyObject.Movements.Count > 1
-                    ? lastDifficultyObject.Movements.Where(x => x.IsNested).Sum(x => x.Distance) + (redundant_slider_radius / scalingFactor)
-                    : headToHeadMovement.Distance;
+            double movementDistance = lastDifficultyObject.Movements.Count > 1
+                ? lastDifficultyObject.Movements.Where(x => x.IsNested).Sum(x => x.Distance) + (redundant_slider_radius / scalingFactor)
+                : headToHeadMovement.Distance;
 
-                lastDifficultyObject.PathLengthToMovementLengthRatio = Math.Clamp(movementDistance / (slider.Path.Distance * scalingFactor), 0, 1);
-            }
+            lastDifficultyObject.PathLengthToMovementLengthRatio = Math.Clamp(movementDistance / (slider.Path.Distance * scalingFactor), 0, 1);
         }
     }
 }
