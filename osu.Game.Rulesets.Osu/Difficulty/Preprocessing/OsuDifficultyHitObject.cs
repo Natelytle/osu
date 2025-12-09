@@ -368,7 +368,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 ? lastDifficultyObject.Movements.Where(x => x.IsNested).Sum(x => x.Distance) + (redundant_slider_radius / scalingFactor)
                 : headToHeadMovement.Distance;
 
-            lastDifficultyObject.PathLengthToMovementLengthRatio = Math.Clamp(movementDistance / (slider.Path.Distance * scalingFactor), 0, 1);
+            if (movementDistance > redundant_slider_radius)
+                lastDifficultyObject.PathLengthToMovementLengthRatio = Math.Clamp(movementDistance / (slider.Path.Distance * scalingFactor), 0, 1);
         }
     }
 }
