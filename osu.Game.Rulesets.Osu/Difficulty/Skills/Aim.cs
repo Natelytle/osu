@@ -59,6 +59,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 Value = currentStrain,
             };
 
+            previousTime = firstMovement.StartTime;
+
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
@@ -83,15 +85,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 movementStrain = getCurrentStrainValue(movement.StartTime, previousStrains);
                 previousStrains.Add((osuCurrent.StartTime, difficulty));
 
+                double totalMovementStrain = difficulty + movementStrain;
+
                 yield return new ObjectStrain
                 {
                     Time = movement.StartTime,
                     PreviousTime = previousTime,
-                    Value = difficulty + movementStrain,
+                    Value = totalMovementStrain,
                 };
 
                 if (current.BaseObject is Slider)
-                    sliderStrains.Add(difficulty + movementStrain);
+                    sliderStrains.Add(totalMovementStrain);
 
                 previousTime = movement.StartTime;
             }
