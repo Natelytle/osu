@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double currentStrain;
         private double lastStrain;
 
-        private double skillMultiplier => 26.2;
+        private double skillMultiplier => 26.4;
         private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();

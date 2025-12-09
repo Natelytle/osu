@@ -189,15 +189,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (isNested)
             {
+                // reduce the bonuses due to the fact that we use a different strain system that doesn't require difficulty values to be overblown
                 acuteAngleBonus *= 0.5;
-                wideAngleBonus *= 0.15;
                 velocityChangeBonus *= 0.5;
                 wiggleBonus *= 0.5;
+
+                // reduce wide bonus extra hard since most slider movements are flow aim
+                wideAngleBonus *= 0.15;
             }
 
             aimStrain += wiggleBonus * wiggle_multiplier;
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
-
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
             aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
