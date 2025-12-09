@@ -361,10 +361,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             }
 
             // set path to movement length ratio after we're done removing all the redundant movements
-            if (lastDifficultyObject.BaseObject is Slider slider && lastDifficultyObject.Movements.Count > 1)
+            if (lastDifficultyObject.BaseObject is Slider slider)
             {
-                double movementsDistanceWithFollowRadius = lastDifficultyObject.Movements.Where(x => x.IsNested).Sum(x => x.Distance) + redundant_slider_radius / scalingFactor;
-                lastDifficultyObject.PathLengthToMovementLengthRatio = Math.Clamp(movementsDistanceWithFollowRadius / (slider.Path.Distance * scalingFactor), 0, 1);
+                double movementDistance = lastDifficultyObject.Movements.Count > 1
+                    ? lastDifficultyObject.Movements.Where(x => x.IsNested).Sum(x => x.Distance) + (redundant_slider_radius / scalingFactor)
+                    : headToHeadMovement.Distance;
+
+                lastDifficultyObject.PathLengthToMovementLengthRatio = Math.Clamp(movementDistance / (slider.Path.Distance * scalingFactor), 0, 1);
             }
         }
     }
