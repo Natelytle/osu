@@ -195,7 +195,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 wiggleBonus *= 0.5;
 
                 // reduce wide bonus extra hard since most slider movements are flow aim
-                wideAngleBonus *= 0.15;
+                wideAngleBonus *= 0.25;
             }
 
             aimStrain += wiggleBonus * wiggle_multiplier;
