@@ -26,6 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public const int MIN_DELTA_TIME = 25;
 
         private float assumed_slider_radius = NORMALISED_RADIUS * 1.0f;
+        private float repeat_slider_radius = NORMALISED_RADIUS * 1.1f;
         private float redundant_slider_radius = NORMALISED_RADIUS * 1.3f;
 
         protected new OsuHitObject BaseObject => (OsuHitObject)base.BaseObject;
@@ -214,6 +215,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 // Amount of movement required so that the cursor position needs to be updated.
                 double nestedRadius = assumed_slider_radius;
 
+                if (currNestedObj is SliderRepeat)
+                {
+                    nestedRadius = repeat_slider_radius;
+                }
+
                 if (i == nestedObjects.Count - 1)
                 {
                     // The end of a slider has special aim rules due to the relaxed time constraint on position.
@@ -340,7 +346,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 }
             }
 
-            for (int i = 1; i < lastDifficultyObject.Movements.Count - 1; i++)
+            for (int i = 1; i < lastDifficultyObject.Movements.Count; i++)
             {
                 var nestedMovement = lastDifficultyObject.Movements[i];
                 if (!nestedMovement.IsNested)
@@ -349,10 +355,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 // remove all movements shorter than the follow radius and adjust remaining movements to be continuous
                 if (nestedMovement.Distance < redundant_slider_radius)
                 {
-                    var nextNestedMovement = lastDifficultyObject.Movements[i + 1];
-                    nextNestedMovement.Start = nestedMovement.Start;
-                    nextNestedMovement.StartTime = nestedMovement.StartTime;
-                    nextNestedMovement.StartRadius = nestedMovement.StartRadius;
+                    if (i < lastDifficultyObject.Movements.Count - 1)
+                    {
+                        var nextNestedMovement = lastDifficultyObject.Movements[i + 1];
+                        nextNestedMovement.Start = nestedMovement.Start;
+                        nextNestedMovement.StartTime = nestedMovement.StartTime;
+                        nextNestedMovement.StartRadius = nestedMovement.StartRadius;
+                    }
 
                     movementsToRemove.Add(nestedMovement);
                 }
