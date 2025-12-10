@@ -193,7 +193,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 acuteAngleBonus *= 0.5;
                 velocityChangeBonus *= 0.5;
                 wiggleBonus *= 0.5;
-                wideAngleBonus *= 0.5;
+                wideAngleBonus *= 0.25;
             }
 
             aimStrain += wiggleBonus * wiggle_multiplier;

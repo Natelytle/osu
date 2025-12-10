@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double currentStrain;
         private double lastStrain;
 
-        private double skillMultiplier => 26.4;
+        private double skillMultiplier => 26.8;
         private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -42,12 +42,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override IEnumerable<ObjectStrain> StrainValuesAt(DifficultyHitObject current)
         {
-            var osuCurrent = (OsuDifficultyHitObject)current;
-
-            double previousTime = osuCurrent.PreviousMovement?.StartTime ?? current.Previous(0)?.StartTime ?? 0;
             lastStrain = currentStrain;
 
+            var osuCurrent = (OsuDifficultyHitObject)current;
+
             var firstMovement = osuCurrent.Movements[0];
+            double previousTime = firstMovement.StartTime;
+
             double firstMovementDifficulty = AimEvaluator.EvaluateDifficultyOfMovement(current, firstMovement) * skillMultiplier;
 
             currentStrain *= strainDecay(firstMovement.Time);
@@ -55,12 +56,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             yield return new ObjectStrain
             {
-                Time = current.StartTime,
+                Time = firstMovement.EndTime,
                 PreviousTime = previousTime,
                 Value = currentStrain,
             };
 
-            previousTime = firstMovement.StartTime;
+            previousTime = firstMovement.EndTime;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
@@ -71,7 +72,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             for (int i = 1; i < osuCurrent.Movements.Count; i++)
             {
-                lastStrain = Math.Max(movementStrain, currentStrain);
+                lastStrain = movementStrain;
 
                 var movement = osuCurrent.Movements[i];
 
@@ -79,12 +80,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
                 if (IncludeSliders && movement.IsNested)
                 {
-                    double ratioMultiplier = Math.Pow(Math.Pow(1 - osuCurrent.PathLengthToMovementLengthRatio, 2) + 1, 1.2);
-                    difficulty = AimEvaluator.EvaluateDifficultyOfMovement(current, movement) * skillMultiplier * 3.0 * ratioMultiplier;
+                    double ratioMultiplier = Math.Pow(Math.Pow(1 - osuCurrent.PathLengthToMovementLengthRatio, 1) + 1, 1.0);
+                    difficulty = AimEvaluator.EvaluateDifficultyOfMovement(current, movement) * skillMultiplier * 3.5 * ratioMultiplier;
                 }
 
                 currentStrain *= strainDecay(movement.Time);
-                movementStrain = getCurrentStrainValue(movement.StartTime, previousStrains) * 1.5;
+                movementStrain = getCurrentStrainValue(movement.StartTime, previousStrains);
 
                 double totalMovementStrain = difficulty + movementStrain;
 
@@ -102,8 +103,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
                 previousTime = movement.StartTime;
             }
-
-            currentStrain = Math.Max(movementStrain, currentStrain);
         }
 
         private const double backwards_strain_influence = 1000;
