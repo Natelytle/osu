@@ -8,7 +8,6 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
-using osu.Game.Rulesets.Osu.Mods;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -17,12 +16,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Flashlight : StrainSkill
     {
-        private readonly bool hasHiddenMod;
-
         public Flashlight(Mod[] mods)
             : base(mods)
         {
-            hasHiddenMod = mods.Any(m => m is OsuModHidden);
         }
 
         private double skillMultiplier => 0.05512;
@@ -40,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             lastStrain = currentStrain;
 
             currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += FlashlightEvaluator.EvaluateDifficultyOf(current, hasHiddenMod) * skillMultiplier;
+            currentStrain += FlashlightEvaluator.EvaluateDifficultyOf(current, Mods) * skillMultiplier;
 
             yield return new ObjectStrain
             {
