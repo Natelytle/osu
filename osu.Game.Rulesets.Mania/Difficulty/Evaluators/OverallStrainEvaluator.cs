@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 // We give a slight bonus to everything if something is held meanwhile
                 if (Precision.DefinitelyBigger(maniaPrevious.EndTime, endTime, 1) &&
                     Precision.DefinitelyBigger(startTime, maniaPrevious.StartTime, 1))
-                    holdFactor = 1.25;
+                    holdFactor = constants.OverallHoldFactorMultiplier;
 
                 closestEndTime = Math.Min(closestEndTime, Math.Abs(endTime - maniaPrevious.EndTime));
             }
@@ -55,7 +55,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (isOverlapping)
                 holdAddition = DifficultyCalculationUtils.Logistic(x: closestEndTime, multiplier: 0.27, midpointOffset: release_threshold);
 
-            return (1 + holdAddition) * holdFactor;
+            return (1 + holdAddition) * holdFactor * constants.OverallStrainScale;
         }
     }
 }

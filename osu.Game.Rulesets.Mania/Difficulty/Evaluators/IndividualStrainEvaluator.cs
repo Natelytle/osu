@@ -26,12 +26,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 if (Precision.DefinitelyBigger(maniaPrevious.EndTime, endTime, 1) &&
                     Precision.DefinitelyBigger(startTime, maniaPrevious.StartTime, 1))
                 {
-                    holdFactor = 1.25;
+                    holdFactor = constants.IndividualHoldFactorMultiplier;
                     break;
                 }
             }
 
-            return 2.0 * holdFactor;
+            return constants.IndividualStrainScale * holdFactor;
         }
     }
 }
