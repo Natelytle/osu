@@ -21,14 +21,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private int countMiss;
         private double scoreAccuracy;
 
-        public ManiaPerformanceCalculator()
-            : base(new ManiaRuleset())
+        private readonly ManiaDifficultyConstants fallbackConstants;
+
+        public ManiaPerformanceCalculator(ManiaDifficultyConstants? constants = null)
+            : base(new ManiaRuleset(constants))
         {
+            fallbackConstants = constants ?? ManiaDifficultyConstants.Default;
         }
 
         protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
         {
             var maniaAttributes = (ManiaDifficultyAttributes)attributes;
+            var tuning = maniaAttributes.Constants ?? fallbackConstants;
 
             countPerfect = score.Statistics.GetValueOrDefault(HitResult.Perfect);
             countGreat = score.Statistics.GetValueOrDefault(HitResult.Great);

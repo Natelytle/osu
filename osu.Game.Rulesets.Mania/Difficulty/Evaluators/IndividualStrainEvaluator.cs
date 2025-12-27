@@ -9,7 +9,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class IndividualStrainEvaluator
     {
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             var maniaCurrent = (ManiaDifficultyHitObject)current;
             double startTime = maniaCurrent.StartTime;

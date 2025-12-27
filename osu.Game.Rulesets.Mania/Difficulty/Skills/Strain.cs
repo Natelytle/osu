@@ -22,11 +22,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private double highestIndividualStrain;
         private double overallStrain;
 
-        public Strain(Mod[] mods, int totalColumns)
+        private readonly ManiaDifficultyConstants constants;
+
+        public Strain(Mod[] mods, ManiaDifficultyConstants constants, int totalColumns)
             : base(mods)
         {
             individualStrains = new double[totalColumns];
             overallStrain = 1;
+            this.constants = constants;
         }
 
         protected override double StrainValueOf(DifficultyHitObject current)
@@ -34,14 +37,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             var maniaCurrent = (ManiaDifficultyHitObject)current;
 
             individualStrains[maniaCurrent.Column] = applyDecay(individualStrains[maniaCurrent.Column], maniaCurrent.ColumnStrainTime, individual_decay_base);
-            individualStrains[maniaCurrent.Column] += IndividualStrainEvaluator.EvaluateDifficultyOf(current);
+            individualStrains[maniaCurrent.Column] += IndividualStrainEvaluator.EvaluateDifficultyOf(current, constants);
 
             // Take the hardest individualStrain for notes that happen at the same time (in a chord).
             // This is to ensure the order in which the notes are processed does not affect the resultant total strain.
             highestIndividualStrain = maniaCurrent.DeltaTime <= 1 ? Math.Max(highestIndividualStrain, individualStrains[maniaCurrent.Column]) : individualStrains[maniaCurrent.Column];
 
             overallStrain = applyDecay(overallStrain, maniaCurrent.DeltaTime, overall_decay_base);
-            overallStrain += OverallStrainEvaluator.EvaluateDifficultyOf(current);
+            overallStrain += OverallStrainEvaluator.EvaluateDifficultyOf(current, constants);
 
             // By subtracting CurrentStrain, this skill effectively only considers the maximum strain of any one hitobject within each strain section.
             return highestIndividualStrain + overallStrain - CurrentStrain;

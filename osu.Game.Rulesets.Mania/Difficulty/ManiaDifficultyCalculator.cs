@@ -28,12 +28,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private readonly bool isForCurrentRuleset;
 
+        private readonly ManiaDifficultyConstants constants;
+
         public override int Version => 20241007;
 
-        public ManiaDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
+        public ManiaDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap, ManiaDifficultyConstants? constants = null)
             : base(ruleset, beatmap)
         {
             isForCurrentRuleset = beatmap.BeatmapInfo.Ruleset.MatchesOnlineID(ruleset);
+            this.constants = constants ?? ManiaDifficultyConstants.Default;
         }
 
         protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
@@ -49,6 +52,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 StarRating = skills.OfType<Strain>().Single().DifficultyValue() * difficulty_multiplier,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
+                Constants = constants
             };
 
             return attributes;
@@ -90,7 +94,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new Strain(mods, ((ManiaBeatmap)Beatmap).TotalColumns)
+            new Strain(mods, constants, ((ManiaBeatmap)Beatmap).TotalColumns)
         };
 
         protected override Mod[] DifficultyAdjustmentMods

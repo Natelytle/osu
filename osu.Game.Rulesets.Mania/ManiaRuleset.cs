@@ -45,6 +45,18 @@ namespace osu.Game.Rulesets.Mania
 {
     public class ManiaRuleset : Ruleset, ILegacyRuleset
     {
+        public ManiaDifficultyConstants DifficultyConstants { get; }
+
+        public ManiaRuleset()
+        {
+            DifficultyConstants = ManiaDifficultyConstants.Default;
+        }
+
+        public ManiaRuleset(ManiaDifficultyConstants? constants = null)
+        {
+            DifficultyConstants = constants ?? ManiaDifficultyConstants.Default;
+        }
+
         /// <summary>
         /// The maximum number of supported keys in a single stage.
         /// </summary>
@@ -57,8 +69,6 @@ namespace osu.Game.Rulesets.Mania
         public override HealthProcessor CreateHealthProcessor(double drainStartTime) => new ManiaHealthProcessor(drainStartTime);
 
         public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new ManiaBeatmapConverter(beatmap, this);
-
-        public override PerformanceCalculator CreatePerformanceCalculator() => new ManiaPerformanceCalculator();
 
         public const string SHORT_NAME = "mania";
 
@@ -315,7 +325,9 @@ namespace osu.Game.Rulesets.Mania
 
         public override Drawable CreateIcon() => new SpriteIcon { Icon = OsuIcon.RulesetMania };
 
-        public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new ManiaDifficultyCalculator(RulesetInfo, beatmap);
+        public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new ManiaDifficultyCalculator(RulesetInfo, beatmap, DifficultyConstants);
+
+        public override PerformanceCalculator CreatePerformanceCalculator() => new ManiaPerformanceCalculator(DifficultyConstants);
 
         public int LegacyID => 3;
 

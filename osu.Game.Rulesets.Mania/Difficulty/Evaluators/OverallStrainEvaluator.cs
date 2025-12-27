@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     {
         private const double release_threshold = 30;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             var maniaCurrent = (ManiaDifficultyHitObject)current;
             double startTime = maniaCurrent.StartTime;
