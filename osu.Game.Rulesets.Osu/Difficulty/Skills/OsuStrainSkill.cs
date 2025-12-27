@@ -23,9 +23,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// </summary>
         protected virtual double ReducedStrainBaseline => 0.75;
 
-        protected OsuStrainSkill(Mod[] mods)
-            : base(mods)
+        protected OsuDifficultyTuning Tuning { get; }
+
+        protected OsuStrainSkill(Mod[] mods, OsuDifficultyTuning tuning) : base(mods)
         {
+            Tuning = tuning;
         }
 
         public override double DifficultyValue()
@@ -57,6 +59,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return difficulty;
         }
 
-        public static double DifficultyToPerformance(double difficulty) => Math.Pow(5.0 * Math.Max(1.0, difficulty / 0.0675) - 4.0, 3.0) / 100000.0;
+        public static double DifficultyToPerformance(double difficulty) => 4.0 * Math.Pow(difficulty, 3.0);
     }
 }

@@ -19,8 +19,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuPerformanceCalculator : PerformanceCalculator
     {
-        public const double PERFORMANCE_BASE_MULTIPLIER = 1.14; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
+        public const double PERFORMANCE_BASE_MULTIPLIER = 1.12; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
+        public const double PERFORMANCE_NORM_EXPONENT = 1.1;
 
+        private readonly OsuDifficultyTuning fallbackTuning;
         private bool usingClassicSliderAccuracy;
         private bool usingScoreV2;
 
@@ -50,22 +52,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double greatHitWindow;
         private double okHitWindow;
         private double mehHitWindow;
+
         private double overallDifficulty;
         private double approachRate;
+        private double drainRate;
 
         private double? speedDeviation;
 
         private double aimEstimatedSliderBreaks;
         private double speedEstimatedSliderBreaks;
 
-        public OsuPerformanceCalculator()
-            : base(new OsuRuleset())
+        public OsuPerformanceCalculator(OsuDifficultyTuning? tuning = null)
+            : base(new OsuRuleset(tuning))
         {
+            fallbackTuning = tuning ?? OsuDifficultyTuning.Default;
         }
 
         protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
         {
             var osuAttributes = (OsuDifficultyAttributes)attributes;
+            var tuning = osuAttributes.Tuning ?? fallbackTuning;
 
             usingClassicSliderAccuracy = score.Mods.OfType<OsuModClassic>().Any(m => m.NoSliderHeadAccuracy.Value);
             usingScoreV2 = score.Mods.Any(m => m is ModScoreV2);
@@ -95,11 +101,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             approachRate = OsuDifficultyCalculator.CalculateRateAdjustedApproachRate(difficulty.ApproachRate, clockRate);
             overallDifficulty = OsuDifficultyCalculator.CalculateRateAdjustedOverallDifficulty(difficulty.OverallDifficulty, clockRate);
+            drainRate = difficulty.DrainRate;
 
             double comboBasedEstimatedMissCount = calculateComboBasedEstimatedMissCount(osuAttributes);
             double? scoreBasedEstimatedMissCount = null;
 
-            if (usingClassicSliderAccuracy && score.LegacyTotalScore != null)
+            if (usingClassicSliderAccuracy && !usingScoreV2 && score.LegacyTotalScore != null)
             {
                 var legacyScoreMissCalculator = new OsuLegacyScoreMissCalculator(score, osuAttributes);
                 scoreBasedEstimatedMissCount = legacyScoreMissCalculator.Calculate();
@@ -137,18 +144,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             speedDeviation = calculateSpeedDeviation(osuAttributes);
 
-            double aimValue = computeAimValue(score, osuAttributes);
-            double speedValue = computeSpeedValue(score, osuAttributes);
-            double accuracyValue = computeAccuracyValue(score, osuAttributes);
-            double flashlightValue = computeFlashlightValue(score, osuAttributes);
+            double aimValue = computeAimValue(score, osuAttributes) * tuning.AimPerformanceScale;
+            double speedValue = computeSpeedValue(score, osuAttributes) * tuning.SpeedPerformanceScale;
+            double accuracyValue = computeAccuracyValue(score, osuAttributes) * tuning.AccuracyPerformanceScale;
+            double flashlightValue = computeFlashlightValue(score, osuAttributes) * tuning.FlashlightPerformanceScale;
 
-            double totalValue =
-                Math.Pow(
-                    Math.Pow(aimValue, 1.1) +
-                    Math.Pow(speedValue, 1.1) +
-                    Math.Pow(accuracyValue, 1.1) +
-                    Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
-                ) * multiplier;
+            double totalValue = DifficultyCalculationUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, flashlightValue) * multiplier * tuning.TotalPerformanceScale;
 
             return new OsuPerformanceAttributes
             {
@@ -162,7 +163,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimEstimatedSliderBreaks = aimEstimatedSliderBreaks,
                 SpeedEstimatedSliderBreaks = speedEstimatedSliderBreaks,
                 SpeedDeviation = speedDeviation,
-                Total = totalValue
+                Total = totalValue,
+                Tuning = tuning
             };
         }
 
@@ -211,7 +213,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
             if (score.Mods.Any(m => m is OsuModBlinds))
-                aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
+                aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * drainRate * drainRate);
             else if (score.Mods.Any(m => m is OsuModTraceable))
             {
                 aimValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(score.Mods, approachRate, sliderFactor: attributes.SliderFactor);
