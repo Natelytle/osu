@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
@@ -74,6 +75,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
+
+        [JsonProperty("aim_penalty_constants")]
+        public Polynomial AimMissPenaltyCurve { get; set; }
 
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }
