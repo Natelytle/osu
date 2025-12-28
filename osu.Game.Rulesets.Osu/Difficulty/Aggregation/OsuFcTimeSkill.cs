@@ -204,12 +204,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// Calculates the number of strains weighted against the top strain.
         /// The result is scaled by clock rate as it affects the total number of strains.
         /// </summary>
-        public virtual double CountTopWeightedStrains()
+        public virtual double CountTopWeightedStrains(double difficultyValue)
         {
             if (difficulties.Count == 0)
                 return 0.0;
 
-            double consistentTopStrain = DifficultyValue() / 10; // What would the top strain be if all strain values were identical
+            // What would the top strain be if all strain values were identical.
+            // We don't have decay weight in FC time, so we just use the old live one of 0.95.
+            double consistentTopStrain = difficultyValue * (1 - 0.95);
 
             if (consistentTopStrain == 0)
                 return difficulties.Count;

@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += FlashlightEvaluator.EvaluateDifficultyOf(current, tuning) * skillMultiplier * tuning.FlashlightSkillStrainScale;
+            currentStrain += FlashlightEvaluator.EvaluateDifficultyOf(current, Mods, tuning) * skillMultiplier * tuning.FlashlightSkillStrainScale;
 
             return currentStrain;
         }
