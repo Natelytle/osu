@@ -73,6 +73,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return Math.Pow(values.Select(x => Math.Pow(x, exponent)).Sum(), 1.0 / exponent);
         }
 
-        public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
+        public double CountTopWeightedSliders(double difficultyValue)
+            => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, difficultyValue);
     }
 }
