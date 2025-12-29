@@ -27,31 +27,29 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
         private const double epsilon = 1e-4;
 
-        private readonly List<double> difficulties = new List<double>();
-
         /// <summary>
         /// Returns the strain value at <see cref="DifficultyHitObject"/>. This value is calculated with or without respect to previous objects.
         /// </summary>
         protected abstract double StrainValueAt(DifficultyHitObject current);
 
-        public override void Process(DifficultyHitObject current)
+        protected override double ProcessInternal(DifficultyHitObject current)
         {
-            difficulties.Add(StrainValueAt(current));
+            return StrainValueAt(current);
         }
 
         protected abstract double HitProbability(double skill, double difficulty);
 
         public override double DifficultyValue()
         {
-            if (difficulties.Count == 0 || difficulties.Max() <= epsilon)
+            if (ObjectDifficulties.Count == 0 || ObjectDifficulties.Max() <= epsilon)
                 return 0;
 
             // We only initialize bins if we have enough notes to use them.
             List<Bin>? binList = null;
 
-            if (difficulties.Count > bin_threshold_note_count)
+            if (ObjectDifficulties.Count > bin_threshold_note_count)
             {
-                binList = Bin.CreateBins(difficulties, difficulty_bin_count);
+                binList = Bin.CreateBins(ObjectDifficulties, difficulty_bin_count);
             }
 
             // Lower bound and upper bound are generally unimportant
@@ -75,7 +73,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             }
             else
             {
-                foreach (double difficulty in difficulties)
+                foreach (double difficulty in ObjectDifficulties)
                 {
                     fcProbability *= HitProbability(skill, difficulty);
                 }
@@ -95,12 +93,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             Polynomial missPenaltyCurve = new Polynomial();
 
             // If there are no notes, we just return the polynomial with all coefficients 0.
-            if (difficulties.Count == 0 || difficulties.Max() == 0)
+            if (ObjectDifficulties.Count == 0 || ObjectDifficulties.Max() == 0)
                 return missPenaltyCurve;
 
             double fcSkill = DifficultyValue();
 
-            var bins = Bin.CreateBins(difficulties, difficulty_bin_count);
+            var bins = Bin.CreateBins(ObjectDifficulties, difficulty_bin_count);
 
             foreach (double skillProportion in Polynomial.SKILL_PROPORTIONS)
             {
@@ -126,14 +124,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// </summary>
         private double getMissCountAtSkill(double skill, List<Bin> bins)
         {
-            double maxDiff = difficulties.Max();
+            double maxDiff = ObjectDifficulties.Max();
 
             if (maxDiff == 0)
                 return 0;
             if (skill <= 0)
-                return difficulties.Count;
+                return ObjectDifficulties.Count;
 
-            var poiBin = difficulties.Count > bin_threshold_note_count ? new PoissonBinomial(bins, skill, HitProbability) : new PoissonBinomial(difficulties, skill, HitProbability);
+            var poiBin = ObjectDifficulties.Count > bin_threshold_note_count ? new PoissonBinomial(bins, skill, HitProbability) : new PoissonBinomial(ObjectDifficulties, skill, HitProbability);
 
             return Math.Max(0, RootFinding.FindRootExpand(x => poiBin.CDF(x) - probability_threshold, -50, 1000, accuracy: 1e-4));
         }
@@ -144,7 +142,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// </summary>
         public virtual double CountTopWeightedStrains(double difficultyValue)
         {
-            if (difficulties.Count == 0)
+            if (ObjectDifficulties.Count == 0)
                 return 0.0;
 
             // What would the top strain be if all strain values were identical.
@@ -152,10 +150,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             double consistentTopStrain = difficultyValue * (1 - 0.95);
 
             if (consistentTopStrain == 0)
-                return difficulties.Count;
+                return ObjectDifficulties.Count;
 
             // Use a weighted sum of all strains. Constants are arbitrary and give nice values
-            return difficulties.Sum(s => 1.1 / (1 + Math.Exp(-10 * (s / consistentTopStrain - 0.88))));
+            return ObjectDifficulties.Sum(s => 1.1 / (1 + Math.Exp(-10 * (s / consistentTopStrain - 0.88))));
         }
     }
 }
