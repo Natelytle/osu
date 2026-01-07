@@ -8,6 +8,7 @@ using osu.Framework.Allocation;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Edit.Tools;
+using osu.Game.Rulesets.Mania.Difficulty.Editor;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Mods;
@@ -51,6 +52,15 @@ namespace osu.Game.Rulesets.Mania.Edit
             new NoteCompositionTool(),
             new HoldNoteCompositionTool()
         };
+
+        [BackgroundDependencyLoader]
+        private void load(Editor editor)
+        {
+            // ========== PP EDITOR ==========
+            // Add the difficulty evaluator inspector the osu! ruleset
+            RightToolbox.Add(new ManiaDifficultyEvaluatorInspector());
+            // ========== PP EDITOR ==========
+        }
 
         public override string ConvertSelectionToString()
             => string.Join(',', EditorBeatmap.SelectedHitObjects.Cast<ManiaHitObject>().OrderBy(h => h.StartTime).Select(h => $"{h.StartTime}|{h.Column}"));

@@ -42,30 +42,30 @@ namespace osu.Game.Rulesets.Difficulty.Editor
                 }
             }, TaskCreationOptions.LongRunning);
 
-            Task.Factory.StartNew(async () =>
-            {
-                while (true)
-                {
-                    if (!editor.CalculateDifficultyAttributes.Value)
-                        continue;
-
-                    //long start = Stopwatch.GetTimestamp();
-                    IBeatmap clonedBeatmap = DifficultyEditorUtils.CloneBeatmap(editorBeatmap.PlayableBeatmap);
-                    DifficultyCalculator diffCalc = ruleset.CreateDifficultyCalculator(new FlatWorkingBeatmap(clonedBeatmap));
-                    //long afterClone = Stopwatch.GetTimestamp();
-                    timedDifficultyAttributes = diffCalc.CalculateTimed([], default).ToArray();
-                    //long afterCalc = Stopwatch.GetTimestamp();
-                    //timedDifficultyAttributes = [new TimedDifficultyAttributes(0, new DifficultyAttributes()
-                    //    {
-                    //    StarRating = (afterClone - start) / TimeSpan.TicksPerMillisecond,
-                    //    MaxCombo = (int)((afterCalc - afterClone) / TimeSpan.TicksPerMillisecond)
-                    //})];
-                    await Task.Delay(1000).ConfigureAwait(true);
-                }
-            }, TaskCreationOptions.LongRunning);
+            // Task.Factory.StartNew(async () =>
+            // {
+            //     while (true)
+            //     {
+            //         if (!editor.CalculateDifficultyAttributes.Value)
+            //             continue;
+            //
+            //         //long start = Stopwatch.GetTimestamp();
+            //         IBeatmap clonedBeatmap = DifficultyEditorUtils.CloneBeatmap(editorBeatmap.PlayableBeatmap);
+            //         DifficultyCalculator diffCalc = ruleset.CreateDifficultyCalculator(new FlatWorkingBeatmap(clonedBeatmap));
+            //         //long afterClone = Stopwatch.GetTimestamp();
+            //         timedDifficultyAttributes = diffCalc.CalculateTimed([], default).ToArray();
+            //         //long afterCalc = Stopwatch.GetTimestamp();
+            //         //timedDifficultyAttributes = [new TimedDifficultyAttributes(0, new DifficultyAttributes()
+            //         //    {
+            //         //    StarRating = (afterClone - start) / TimeSpan.TicksPerMillisecond,
+            //         //    MaxCombo = (int)((afterCalc - afterClone) / TimeSpan.TicksPerMillisecond)
+            //         //})];
+            //         await Task.Delay(1000).ConfigureAwait(true);
+            //     }
+            // }, TaskCreationOptions.LongRunning);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Returns the "current" difficulty hit object (DHO), which is either:<br/>
         /// 1. The DHO corresponding to the currently selected hit object, if only one object is selected<br/>
         /// 2. The last difficulty hit object from the point of the cursor position in the editor timeline (or null if there's none)<br/><br/>
@@ -84,7 +84,7 @@ namespace osu.Game.Rulesets.Difficulty.Editor
             return difficultyHitObjects.LastOrDefault(x => x.StartTime <= editorClock.CurrentTime);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Returns the most recent timed difficulty attributes (TDA) at the time X, with X being either:<br/>
         /// 1. The *end time* of the currently selected hit object (thus including it, since TDAs are always based on the endtime of a hit object)<br/>
         /// 2. The current cursor position in the editor timeline (not including the the latest hit object if the cursor is not past its endtime)<br/>

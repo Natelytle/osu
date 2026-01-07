@@ -2,10 +2,16 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.UserInterface;
+using osu.Game.Graphics.UserInterface;
+using osu.Game.Rulesets.Difficulty.Editor;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Edit;
+using osu.Game.Rulesets.Mania.Difficulty.Editor;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Screens.Edit.Compose.Components;
@@ -16,6 +22,9 @@ namespace osu.Game.Rulesets.Mania.Edit
     {
         [Resolved]
         private HitObjectComposer composer { get; set; } = null!;
+
+        [Resolved]
+        private EditorDifficultyProvider difficultyProvider { get; set; } = null!;
 
         protected override void OnSelectionChanged()
         {
@@ -136,6 +145,24 @@ namespace osu.Game.Rulesets.Mania.Edit
             // thus, ensure that selection is preserved manually.
             EditorBeatmap.SelectedHitObjects.Clear();
             EditorBeatmap.SelectedHitObjects.AddRange(selectedObjects);
+        }
+
+        protected override IEnumerable<MenuItem> GetContextMenuItemsForSelection(IEnumerable<SelectionBlueprint<HitObject>> selection)
+        {
+            // ========== PP EDITOR ==========
+            // Add context menu items for debugging a specific difficulty hit object in different evaluators
+            if (selection.Count() == 1)
+            {
+                DifficultyHitObject? difficultyHitObject = difficultyProvider.FromBaseObject(selection.Single().Item);
+                if (difficultyHitObject is not null)
+                    yield return new OsuMenuItem("Debug Evaluator", MenuItemType.Highlighted)
+                    {
+                        Items = ManiaEvaluatorDebugger.Evaluators
+                                                    .Select(x => new OsuMenuItem(x.Name, MenuItemType.Standard, () => ManiaEvaluatorDebugger.DebugObject(x, difficultyHitObject)))
+                                                    .ToArray()
+                    };
+            }
+            // ========== PP EDITOR ==========
         }
     }
 }
