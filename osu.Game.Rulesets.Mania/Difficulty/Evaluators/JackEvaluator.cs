@@ -11,8 +11,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class JackEvaluator
     {
-        private static readonly double extra_column_strain_multiplier = 0.04;
-        private static readonly double gap_multiplier_norm = 2.0;
+        private const double extra_column_strain_multiplier = 0.04;
+        private const double gap_multiplier_norm = 2.0;
+        private const double grace_tolerance = 50;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -23,41 +24,73 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             foreach (List<ManiaDifficultyHitObject> surroundingColumn in maniaCurr.SurroundingNotes)
             {
-                double columnStaminaDifficulty = 0;
-                double columnGapDifficulty = 0;
-
-                foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
-                {
-                    // We adjust for the offset between the surrounding note and the current note.
-                    // 0 when the offset is equal to strainTime, so we don't pick up difficulty from the next or prev chord.
-                    double offsetMultiplier = DifficultyCalculationUtils.SmoothstepBellCurve(maniaSurr.StartTime, maniaCurr.StartTime, maniaCurr.ColumnStrainTime / 2.0);
-
-                    if (offsetMultiplier == 0)
-                        continue;
-
-                    double surrObjStrainDifficulty = timeWeightFunc(maniaSurr.ColumnStrainTime) * offsetMultiplier;
-
-                    columnStaminaDifficulty = Math.Max(columnStaminaDifficulty, surrObjStrainDifficulty);
-
-                    // Account for gaps in chords by checking the ratio of columnStrainTimes.
-                    // We only care if the current note has the gap, don't reward for others having gaps.
-                    double surrObjUnevenness = maniaSurr.ColumnStrainTime > 0 ? Math.Clamp(maniaCurr.ColumnStrainTime / maniaSurr.ColumnStrainTime, 1, 3) - 1 : 0;
-
-                    // Let the value go to zero as the gap length increases further from 2, since we only reward a gap if the gap didn't exist 2 chords ago.
-                    surrObjUnevenness = Math.Min(surrObjUnevenness, 2 - surrObjUnevenness) * offsetMultiplier;
-
-                    columnGapDifficulty = Math.Max(columnGapDifficulty, surrObjUnevenness);
-                }
-
-                // Harsh multiplier
-                strainDifficulty += columnStaminaDifficulty * extra_column_strain_multiplier;
-                gapMultiplier = DifficultyCalculationUtils.Norm(gap_multiplier_norm, gapMultiplier, columnGapDifficulty);
+                strainDifficulty += evaluateColumnStamina(maniaCurr, surroundingColumn) * extra_column_strain_multiplier;
+                gapMultiplier = DifficultyCalculationUtils.Norm(gap_multiplier_norm, gapMultiplier, evaluateColumnGapDifficulty(maniaCurr, surroundingColumn));
             }
 
             return strainDifficulty * gapMultiplier;
         }
 
+        private static double evaluateColumnStamina(ManiaDifficultyHitObject maniaCurr, List<ManiaDifficultyHitObject> surroundingColumn)
+        {
+            double columnStaminaDifficulty = 0;
+
+            foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
+            {
+                double offsetMultiplier = chordWeight(maniaSurr.StartTime, maniaCurr.StartTime);
+
+                if (offsetMultiplier == 0)
+                    continue;
+
+                double surrObjStrainDifficulty = timeWeightFunc(maniaSurr.ColumnStrainTime) * offsetMultiplier;
+
+                columnStaminaDifficulty = Math.Max(columnStaminaDifficulty, surrObjStrainDifficulty);
+            }
+
+            return columnStaminaDifficulty;
+        }
+
+        private static double evaluateColumnGapDifficulty(ManiaDifficultyHitObject maniaCurr, List<ManiaDifficultyHitObject> surroundingColumn)
+        {
+            double columnGapDifficulty = 0;
+
+            foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
+            {
+                double offsetMultiplier = chordWeight(maniaSurr.StartTime, maniaCurr.StartTime);
+
+                // Get the length of the current gap in terms of how many notes back it stretches.
+                double gapNoteLength = maniaSurr.ColumnStrainTime > 0 ? Math.Clamp(maniaCurr.ColumnStrainTime / maniaSurr.ColumnStrainTime, 1, 3) - 1 : 0;
+
+                // Let the value go to zero as the gap length increases further from 2, since we only reward a gap if the gap didn't exist at most 3 chords ago.
+                gapNoteLength = Math.Min(gapNoteLength, 2 - (gapNoteLength + 1) / 2.0) * offsetMultiplier;
+
+                columnGapDifficulty = Math.Max(columnGapDifficulty, gapNoteLength);
+            }
+
+            return columnGapDifficulty;
+        }
+
+        private static double columnDeltaTime(ManiaDifficultyHitObject maniaCurr, List<ManiaDifficultyHitObject> surroundingColumn)
+        {
+            double columnDeltaTime = double.PositiveInfinity;
+
+            foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
+            {
+                double offsetDivisor = chordWeight(maniaSurr.StartTime, maniaCurr.StartTime);
+
+                if (offsetDivisor == 0)
+                    continue;
+
+                // Divide by our offset to effectively inflate the delta time for this column.
+                columnDeltaTime = Math.Max(columnDeltaTime, maniaSurr.StartTime / offsetDivisor);
+            }
+
+            return columnDeltaTime;
+        }
+
         // Around 1 at 150ms (200bpm 1/2, 100bpm 1/4)
-        private static double timeWeightFunc(double columnDeltaTime) => 82 / Math.Pow(columnDeltaTime, 0.88);
+        private static double timeWeightFunc(double columnDeltaTime) => 80 / Math.Pow(columnDeltaTime, 0.88);
+
+        private static double chordWeight(double otherDeltaTime, double currentDeltaTime) => DifficultyCalculationUtils.SmoothstepBellCurve(otherDeltaTime, currentDeltaTime, grace_tolerance);
     }
 }

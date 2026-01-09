@@ -51,7 +51,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 // intentionally depends on processing order to match live.
                 PreviousHitObjects[prev.Column] = prev;
 
-                const double note_position_history_max = 1000;
+                const double note_position_history_max = 50;
 
                 // Collect all previous note positions up to one second ago.
                 while (prev is not null && StartTime - prev.StartTime < note_position_history_max)
