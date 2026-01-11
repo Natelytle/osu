@@ -44,8 +44,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                     // Let the value go to zero as the gap length increases further from 2, since we only reward a gap if the gap didn't exist at most 3 chords ago.
                     columnGapMultiplier = Math.Min(gapNoteLength, 2 - (gapNoteLength + 1) / 2.0) * offsetMultiplier;
-
-                    columnGapMultiplier = Math.Max(columnGapMultiplier, gapNoteLength);
                 }
 
                 totalGapMultiplier = DifficultyCalculationUtils.Norm(gap_multiplier_norm, totalGapMultiplier, columnGapMultiplier);
