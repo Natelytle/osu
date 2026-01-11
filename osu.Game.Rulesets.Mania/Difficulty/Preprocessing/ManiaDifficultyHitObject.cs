@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
@@ -23,6 +24,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public readonly double ColumnStrainTime;
 
+        public readonly Hand NoteHandedness;
+
         public List<ManiaDifficultyHitObject>[] SurroundingNotes;
 
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index)
@@ -34,6 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             columnIndex = perColumnObjects[Column].Count;
             PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
             ColumnStrainTime = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
+            NoteHandedness = Handedness.GetHandednessOf(Column, totalColumns);
             SurroundingNotes = new List<ManiaDifficultyHitObject>[totalColumns];
 
             for (int column = 0; column < totalColumns; column++)
