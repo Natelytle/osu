@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             ManiaDifficultyHitObject maniaCurr = (ManiaDifficultyHitObject)current;
-            double handDelta = meanHandDelta(maniaCurr);
+            double handDelta = HandAdjustedDelta(maniaCurr);
 
             double strainDifficulty = timeWeightFunc(handDelta);
             double gapMultiplier = 1;
@@ -38,7 +38,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
             {
-                double offsetMultiplier = chordDistanceAwayValue(maniaCurr, maniaSurr);
+                double offsetMultiplier = chordMultiplier(maniaCurr, maniaSurr);
 
                 // Get the length of the current gap in terms of how many notes back it stretches.
                 double gapNoteLength = maniaSurr.ColumnStrainTime > 0 ? Math.Clamp(maniaCurr.ColumnStrainTime / maniaSurr.ColumnStrainTime, 1, 3) - 1 : 0;
@@ -52,7 +52,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return columnGapDifficulty;
         }
 
-        private static double meanHandDelta(ManiaDifficultyHitObject maniaCurr)
+        public static double HandAdjustedDelta(ManiaDifficultyHitObject maniaCurr)
         {
             int column = 0;
             double minDeltaTime = double.PositiveInfinity;
@@ -67,7 +67,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                 if (columnInfluence is not 0)
                 {
-                    double columnDeltaTime = getColumnJackDeltaTime(maniaCurr, surroundingColumn);
+                    double columnDeltaTime = column == maniaCurr.Column ? maniaCurr.ColumnStrainTime : getColumnJackDeltaTime(maniaCurr, surroundingColumn);
 
                     if (columnHandedness is not Hand.Ambiguous)
                         minDeltaTime = Math.Min(minDeltaTime, columnDeltaTime);
@@ -83,11 +83,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 return double.PositiveInfinity;
 
             double mean = deltaTimeSum / columnInfluenceSum;
+            double scaledMin = Math.Min(minDeltaTime * Math.Sqrt(mean / minDeltaTime), minDeltaTime * 1.5);
 
-            double scaled = minDeltaTime * Math.Sqrt(mean / minDeltaTime);
-
-            // We don't want to inflate the amount too much if say, a note were 50000000 years ago, so we clamp it and adjust scaling
-            return Math.Max(scaled, minDeltaTime * 1.5);
+            return Math.Min(scaledMin, maniaCurr.ColumnStrainTime);
         }
 
         private static double getColumnJackDeltaTime(ManiaDifficultyHitObject maniaCurr, List<ManiaDifficultyHitObject> column)
@@ -96,22 +94,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             foreach (ManiaDifficultyHitObject maniaSurr in column)
             {
-                double timeDifference = maniaCurr.StartTime - maniaSurr.StartTime;
-                double offsetDivisor = chordDistanceAwayValue(maniaCurr, maniaSurr);
+                double offsetDivisor = 1;
 
-                if (offsetDivisor == 0 || timeDifference < 0)
+                ManiaDifficultyHitObject? surrPrev = maniaSurr.PrevInColumn(0);
+
+                if (surrPrev is not null)
+                {
+                    offsetDivisor = 1 - chordMultiplier(maniaCurr, surrPrev);
+                }
+
+                if (offsetDivisor == 0)
                     continue;
 
-                var surrNext = maniaSurr.NextInColumn(0);
-
-                if (surrNext is not null)
-                {
-                    // Since this is jack deltaTime, we need a next note
-                    timeDifference = Math.Max(timeDifference, surrNext.ColumnStrainTime);
-
-                    // Divide by our offset to effectively inflate the delta time if you're likely to treat it as part of the current chord.
-                    columnDeltaTime = Math.Min(columnDeltaTime, timeDifference / offsetDivisor);
-                }
+                // Divide by our offset to effectively inflate the delta time if you're likely to play the previous column note in the current chord.
+                columnDeltaTime = Math.Min(columnDeltaTime, maniaSurr.ColumnStrainTime / offsetDivisor);
             }
 
             return columnDeltaTime;
@@ -120,13 +116,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         // Around 1 at 150ms (200bpm 1/2, 100bpm 1/4)
         private static double timeWeightFunc(double columnDeltaTime) => 80 / Math.Pow(columnDeltaTime, 0.88);
 
-        private static double chordDistanceAwayValue(ManiaDifficultyHitObject maniaCurr, ManiaDifficultyHitObject maniaSurr)
+        private static double chordMultiplier(ManiaDifficultyHitObject maniaCurr, ManiaDifficultyHitObject maniaSurr)
         {
             // First, we check to make sure there's no note in this surrounding column between us and the current note in time.
             ManiaDifficultyHitObject? surrNext = maniaSurr.NextInColumn(0);
 
             if (surrNext is not null && surrNext.StartTime <= maniaCurr.StartTime)
-                return 1;
+                return 0;
 
             // If not, we weight it by how close our notes are in time.
             return DifficultyCalculationUtils.SmoothstepBellCurve(maniaCurr.StartTime, maniaSurr.StartTime, grace_tolerance);

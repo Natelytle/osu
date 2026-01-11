@@ -3,6 +3,7 @@
 
 using osu.Game.Rulesets.Difficulty.Editor;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Editor
 {
@@ -10,6 +11,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Editor
     {
         protected override Evaluator[] Evaluators => [
             new("Jack", obj => JackEvaluator.EvaluateDifficultyOf(obj)),
+            new("Mean Hand Delta", obj => JackEvaluator.HandAdjustedDelta((ManiaDifficultyHitObject)obj)),
         ];
     }
 }

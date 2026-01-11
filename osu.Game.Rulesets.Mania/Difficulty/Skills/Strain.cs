@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            return JackEvaluator.EvaluateDifficultyOf(current) * 29.0;
+            return JackEvaluator.EvaluateDifficultyOf(current) * 17.5;
         }
 
         protected override double CalculateInitialStrain(double offset, DifficultyHitObject current) => 0;

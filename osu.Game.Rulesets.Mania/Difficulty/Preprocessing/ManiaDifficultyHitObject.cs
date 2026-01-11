@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
@@ -45,15 +46,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 SurroundingNotes[column] = new List<ManiaDifficultyHitObject>();
             }
 
+            for (int i = 0; i < perColumnObjects.Length; i++)
+            {
+                var columnObject = (ManiaDifficultyHitObject?)perColumnObjects[i].LastOrDefault();
+
+                if (columnObject is not null)
+                {
+                    // Get the last object before this time in each column.
+                    PreviousHitObjects[i] = columnObject.StartTime == StartTime ? columnObject.PrevInColumn(0) : columnObject;
+                }
+            }
+
             if (index > 0)
             {
                 ManiaDifficultyHitObject? prev = (ManiaDifficultyHitObject?)objects[index - 1];
-
-                for (int i = 0; i < prev!.PreviousHitObjects.Length; i++)
-                    PreviousHitObjects[i] = prev.PreviousHitObjects[i];
-
-                // intentionally depends on processing order to match live.
-                PreviousHitObjects[prev.Column] = prev;
 
                 const double note_position_history_max = 50;
 
