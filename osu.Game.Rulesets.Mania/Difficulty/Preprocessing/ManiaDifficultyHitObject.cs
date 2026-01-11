@@ -27,9 +27,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public readonly Hand NoteHandedness;
 
+        public readonly double MissWindow;
+
         public List<ManiaDifficultyHitObject>[] SurroundingNotes;
 
-        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index)
+        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, double missWindow, int index)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
             int totalColumns = perColumnObjects.Length;
@@ -40,6 +42,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             ColumnStrainTime = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
             NoteHandedness = Handedness.GetHandednessOf(Column, totalColumns);
             SurroundingNotes = new List<ManiaDifficultyHitObject>[totalColumns];
+            MissWindow = missWindow;
 
             for (int column = 0; column < totalColumns; column++)
             {

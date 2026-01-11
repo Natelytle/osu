@@ -80,9 +80,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             for (int column = 0; column < totalColumns; column++)
                 perColumnObjects[column] = new List<DifficultyHitObject>();
 
+            HitWindows hitWindows = new ManiaHitWindows();
+            hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
+
             for (int i = 1; i < sortedObjects.Length; i++)
             {
-                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count);
+                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, hitWindows.WindowFor(HitResult.Miss), objects.Count);
                 objects.Add(currentObject);
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }

@@ -12,9 +12,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class JackEvaluator
     {
-        private const double extra_column_strain_multiplier = 0.04;
         private const double gap_multiplier_norm = 2.0;
         private const double grace_tolerance = 50;
+        private const double ics_tolerance_start_ms = 80;
+        private const double ics_tolerance_end_ms = 280;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -44,6 +45,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                     // Let the value go to zero as the gap length increases further from 2, since we only reward a gap if the gap didn't exist at most 3 chords ago.
                     columnGapMultiplier = Math.Min(gapNoteLength, 2 - (gapNoteLength + 1) / 2.0) * offsetMultiplier;
+
+                    // Nerf the multiplier if the hit window is small enough to allow ICS (hitting all columns)
+                    columnGapMultiplier *= 1 - DifficultyCalculationUtils.Smoothstep(maniaSurr.ColumnStrainTime, maniaCurr.MissWindow + ics_tolerance_start_ms / 10, maniaCurr.MissWindow + ics_tolerance_end_ms / 10);
                 }
 
                 totalGapMultiplier = DifficultyCalculationUtils.Norm(gap_multiplier_norm, totalGapMultiplier, columnGapMultiplier);
