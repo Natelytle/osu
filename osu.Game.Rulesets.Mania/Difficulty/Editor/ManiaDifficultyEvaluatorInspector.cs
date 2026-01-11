@@ -11,7 +11,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Editor
     {
         protected override Evaluator[] Evaluators => [
             new("Jack", obj => JackEvaluator.EvaluateDifficultyOf(obj)),
-            new("Mean Hand Delta", obj => JackEvaluator.HandAdjustedDelta((ManiaDifficultyHitObject)obj)),
+            new("Hand Adjusted Delta", obj => JackEvaluator.HandAdjustedDelta((ManiaDifficultyHitObject)obj)),
+            new("Gap Multiplier", obj => JackEvaluator.GapMultiplier((ManiaDifficultyHitObject)obj)),
         ];
     }
 }

@@ -22,34 +22,36 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double handDelta = HandAdjustedDelta(maniaCurr);
 
             double strainDifficulty = timeWeightFunc(handDelta);
-            double gapMultiplier = 1;
-
-            foreach (List<ManiaDifficultyHitObject> surroundingColumn in maniaCurr.SurroundingNotes)
-            {
-                gapMultiplier = DifficultyCalculationUtils.Norm(gap_multiplier_norm, gapMultiplier, evaluateColumnGapDifficulty(maniaCurr, surroundingColumn));
-            }
+            double gapMultiplier = GapMultiplier(maniaCurr);
 
             return strainDifficulty * gapMultiplier;
         }
 
-        private static double evaluateColumnGapDifficulty(ManiaDifficultyHitObject maniaCurr, List<ManiaDifficultyHitObject> surroundingColumn)
+        public static double GapMultiplier(ManiaDifficultyHitObject maniaCurr)
         {
-            double columnGapDifficulty = 0;
+            double totalGapMultiplier = 1;
 
-            foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
+            foreach (List<ManiaDifficultyHitObject> surroundingColumn in maniaCurr.SurroundingNotes)
             {
-                double offsetMultiplier = chordMultiplier(maniaCurr, maniaSurr);
+                double columnGapMultiplier = 0;
 
-                // Get the length of the current gap in terms of how many notes back it stretches.
-                double gapNoteLength = maniaSurr.ColumnStrainTime > 0 ? Math.Clamp(maniaCurr.ColumnStrainTime / maniaSurr.ColumnStrainTime, 1, 3) - 1 : 0;
+                foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
+                {
+                    double offsetMultiplier = chordMultiplier(maniaCurr, maniaSurr);
 
-                // Let the value go to zero as the gap length increases further from 2, since we only reward a gap if the gap didn't exist at most 3 chords ago.
-                gapNoteLength = Math.Min(gapNoteLength, 2 - (gapNoteLength + 1) / 2.0) * offsetMultiplier;
+                    // Get the length of the current gap in terms of how many notes back it stretches.
+                    double gapNoteLength = maniaSurr.ColumnStrainTime > 0 ? Math.Clamp(maniaCurr.ColumnStrainTime / maniaSurr.ColumnStrainTime, 1, 3) - 1 : 0;
 
-                columnGapDifficulty = Math.Max(columnGapDifficulty, gapNoteLength);
+                    // Let the value go to zero as the gap length increases further from 2, since we only reward a gap if the gap didn't exist at most 3 chords ago.
+                    columnGapMultiplier = Math.Min(gapNoteLength, 2 - (gapNoteLength + 1) / 2.0) * offsetMultiplier;
+
+                    columnGapMultiplier = Math.Max(columnGapMultiplier, gapNoteLength);
+                }
+
+                totalGapMultiplier = DifficultyCalculationUtils.Norm(gap_multiplier_norm, totalGapMultiplier, columnGapMultiplier);
             }
 
-            return columnGapDifficulty;
+            return totalGapMultiplier;
         }
 
         public static double HandAdjustedDelta(ManiaDifficultyHitObject maniaCurr)
