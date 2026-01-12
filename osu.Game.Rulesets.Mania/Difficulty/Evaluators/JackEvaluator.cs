@@ -10,10 +10,13 @@ using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
+    /// <summary>
+    /// The evaluator that deals with patterns of notes that require you to press the same column in quick succession.
+    /// Includes jack, minijack, and chordjacks.
+    /// </summary>
     public class JackEvaluator
     {
         private const double gap_multiplier_norm = 2.0;
-        private const double grace_tolerance = 50;
         private const double ics_tolerance_start_ms = 80;
         private const double ics_tolerance_end_ms = 280;
 
@@ -38,7 +41,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                 foreach (ManiaDifficultyHitObject maniaSurr in surroundingColumn)
                 {
-                    double offsetMultiplier = chordMultiplier(maniaCurr, maniaSurr);
+                    double offsetMultiplier = ManiaDifficultyUtils.ChordProbability(maniaCurr, maniaSurr);
 
                     // Get the length of the current gap in terms of how many notes back it stretches.
                     double gapNoteLength = maniaSurr.ColumnStrainTime > 0 ? Math.Clamp(maniaCurr.ColumnStrainTime / maniaSurr.ColumnStrainTime, 1, 3) - 1 : 0;
@@ -104,7 +107,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
                 if (surrPrev is not null)
                 {
-                    offsetDivisor = 1 - chordMultiplier(maniaCurr, surrPrev);
+                    offsetDivisor = 1 - ManiaDifficultyUtils.ChordProbability(maniaCurr, surrPrev);
                 }
 
                 if (offsetDivisor == 0)
@@ -119,17 +122,5 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         // Around 1 at 150ms (200bpm 1/2, 100bpm 1/4)
         private static double timeWeightFunc(double columnDeltaTime) => 80 / Math.Pow(columnDeltaTime, 0.88);
-
-        private static double chordMultiplier(ManiaDifficultyHitObject maniaCurr, ManiaDifficultyHitObject maniaSurr)
-        {
-            // First, we check to make sure there's no note in this surrounding column between us and the current note in time.
-            ManiaDifficultyHitObject? surrNext = maniaSurr.NextInColumn(0);
-
-            if (surrNext is not null && surrNext.StartTime <= maniaCurr.StartTime)
-                return 0;
-
-            // If not, we weight it by how close our notes are in time.
-            return DifficultyCalculationUtils.SmoothstepBellCurve(maniaCurr.StartTime, maniaSurr.StartTime, grace_tolerance);
-        }
     }
 }

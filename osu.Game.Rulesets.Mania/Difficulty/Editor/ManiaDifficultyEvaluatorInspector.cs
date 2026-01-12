@@ -13,6 +13,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Editor
             new("Jack", obj => JackEvaluator.EvaluateDifficultyOf(obj)),
             new("Hand Adjusted Delta", obj => JackEvaluator.HandAdjustedDelta((ManiaDifficultyHitObject)obj)),
             new("Gap Multiplier", obj => JackEvaluator.GapMultiplier((ManiaDifficultyHitObject)obj)),
+            new("Stream", obj => StreamEvaluator.EvaluateDifficultyOf(obj)),
         ];
     }
 }

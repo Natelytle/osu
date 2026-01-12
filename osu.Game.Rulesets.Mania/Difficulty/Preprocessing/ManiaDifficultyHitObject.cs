@@ -64,10 +64,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             {
                 ManiaDifficultyHitObject? prev = (ManiaDifficultyHitObject?)objects[index - 1];
 
-                const double note_position_history_max = 50;
-
-                // Collect all previous note positions up to one second ago.
-                while (prev is not null && StartTime - prev.StartTime < note_position_history_max)
+                // Collect all previous note positions up to our grace tolerance.
+                while (prev is not null && StartTime - prev.StartTime < ManiaDifficultyUtils.GRACE_TOLERANCE)
                 {
                     SurroundingNotes[prev.Column].Add(prev);
                     prev.SurroundingNotes[Column].Add(this);

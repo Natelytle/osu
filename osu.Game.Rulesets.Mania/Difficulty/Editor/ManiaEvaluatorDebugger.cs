@@ -14,6 +14,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Editor
 
         public static Evaluator[] Evaluators { get; } = [
             new Evaluator("Jack", typeof(JackEvaluator)),
+            new Evaluator("Stream", typeof(StreamEvaluator))
         ];
 
         public static void DebugObject(Evaluator evaluator, DifficultyHitObject obj)
@@ -25,6 +26,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Editor
             {
                 Debugger.Break();
                 JackEvaluator.EvaluateDifficultyOf(obj);
+            }
+            else if (evaluator.Type == typeof(StreamEvaluator))
+            {
+                Debugger.Break();
+                StreamEvaluator.EvaluateDifficultyOf(obj);
             }
         }
     }
