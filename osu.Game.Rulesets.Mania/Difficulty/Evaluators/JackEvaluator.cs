@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
@@ -17,8 +18,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     public class JackEvaluator
     {
         private const double gap_multiplier_norm = 2.0;
-        private const double ics_tolerance_start_ms = 80;
-        private const double ics_tolerance_end_ms = 280;
+        private const double ics_tolerance_start_ms = 8;
+        private const double ics_tolerance_end_ms = 28;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -28,7 +29,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double strainDifficulty = timeWeightFunc(handDelta);
             double gapMultiplier = GapMultiplier(maniaCurr);
 
-            return strainDifficulty * gapMultiplier;
+            return strainDifficulty * gapMultiplier * Strain.JackMultiplier;
         }
 
         public static double GapMultiplier(ManiaDifficultyHitObject maniaCurr)
@@ -47,10 +48,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     double gapNoteLength = maniaSurr.ColumnStrainTime > 0 ? Math.Clamp(maniaCurr.ColumnStrainTime / maniaSurr.ColumnStrainTime, 1, 3) - 1 : 0;
 
                     // Let the value go to zero as the gap length increases further from 2, since we only reward a gap if the gap didn't exist at most 3 chords ago.
-                    columnGapMultiplier = Math.Min(gapNoteLength, 2 - (gapNoteLength + 1) / 2.0) * offsetMultiplier;
+                    double gapMultiplier = Math.Max(0, Math.Min(gapNoteLength, 2 - (gapNoteLength + 1) / 2.0)) * offsetMultiplier;
+
+                    columnGapMultiplier = Math.Max(columnGapMultiplier, gapMultiplier);
 
                     // Nerf the multiplier if the hit window is small enough to allow ICS (hitting all columns)
-                    columnGapMultiplier *= 1 - DifficultyCalculationUtils.Smoothstep(maniaSurr.ColumnStrainTime, maniaCurr.MissWindow + ics_tolerance_start_ms / 10, maniaCurr.MissWindow + ics_tolerance_end_ms / 10);
+                    columnGapMultiplier *= 1 - DifficultyCalculationUtils.Smoothstep(maniaSurr.ColumnStrainTime, maniaCurr.MissWindow + ics_tolerance_start_ms, maniaCurr.MissWindow + ics_tolerance_end_ms);
                 }
 
                 totalGapMultiplier = DifficultyCalculationUtils.Norm(gap_multiplier_norm, totalGapMultiplier, columnGapMultiplier);

@@ -4,59 +4,126 @@
 using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class StreamEvaluator
     {
+        private const double other_hand_penalty = 0.5;
+
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             ManiaDifficultyHitObject maniaCurr = (ManiaDifficultyHitObject)current;
 
-            // We keep a collection of our current chord notes (stored as probabilities to allow for non-discrete chords).
-            double[] currChordProbabilities = collectChordProbabilities(maniaCurr);
+            // Find the previous chord
+            ManiaDifficultyHitObject? maniaPrev = findPreviousChord(maniaCurr);
 
-            ManiaDifficultyHitObject? maniaPrev = (ManiaDifficultyHitObject?)maniaCurr.Previous(0);
-
-            double[]? prevChordProbabilities = null;
-
-            // Ugly control flow
-            while (maniaPrev is not null)
-            {
-                double chordProbability = ManiaDifficultyUtils.ChordProbability(maniaCurr, maniaPrev);
-
-                if (chordProbability == 0 || chordProbability < currChordProbabilities[maniaPrev.Column])
-                {
-                    prevChordProbabilities = collectChordProbabilities(maniaPrev);
-                    break;
-                }
-
-                maniaPrev = (ManiaDifficultyHitObject?)maniaPrev.Previous(0);
-            }
-
-            // These are the same thing but for the linter's sake we check them both
-            if (maniaPrev is null || prevChordProbabilities is null)
+            if (maniaPrev is null)
                 return 0;
 
-            double jackDetectionNerf = 1;
-            double currChordSum = 0;
-            double prevChordSum = 0;
+            // Collect chord information
+            double[] currChordProbabilities = collectChordProbabilities(maniaCurr);
+            double[] prevChordProbabilities = collectChordProbabilities(maniaPrev);
 
-            for (int i = 0; i < currChordProbabilities.Length; i++)
+            // Calculate per-hand difficulty
+            double leftHandDifficulty = calculateHandDifficulty(Hand.Left, maniaCurr, maniaPrev, currChordProbabilities, prevChordProbabilities);
+            double rightHandDifficulty = calculateHandDifficulty(Hand.Right, maniaCurr, maniaPrev, currChordProbabilities, prevChordProbabilities);
+
+            // Nerf the opposite hand to the one we're using to hit this note.
+            if (maniaCurr.NoteHandedness == Hand.Left)
             {
-                double currChordProb = currChordProbabilities[i];
-                double prevChordProb = prevChordProbabilities[i];
-
-                // If we get any overlap it means we don't hit this like a stream - 0 difficulty.
-                jackDetectionNerf *= 1 - currChordProb * prevChordProb;
-
-                currChordSum += currChordProb;
-                prevChordSum += prevChordProb;
+                rightHandDifficulty *= other_hand_penalty;
+            }
+            else if (maniaCurr.NoteHandedness == Hand.Right)
+            {
+                leftHandDifficulty *= other_hand_penalty;
+            }
+            else
+            {
+                // If the hand is ambiguous, apply a half-nerf to both hands.
+                leftHandDifficulty *= Math.Sqrt(other_hand_penalty);
+                rightHandDifficulty *= Math.Sqrt(other_hand_penalty);
             }
 
-            return (Math.Sqrt(currChordSum) + Math.Cbrt(prevChordSum) - 1) * timeWeightFunc(maniaCurr.StartTime - maniaPrev.StartTime) * jackDetectionNerf;
+            return (leftHandDifficulty + rightHandDifficulty) * Strain.StreamMultiplier;
+        }
+
+        private static double calculateHandDifficulty(Hand hand, ManiaDifficultyHitObject currNote, ManiaDifficultyHitObject prevNote, double[] currChordProbs, double[] prevChordProbs)
+        {
+            double jackDetectionNerf = 1;
+            double chordSize = 0;
+
+            for (int i = 0; i < currChordProbs.Length; i++)
+            {
+                Hand columnHand = Handedness.GetHandednessOf(i, currChordProbs.Length);
+                double handFactor = Handedness.GetHandednessFactorOf(hand, columnHand);
+
+                if (handFactor == 0)
+                    continue;
+
+                double currProb = currChordProbs[i] * handFactor;
+                double prevProb = prevChordProbs[i] * handFactor;
+
+                // Jack detection: if this hand hits the same column twice in a row, it's a jack
+                jackDetectionNerf *= 1 - currProb * prevProb;
+
+                chordSize += currProb;
+            }
+
+            double timingDifficulty = Math.Min(timeWeightFunc(currNote.StartTime - prevNote.StartTime), CalculateSpeedCap(currNote));
+
+            return Math.Cbrt(chordSize) * timingDifficulty * jackDetectionNerf;
+        }
+
+        public static double CalculateSpeedCap(ManiaDifficultyHitObject currentNote)
+        {
+            const int history_look_back = 10;
+            const double history_divisor = 12.0;
+            const double min_speedcap_bpm = 150;
+
+            // Walk back through history to find the Nth previous chord
+            ManiaDifficultyHitObject? historicalNote = currentNote;
+            int chordsFound = 0;
+
+            while (historicalNote is not null && chordsFound < history_look_back)
+            {
+                historicalNote = findPreviousChord(historicalNote);
+                if (historicalNote is not null)
+                    chordsFound++;
+            }
+
+            double minSpeedCap = timeWeightFunc(DifficultyCalculationUtils.BPMToMilliseconds(min_speedcap_bpm));
+
+            if (historicalNote is null || chordsFound < history_look_back)
+                return minSpeedCap; // Not enough history, use the minimum
+
+            double historicalDelta = (currentNote.StartTime - historicalNote.StartTime) / history_divisor;
+
+            double speedCapValue = timeWeightFunc(historicalDelta);
+
+            return Math.Max(speedCapValue, minSpeedCap);
+        }
+
+        private static ManiaDifficultyHitObject? findPreviousChord(ManiaDifficultyHitObject currentNote)
+        {
+            double[] currChordProbabilities = collectChordProbabilities(currentNote);
+            ManiaDifficultyHitObject? candidate = (ManiaDifficultyHitObject?)currentNote.Previous(0);
+
+            while (candidate is not null)
+            {
+                double chordProbability = ManiaDifficultyUtils.ChordProbability(currentNote, candidate);
+
+                if (chordProbability == 0 || chordProbability < currChordProbabilities[candidate.Column])
+                    return candidate;
+
+                candidate = (ManiaDifficultyHitObject?)candidate.Previous(0);
+            }
+
+            return null;
         }
 
         private static double[] collectChordProbabilities(ManiaDifficultyHitObject currentNote)
@@ -75,8 +142,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     foreach (ManiaDifficultyHitObject surroundingNote in surroundingColumn)
                     {
                         double chordProbability = ManiaDifficultyUtils.ChordProbability(currentNote, surroundingNote);
-
-                        // We take the note with the highest probability of being a chord note.
                         chordProbabilities[surroundingNote.Column] = Math.Max(chordProbabilities[surroundingNote.Column], chordProbability);
                     }
                 }
@@ -87,6 +152,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return chordProbabilities;
         }
 
-        private static double timeWeightFunc(double columnDeltaTime) => 80 / Math.Pow(columnDeltaTime, 0.88);
+        private static double timeWeightFunc(double deltaTime) => 80 / Math.Pow(deltaTime, 0.88);
     }
 }

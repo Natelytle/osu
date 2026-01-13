@@ -14,6 +14,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Editor
             new("Hand Adjusted Delta", obj => JackEvaluator.HandAdjustedDelta((ManiaDifficultyHitObject)obj)),
             new("Gap Multiplier", obj => JackEvaluator.GapMultiplier((ManiaDifficultyHitObject)obj)),
             new("Stream", obj => StreamEvaluator.EvaluateDifficultyOf(obj)),
+            new("Stream Speed Cap", obj => StreamEvaluator.CalculateSpeedCap((ManiaDifficultyHitObject)obj)),
         ];
     }
 }
