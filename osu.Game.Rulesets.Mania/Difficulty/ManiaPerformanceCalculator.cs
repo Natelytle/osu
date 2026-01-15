@@ -39,7 +39,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
             scoreAccuracy = calculateCustomAccuracy();
 
-            double multiplier = 1.0;
+            double multiplier = 0.622;
 
             if (score.Mods.Any(m => m is ModNoFail))
                 multiplier *= 0.75;
