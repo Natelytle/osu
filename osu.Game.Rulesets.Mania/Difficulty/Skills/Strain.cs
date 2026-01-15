@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
@@ -25,9 +26,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double rescale_high_threshold = 9.0;
         private const double rescale_high_factor = 1.2;
 
-        private double currentStrain;
+        private AccuracyDifficulties currentAccuracyDifficulties = null!;
         private double currentNoteCount;
         private double currentLongNoteWeight;
+
+        private readonly List<AccuracyDifficulties> accuracyDifficultiesList = new List<AccuracyDifficulties>();
 
         public Strain(Mod[] mods)
             : base(mods: mods)
@@ -37,7 +40,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         // Just for visualization
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current)
         {
-            return currentStrain;
+            return currentAccuracyDifficulties.DifficultyAt(0.95);
         }
 
         public override double DifficultyValue()
@@ -55,18 +58,43 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                                    mid_percentile_weight * midPercentileMean +
                                    power_mean_weight * powerMean;
 
-            double weightedNoteCount = getWeightedNoteCount();
+            double weightedNoteCount = GetWeightedNoteCount();
 
             // Short map nerf
             double scaled = rawDifficulty * weightedNoteCount / (weightedNoteCount + 60.0);
 
-            // Adjust high-end star ratings slightly
-            if (scaled > rescale_high_threshold)
-            {
-                scaled = rescale_high_threshold + (scaled - rescale_high_threshold) / rescale_high_factor;
-            }
+            // // Adjust high-end star ratings slightly
+            // if (scaled > rescale_high_threshold)
+            // {
+            //     scaled = rescale_high_threshold + (scaled - rescale_high_threshold) / rescale_high_factor;
+            // }
 
             return scaled;
+        }
+
+        public double SkillAtAccuracy(double accuracy)
+        {
+            accuracy *= 0.996;
+
+            double rawDifficulty = RootFinding.FindRootExpand(x => AccuracyAtSkill(x) - accuracy, 0, ObjectDifficulties.Max());
+
+            return rawDifficulty;
+        }
+
+        public double AccuracyAtSkill(double skill)
+        {
+            // Just so it can find a root at 0 no matter what.
+            if (skill == 0)
+                return -1;
+
+            double accuracySum = 0;
+
+            for (int i = 0; i < accuracyDifficultiesList.Count; i++)
+            {
+                accuracySum += accuracyDifficultiesList[i].AccuracyAt(skill);
+            }
+
+            return accuracySum / accuracyDifficultiesList.Count;
         }
 
         protected override double StrainValueAt(DifficultyHitObject current)
@@ -82,14 +110,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 currentLongNoteWeight += 0.5 * longNoteDuration / 200.0;
             }
 
-            if (prev != null && prev.StartTime == maniaCurrent.StartTime)
-                return currentStrain;
+            if (prev is null || prev.StartTime < maniaCurrent.StartTime)
+                currentAccuracyDifficulties = StrainEvaluator.EvaluateDifficultiesOf(maniaCurrent);
 
-            currentStrain = StrainEvaluator.EvaluateDifficultyOf(maniaCurrent);
-            return currentStrain;
+            accuracyDifficultiesList.Add(currentAccuracyDifficulties);
+
+            return currentAccuracyDifficulties.DifficultyAt(0.98);
         }
 
-        private double getWeightedNoteCount()
+        public double GetWeightedNoteCount()
         {
             return currentNoteCount + currentLongNoteWeight;
         }

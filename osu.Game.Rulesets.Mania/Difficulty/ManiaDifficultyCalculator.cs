@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 0.975;
+        private const double difficulty_multiplier = 1.12;
 
         private readonly bool isForCurrentRuleset;
 
@@ -41,11 +41,39 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             var totalSkill = (Strain)skills.First(s => s is Strain);
 
-            double baseDifficulty = totalSkill.DifficultyValue();
+            double baseDifficulty = totalSkill.SkillAtAccuracy(0.95) * difficulty_multiplier;
+            // double sunnyDifficulty = totalSkill.DifficultyValue() * 0.975;
+
+            double ssDifficulty = totalSkill.SkillAtAccuracy(1);
+            double a9 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.9);
+            double a8 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.8);
+            double a7 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.7);
+            double a6 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.6);
+            double a5 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.5);
+            double a4 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.4);
+            double a3 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.3);
+            double a2 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.2);
+            double a1 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.1);
+
+            double weightedNoteCount = totalSkill.GetWeightedNoteCount();
+            double shortMapNerf = weightedNoteCount / (weightedNoteCount + 60.0);
+
+            double starRating = baseDifficulty * shortMapNerf;
+            double starRatingSS = ssDifficulty * shortMapNerf;
 
             return new ManiaDifficultyAttributes
             {
-                StarRating = baseDifficulty * difficulty_multiplier,
+                StarRating = starRating,
+                StarRatingSS = starRatingSS,
+                AccuracyAt90PercentSkill = a9,
+                AccuracyAt80PercentSkill = a8,
+                AccuracyAt70PercentSkill = a7,
+                AccuracyAt60PercentSkill = a6,
+                AccuracyAt50PercentSkill = a5,
+                AccuracyAt40PercentSkill = a4,
+                AccuracyAt30PercentSkill = a3,
+                AccuracyAt20PercentSkill = a2,
+                AccuracyAt10PercentSkill = a1,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };

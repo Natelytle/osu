@@ -10,7 +10,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         public static double GetDifficultyOf(ManiaDifficultyHitObject current)
         {
             var data = current.DifficultyData;
-            return data.SampleFeatureAtTime(current.StartTime, data.PressingIntensity);
+            double baseDifficulty = data.SampleFeatureAtTime(current.StartTime, data.PressingIntensity);
+
+            return baseDifficulty * 0.8;
         }
     }
 }
