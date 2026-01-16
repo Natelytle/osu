@@ -38,11 +38,11 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// <param name="current">The <see cref="DifficultyHitObject"/> to process.</param>
         public void Process(DifficultyHitObject current)
         {
-            double difficultyValue = ProcessInternal(current);
-            ObjectDifficulties.Add(difficultyValue);
+            double[] difficultyValue = ProcessInternal(current);
+            ObjectDifficulties.AddRange(difficultyValue);
         }
 
-        protected abstract double ProcessInternal(DifficultyHitObject current);
+        protected abstract double[] ProcessInternal(DifficultyHitObject current);
 
         /// <summary>
         /// Returns the calculated difficulty value representing all <see cref="DifficultyHitObject"/>s that have been processed up to this point.

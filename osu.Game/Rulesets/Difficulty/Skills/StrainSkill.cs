@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// <summary>
         /// Process a <see cref="DifficultyHitObject"/> and update current strain values accordingly.
         /// </summary>
-        protected sealed override double ProcessInternal(DifficultyHitObject current)
+        protected sealed override double[] ProcessInternal(DifficultyHitObject current)
         {
             var objectStrains = StrainValuesAt(current).ToArray();
 
@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
             }
 
             // Store the strain value for the object
-            return objectStrains.Select(x => x.Value).Max();
+            return objectStrains.Select(x => x.Value).ToArray();
         }
 
         private void checkCurrentSection(ObjectStrain objectStrain)

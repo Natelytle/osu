@@ -39,8 +39,8 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// </summary>
         protected abstract double ObjectDifficultyOf(DifficultyHitObject current);
 
-        protected sealed override double ProcessInternal(DifficultyHitObject current)
-            => ObjectDifficultyOf(current);
+        protected sealed override double[] ProcessInternal(DifficultyHitObject current)
+            => [ObjectDifficultyOf(current)];
 
         /// <summary>
         /// Transforms the object difficulties specifically for final difficulty summation.
