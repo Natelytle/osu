@@ -1,8 +1,6 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
-using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
@@ -10,47 +8,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public class StrainEvaluator
     {
+        private const double combined_multiplier = 0.27;
+        private const double combined_exponent = 2.0 / 3.0;
+
+        // Combines all of the values from the evaluators into one resultant value.
         public static AccuracyDifficulties EvaluateDifficultiesOf(ManiaDifficultyHitObject current)
         {
-            AccuracyDifficulties jackDifficulties = new AccuracyDifficulties(JackEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Lenient);
-            AccuracyDifficulties pressingDifficulties = new AccuracyDifficulties(PressingIntensityEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Lenient);
-            AccuracyDifficulties crossColumnDifficulties = new AccuracyDifficulties(CrossColumnEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Harsh);
-            AccuracyDifficulties releaseDifficulties = new AccuracyDifficulties(ReleaseEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Harsh);
+            AccuracyDifficulties jackDifficulties = JackEvaluator.EvaluateDifficultiesOf(current);
+            AccuracyDifficulties densityDifficulties = DensityEvaluator.EvaluateDifficultiesOf(current);
+            AccuracyDifficulties streamDifficulties = StreamEvaluator.EvaluateDifficultiesOf(current, jackDifficulties, densityDifficulties);
 
-            double unevenness = UnevennessEvaluator.GetValueOf(current);
-            double activeKeyCount = AKCEvaluator.GetValueOf(current);
-            double localNoteCount = LNCEvaluator.GetValueOf(current);
+            // We scale jack and density together, as their difficulties overlap somewhat.
+            AccuracyDifficulties combinedDifficulties = AccuracyDifficulties.Pow(jackDifficulties + densityDifficulties, combined_exponent) * combined_multiplier;
 
-            // Adjust unevenness impact based on how many keys are active
-            double unevennessKeyAdjustment = 1.0;
-            if (unevenness > 0.0 && activeKeyCount > 0.0)
-                unevennessKeyAdjustment = Math.Pow(unevenness, 3.0 / activeKeyCount);
+            AccuracyDifficulties strainDifficulties = streamDifficulties + combinedDifficulties;
+            AccuracyDifficulties baseDifficulties = new AccuracyDifficulties(1, AccuracyDifficulties.Lenience.Lenient);
 
-            // Combine unevenness with same-column difficulty to get our jack difficulty for this note
-            jackDifficulties *= unevennessKeyAdjustment;
-            jackDifficulties = AccuracyDifficulties.Pow(jackDifficulties, 1.5) * 0.4;
-
-            // Nerf our release difficulties when there's a low number of active columns, then multiply it based on the number of notes around this one.
-            releaseDifficulties *= DifficultyCalculationUtils.Smoothstep(activeKeyCount, 0, 4);
-            releaseDifficulties *= 35.0 / (localNoteCount + 8.0);
-
-            // Combine unevenness with pressing intensity and release difficulty to get our pressing difficulty for this note
-            AccuracyDifficulties pressingComponent = (pressingDifficulties + releaseDifficulties) * Math.Pow(unevenness, 2.0 / 3.0);
-            pressingComponent = AccuracyDifficulties.Pow(pressingComponent, 1.5) * 0.6;
-
-            // Main strain difficulty combining both components
-            AccuracyDifficulties totalStrainDifficulties = AccuracyDifficulties.Pow(jackDifficulties + pressingComponent, 2.0 / 3.0);
-
-            // Cross-column coordination component
-            AccuracyDifficulties twistComponent = (crossColumnDifficulties * unevennessKeyAdjustment) / (crossColumnDifficulties + totalStrainDifficulties + 1.0);
-            twistComponent *= AccuracyDifficulties.Pow(twistComponent, 0.5);
-
-            AccuracyDifficulties finalDifficulties = AccuracyDifficulties.Pow(totalStrainDifficulties, 0.5) * twistComponent * 2.7 + totalStrainDifficulties * 0.27;
-
-            // Add a base difficulty value to prop up low-star maps.
-            AccuracyDifficulties baseDifficulty = new AccuracyDifficulties(1, AccuracyDifficulties.Lenience.Lenient);
-
-            return AccuracyDifficulties.Pow(AccuracyDifficulties.Pow(finalDifficulties, 2) + AccuracyDifficulties.Pow(baseDifficulty, 2), 1 / 2.0);
+            return AccuracyDifficulties.Norm(2, strainDifficulties, baseDifficulties);
         }
     }
 }
