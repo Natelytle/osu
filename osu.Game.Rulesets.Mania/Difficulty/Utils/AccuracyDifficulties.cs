@@ -9,17 +9,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
     public class AccuracyDifficulties
     {
         // Difficulty multiplier at 99.6, 99, 98, 95, and 90% accuracy. 98% difficulty is our note's difficulty, and 80% is always 0
-        private static readonly double[] jack_accuracy_multipliers = [1.025, 1.01, 1.00, 0.96, 0.85, 0.65, 0];
-        private static readonly double[] default_accuracy_multipliers = [1.1, 1.04, 1.00, 0.84, 0.74, 0.5, 0];
+        private static readonly double[] accuracy_multipliers_lenient = [1.02, 1.01, 1.00, 0.97, 0.87, 0.65, 0];
+        private static readonly double[] accuracy_multipliers_harsh = [1.05, 1.025, 1.00, 0.925, 0.75, 0.5, 0];
 
         private static readonly double[] accuracy_values = [1, 0.99, 0.98, 0.95, 0.9, 0.85, 0.8];
         private readonly double[] difficulties = new double[accuracy_values.Length];
 
-        public AccuracyDifficulties(double difficulty, Skillset skillset)
+        public AccuracyDifficulties(double difficulty, Lenience lenience)
         {
             for (int i = 0; i < accuracy_values.Length; i++)
             {
-                difficulties[i] = difficulty * getMultipliersFor(skillset)[i];
+                difficulties[i] = difficulty * getMultipliersFor(lenience)[i];
             }
         }
 
@@ -160,24 +160,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             return 0;
         }
 
-        public enum Skillset
+        public enum Lenience
         {
-            Jack,
-            Default
+            Lenient,
+            Harsh
         }
 
-        private double[] getMultipliersFor(Skillset skillset)
+        private double[] getMultipliersFor(Lenience lenience)
         {
-            switch (skillset)
+            switch (lenience)
             {
-                case Skillset.Jack:
-                    return jack_accuracy_multipliers;
+                case Lenience.Lenient:
+                    return accuracy_multipliers_lenient;
 
-                case Skillset.Default:
-                    return default_accuracy_multipliers;
+                case Lenience.Harsh:
+                    return accuracy_multipliers_harsh;
             }
 
-            return default_accuracy_multipliers;
+            return accuracy_multipliers_harsh;
         }
     }
 }

@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             var data = current.DifficultyData;
             double baseDifficulty = data.SampleFeatureAtTime(current.StartTime, data.PressingIntensity);
 
-            return baseDifficulty * 0.8;
+            return baseDifficulty * 0.7;
         }
     }
 }

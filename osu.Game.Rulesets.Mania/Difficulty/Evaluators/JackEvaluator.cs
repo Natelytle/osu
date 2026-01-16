@@ -14,7 +14,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double baseDifficulty = data.SampleFeatureAtTime(current.StartTime, data.SameColumnPressure);
 
             // Adjust the toing
-            double adjustedDifficulty = Math.Min(baseDifficulty, 8.0 + 0.85 * baseDifficulty);
+            double adjustedDifficulty = 1.0 * Math.Min(baseDifficulty, 8.0 + 0.85 * baseDifficulty);
 
             return adjustedDifficulty;
         }

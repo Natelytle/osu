@@ -12,10 +12,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     {
         public static AccuracyDifficulties EvaluateDifficultiesOf(ManiaDifficultyHitObject current)
         {
-            AccuracyDifficulties jackDifficulties = new AccuracyDifficulties(JackEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Skillset.Jack);
-            AccuracyDifficulties crossColumnDifficulties = new AccuracyDifficulties(CrossColumnEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Skillset.Default);
-            AccuracyDifficulties pressingDifficulties = new AccuracyDifficulties(PressingIntensityEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Skillset.Default);
-            AccuracyDifficulties releaseDifficulties = new AccuracyDifficulties(ReleaseEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Skillset.Default);
+            AccuracyDifficulties jackDifficulties = new AccuracyDifficulties(JackEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Lenient);
+            AccuracyDifficulties pressingDifficulties = new AccuracyDifficulties(PressingIntensityEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Lenient);
+            AccuracyDifficulties crossColumnDifficulties = new AccuracyDifficulties(CrossColumnEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Harsh);
+            AccuracyDifficulties releaseDifficulties = new AccuracyDifficulties(ReleaseEvaluator.GetDifficultyOf(current), AccuracyDifficulties.Lenience.Harsh);
 
             double unevenness = UnevennessEvaluator.GetValueOf(current);
             double activeKeyCount = AKCEvaluator.GetValueOf(current);
@@ -47,7 +47,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             AccuracyDifficulties finalDifficulties = AccuracyDifficulties.Pow(totalStrainDifficulties, 0.5) * twistComponent * 2.7 + totalStrainDifficulties * 0.27;
 
-            return finalDifficulties;
+            // Add a base difficulty value to prop up low-star maps.
+            AccuracyDifficulties baseDifficulty = new AccuracyDifficulties(1, AccuracyDifficulties.Lenience.Lenient);
+
+            return AccuracyDifficulties.Pow(AccuracyDifficulties.Pow(finalDifficulties, 2) + AccuracyDifficulties.Pow(baseDifficulty, 2), 1 / 2.0);
         }
     }
 }

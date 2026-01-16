@@ -22,7 +22,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 1.12;
+        private const double difficulty_multiplier = 1.0;
+        private const double star_rating_accuracy = 0.975;
 
         private readonly bool isForCurrentRuleset;
 
@@ -41,9 +42,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             var totalSkill = (Strain)skills.First(s => s is Strain);
 
-            double baseDifficulty = totalSkill.SkillAtAccuracy(0.95) * difficulty_multiplier;
-            // double sunnyDifficulty = totalSkill.DifficultyValue() * 0.975;
-
             double ssDifficulty = totalSkill.SkillAtAccuracy(1);
             double a9 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.9);
             double a8 = totalSkill.AccuracyAtSkill(ssDifficulty * 0.8);
@@ -58,8 +56,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double weightedNoteCount = totalSkill.GetWeightedNoteCount();
             double shortMapNerf = weightedNoteCount / (weightedNoteCount + 60.0);
 
-            double starRating = baseDifficulty * shortMapNerf;
-            double starRatingSS = ssDifficulty * shortMapNerf;
+            double starRating = totalSkill.SkillAtAccuracy(star_rating_accuracy) * difficulty_multiplier * shortMapNerf;
+            double starRatingSS = ssDifficulty * difficulty_multiplier * shortMapNerf;
 
             return new ManiaDifficultyAttributes
             {
