@@ -42,6 +42,58 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override IEnumerable<ObjectStrain> StrainValuesAt(DifficultyHitObject current)
         {
+            var osuCurrent = (OsuDifficultyHitObject)current;
+            lastStrain = currentStrain;
+
+            var firstMovement = osuCurrent.Movements[0];
+            double previousTime = firstMovement.StartTime;
+
+            double firstMovementDifficulty = AimEvaluator.EvaluateDifficultyOfMovement(current, firstMovement) * skillMultiplier;
+
+            currentStrain *= strainDecay(firstMovement.Time);
+            currentStrain += firstMovementDifficulty;
+
+            if (current.BaseObject is Slider)
+                sliderStrains.Add(currentStrain);
+
+            yield return new ObjectStrain
+            {
+                Time = firstMovement.EndTime,
+                PreviousTime = previousTime,
+                Value = currentStrain,
+            };
+
+            previousTime = firstMovement.EndTime;
+
+            double ratioMultiplier = Math.Pow(Math.Pow(1 - osuCurrent.PathLengthToMovementLengthRatio, 1) + 1, 1.0);
+
+            for (int i = 1; i < osuCurrent.Movements.Count; i++)
+            {
+                var movement = osuCurrent.Movements[i];
+                lastStrain = currentStrain;
+
+                currentStrain *= strainDecay(movement.Time);
+
+                if (IncludeSliders)
+                {
+                    double multi = 0.5 + (Math.Pow(1.0 / i, 0.5) * 0.5);
+                    currentStrain += AimEvaluator.EvaluateDifficultyOfMovement(current, movement) * skillMultiplier * multi * ratioMultiplier;
+                }
+
+                yield return new ObjectStrain
+                {
+                    Time = movement.EndTime,
+                    PreviousTime = previousTime,
+                    Value = currentStrain,
+                };
+
+                if (current.BaseObject is Slider)
+                    sliderStrains.Add(currentStrain);
+
+                previousTime = movement.EndTime;
+            }
+
+            /*
             lastStrain = currentStrain;
 
             var osuCurrent = (OsuDifficultyHitObject)current;
@@ -102,7 +154,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 previousStrains.Add((osuCurrent.StartTime, difficulty));
 
                 previousTime = movement.StartTime;
-            }
+            }*/
         }
 
         private const double backwards_strain_influence = 1000;

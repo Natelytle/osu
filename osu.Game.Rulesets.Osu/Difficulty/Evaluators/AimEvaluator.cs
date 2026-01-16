@@ -186,7 +186,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Penalize for rhythm changes.
                 velocityChangeBonus *= Math.Pow(Math.Min(currentMovement.Time, previousMovement.Time) / Math.Max(currentMovement.Time, previousMovement.Time), 2);
             }
-
+            /*
             if (isNested)
             {
                 // reduce the bonuses due to the fact that we use a different strain system that doesn't require difficulty values to be overblown
@@ -194,7 +194,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= 0.5;
                 wiggleBonus *= 0.5;
                 wideAngleBonus *= 0.25;
-            }
+            }*/
 
             aimStrain += wiggleBonus * wiggle_multiplier;
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
