@@ -15,11 +15,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         private static readonly double[] accuracy_values = [1, 0.99, 0.98, 0.95, 0.9, 0.85, 0.8];
         private readonly double[] difficulties = new double[accuracy_values.Length];
 
+        public AccuracyDifficulties() { }
+
         public AccuracyDifficulties(double difficulty, Lenience lenience)
         {
+            double[] multipliers = getMultipliersFor(lenience);
+
             for (int i = 0; i < accuracy_values.Length; i++)
             {
-                difficulties[i] = difficulty * getMultipliersFor(lenience)[i];
+                difficulties[i] = difficulty * multipliers[i];
             }
         }
 
@@ -38,6 +42,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             }
 
             return new AccuracyDifficulties(newDifficulties);
+        }
+
+        public static AccuracyDifficulties Norm(double exponent, params AccuracyDifficulties[] normedDifficulties)
+        {
+            AccuracyDifficulties newDifficulties = new AccuracyDifficulties();
+
+            for (int i = 0; i < normedDifficulties.Length; i++)
+            {
+                newDifficulties += Pow(normedDifficulties[i], exponent);
+            }
+
+            newDifficulties = Pow(newDifficulties, 1 / exponent);
+
+            return newDifficulties;
         }
 
         public static AccuracyDifficulties operator +(AccuracyDifficulties left, AccuracyDifficulties right)
@@ -70,7 +88,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
             for (int i = 0; i < accuracy_values.Length; i++)
             {
-                newDifficulties[i] = left.difficulties[i] + right.difficulties[i];
+                newDifficulties[i] = left.difficulties[i] - right.difficulties[i];
             }
 
             return new AccuracyDifficulties(newDifficulties);
@@ -114,9 +132,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
         public double AccuracyAt(double skill)
         {
-            if (skill > difficulties[0])
+            if (skill >= difficulties[0])
                 return accuracy_values[0];
-            if (skill == 0)
+            if (skill <= 0)
                 return accuracy_values[^1];
 
             for (int i = 1; i < difficulties.Length; i++)
@@ -177,6 +195,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
                     return accuracy_multipliers_harsh;
             }
 
+            // Default to harsh multipliers
             return accuracy_multipliers_harsh;
         }
     }
