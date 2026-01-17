@@ -185,7 +185,7 @@ namespace osu.Game.Screens.Select
             }
 
             private CancellationTokenSource cancellationSource;
-            private IBindable<StarDifficulty?> starDifficulty;
+            private IBindable<StarDifficulty> starDifficulty;
 
             [BackgroundDependencyLoader]
             private void load(LocalisationManager localisation)
@@ -263,7 +263,6 @@ namespace osu.Game.Screens.Select
                             },
                             new BeatmapSetOnlineStatusPill
                             {
-                                AutoSizeAxes = Axes.Both,
                                 Anchor = Anchor.TopRight,
                                 Origin = Anchor.TopRight,
                                 Shear = -wedged_container_shear,
@@ -330,7 +329,7 @@ namespace osu.Game.Screens.Select
                 starDifficulty = difficultyCache.GetBindableDifficulty(working.BeatmapInfo, (cancellationSource = new CancellationTokenSource()).Token);
                 starDifficulty.BindValueChanged(s =>
                 {
-                    starRatingDisplay.Current.Value = s.NewValue ?? default;
+                    starRatingDisplay.Current.Value = s.NewValue;
 
                     // Don't roll the counter on initial display (but still allow it to roll on applying mods etc.)
                     if (!starRatingDisplay.IsPresent)
@@ -401,7 +400,6 @@ namespace osu.Game.Screens.Select
                 if (beatmap == null || bpmLabelContainer == null)
                     return;
 
-                // this doesn't consider mods which apply variable rates, yet.
                 double rate = ModUtils.CalculateRateWithMods(mods.Value);
 
                 int bpmMax = FormatUtils.RoundBPM(beatmap.ControlPointInfo.BPMMaximum, rate);
@@ -490,7 +488,7 @@ namespace osu.Game.Screens.Select
                                     RelativeSizeAxes = Axes.Both,
                                     Colour = Color4Extensions.FromHex(@"f7dd55"),
                                     Icon = FontAwesome.Regular.Circle,
-                                    Size = new Vector2(0.8f)
+                                    Size = new Vector2(0.7f)
                                 },
                                 statistic.CreateIcon().With(i =>
                                 {
@@ -498,7 +496,7 @@ namespace osu.Game.Screens.Select
                                     i.Origin = Anchor.Centre;
                                     i.RelativeSizeAxes = Axes.Both;
                                     i.Colour = Color4Extensions.FromHex(@"f7dd55");
-                                    i.Size = new Vector2(0.64f);
+                                    i.Size = new Vector2(0.6f);
                                 }),
                             }
                         },

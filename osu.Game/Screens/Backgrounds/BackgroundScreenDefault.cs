@@ -42,11 +42,6 @@ namespace osu.Game.Screens.Backgrounds
 
         protected virtual bool AllowStoryboardBackground => true;
 
-        public BackgroundScreenDefault(bool animateOnEnter = true)
-            : base(animateOnEnter)
-        {
-        }
-
         [BackgroundDependencyLoader]
         private void load(IAPIProvider api, SkinManager skinManager, OsuConfigManager config)
         {
@@ -168,6 +163,7 @@ namespace osu.Game.Screens.Backgrounds
                             case TrianglesSkin:
                             case ArgonSkin:
                             case DefaultLegacySkin:
+                            case RetroSkin:
                                 // default skins should use the default background rotation, which won't be the case if a SkinBackground is created for them.
                                 break;
 
