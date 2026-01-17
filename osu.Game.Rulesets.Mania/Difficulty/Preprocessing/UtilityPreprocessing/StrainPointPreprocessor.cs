@@ -102,9 +102,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing.UtilityPreprocessing
 
                 // Add core point and strategic offsets
                 expandedPoints[expandedCount++] = baseTime; // Exact note time
-                expandedPoints[expandedCount++] = baseTime + 501; // Post-note offset
-                expandedPoints[expandedCount++] = baseTime - 499; // Pre-note offset
-                expandedPoints[expandedCount++] = baseTime + 1; // Minimal offset
             }
 
             // Add boundary points

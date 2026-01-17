@@ -196,6 +196,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing.DifficultyPreprocessi
                     continue;
                 }
 
+                // Multiply chord values by deltaTime, up to 1000.
+                pressingIntensityBase[StrainArrayUtils.FindLeftBound(data.StrainTimePoints, currentNote.StartTime)] *= 1000 / Math.Min(deltaTime, 1000);
+
                 // Process normal note sequence
                 processNoteSequence(currentNote, nextNote, deltaTime, data, longNoteDensity, anchorValues,
                     pressingIntensityBase, timePoints);
@@ -210,7 +213,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing.DifficultyPreprocessi
         private static void processSimultaneousNotes(ManiaDifficultyHitObject currentNote, ManiaDifficultyData data, double[] pressingIntensityBase, int timePoints)
         {
             // Calculate chord difficulty based on timing window
-            double chordDifficulty = 1000.0 * Math.Pow(0.02 * (4.0 / data.HitLeniency - 24.0), 0.25);
+            double chordDifficulty = 1 * Math.Pow(0.02 * (4.0 / data.HitLeniency - 24.0), 0.25);
 
             int timeIndex = StrainArrayUtils.FindLeftBound(data.StrainTimePoints, currentNote.StartTime);
             if (timeIndex >= 0 && timeIndex < timePoints)

@@ -76,6 +76,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         {
             accuracy *= 0.996;
 
+            double index = ObjectDifficulties.IndexOf(double.NaN);
+
+            if (index != -1)
+            {
+                int the;
+            }
+
             double rawDifficulty = RootFinding.FindRootExpand(x => AccuracyAtSkill(x) - accuracy, 0, ObjectDifficulties.Max());
 
             return rawDifficulty;
