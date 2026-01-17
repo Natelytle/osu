@@ -76,6 +76,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
 
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
+            List<ManiaDifficultyHitObject> headObjects = new List<ManiaDifficultyHitObject>();
+            List<ManiaDifficultyHitObject> tailObjects = new List<ManiaDifficultyHitObject>();
             List<ManiaDifficultyHitObject>[] perColumnHeadObjects = new List<ManiaDifficultyHitObject>[totalColumns];
             List<ManiaDifficultyHitObject>[] perColumnTailObjects = new List<ManiaDifficultyHitObject>[totalColumns];
 
@@ -84,15 +86,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             for (int i = 1; i < sortedObjects.Length; i++)
             {
-                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnHeadObjects, perColumnTailObjects, objects.Count);
+                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, headObjects, tailObjects, perColumnHeadObjects, perColumnTailObjects, objects.Count);
                 objects.Add(currentObject);
 
                 if (currentObject.BaseObject is not TailNote)
                 {
+                    headObjects.Add(currentObject);
                     perColumnHeadObjects[currentObject.Column].Add(currentObject);
                 }
                 else
                 {
+                    tailObjects.Add(currentObject);
                     perColumnTailObjects[currentObject.Column].Add(currentObject);
                 }
             }
