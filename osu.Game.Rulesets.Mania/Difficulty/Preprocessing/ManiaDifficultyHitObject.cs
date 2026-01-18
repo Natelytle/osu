@@ -92,15 +92,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             HeadDeltaTime = StartTime - PrevHead(0)?.StartTime ?? StartTime;
             ColumnHeadStrainTime = StartTime - PrevHeadInColumn(0)?.StartTime ?? StartTime;
 
-            if (index > 0)
-            {
-                ManiaDifficultyHitObject prevNote = (ManiaDifficultyHitObject)objects[index - 1];
+            ManiaDifficultyHitObject? prevHeadObj = PrevHead(0);
 
-                for (int i = 0; i < prevNote.PreviousHitObjects.Length; i++)
-                    PreviousHitObjects[i] = prevNote.PreviousHitObjects[i];
+            if (prevHeadObj is not null)
+            {
+                for (int i = 0; i < prevHeadObj.PreviousHitObjects.Length; i++)
+                    PreviousHitObjects[i] = prevHeadObj.PreviousHitObjects[i];
 
                 // intentionally depends on processing order to match live.
-                PreviousHitObjects[prevNote.Column] = prevNote;
+                PreviousHitObjects[prevHeadObj.Column] = prevHeadObj;
             }
         }
 

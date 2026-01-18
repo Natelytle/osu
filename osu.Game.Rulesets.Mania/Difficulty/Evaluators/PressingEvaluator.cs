@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double baseDifficulty = 1000.0 / nextDelta;
 
             // Multiplier based on how many long notes are currently being held.
-            double longNoteBonus = 1.0 + 6 * calculateLnHeldSecondsAmount(current.StartTime, next.StartTime, current.PreviousHitObjects);
+            double longNoteBonus = 1.0 + 6 * lnHeldSecondsBetween(current.StartTime, next.StartTime, current.PreviousHitObjects);
 
             // A bonus for notes with a length between stream_bpm_start and stream_bpm_end.
             double streamBonus = 1.0;
@@ -66,44 +66,43 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return Math.Pow(0.02 * (4000.0 / leniency - 24.0), 0.25);
         }
 
-        private static double calculateLnHeldSecondsAmount(double startTime, double endTime, ManiaDifficultyHitObject?[] previousHitObjects)
+        private static double lnHeldSecondsBetween(double startTime, double endTime, ManiaDifficultyHitObject?[] previousHitObjects)
         {
-            double duration = endTime - startTime;
-            if (duration <= 0) return 0;
+            if (endTime - startTime <= 0)
+                return 0;
 
             double totalDensityUnits = 0;
 
             for (int i = 0; i < previousHitObjects.Length; i++)
             {
                 var obj = previousHitObjects[i];
-                if (obj?.Tail == null) continue;
+
+                if (obj?.Tail == null)
+                    continue;
 
                 double lnStart = obj.StartTime;
                 double lnEnd = obj.Tail.ActualTime;
 
-                // Intersection of the LN and the requested time window
-                double windowLnStart = Math.Max(lnStart, startTime);
-                double windowLnEnd = Math.Min(lnEnd, endTime);
-
-                if (windowLnEnd <= windowLnStart)
+                if (lnEnd <= startTime || lnStart >= endTime)
                     continue;
 
+                double windowStart = Math.Max(lnStart, startTime);
+                double windowEnd = Math.Min(lnEnd, endTime);
+
                 // The first 60ms of the long note don't contribute any LN amount, to nerf short-LN patterns.
-                // After 60ms, until 120ms, we provide the seconds spent holding this note.
-                // After 120ms, we provide a reduced amount.
-                double lnBonusStart = lnStart + 60;
+                // We treat the first 60ms as if they don't exist, to nerf patterns that abuse short LNs.
+                // We apply a bonus between 60ms and 120ms to make up for this.
+                double heldStartPoint = lnStart + 60;
                 double bonusReductionPoint = lnStart + 120;
 
                 // Calculate overlap with our full bonus segment [lnBonusStart, bonusReductionPoint]
-                double fullBonusOverlap = Math.Max(0, Math.Min(windowLnEnd, bonusReductionPoint) - lnBonusStart);
+                double fullBonusOverlap = Math.Max(0, Math.Min(bonusReductionPoint, windowEnd) - Math.Max(heldStartPoint, windowStart));
 
                 // Calculate overlap with the partial bonus segment [bonusReductionPoint, lnEnd]
-                double partialBonusOverlap = Math.Max(0, windowLnEnd - Math.Max(windowLnStart, bonusReductionPoint));
+                double partialBonusOverlap = Math.Max(0, Math.Min(lnEnd, windowEnd) - Math.Max(bonusReductionPoint, windowStart));
 
-                totalDensityUnits += (fullBonusOverlap * 1.0) + (partialBonusOverlap * 0.7);
+                totalDensityUnits += (fullBonusOverlap * 1.3) + (partialBonusOverlap * 1.0);
             }
-
-            totalDensityUnits = Math.Min(totalDensityUnits, (2.5 * duration) + (0.5 * totalDensityUnits));
 
             return totalDensityUnits / 1000.0;
         }
