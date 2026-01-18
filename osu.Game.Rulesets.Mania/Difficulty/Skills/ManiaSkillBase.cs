@@ -1,7 +1,6 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
@@ -29,17 +28,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         public override double DifficultyValue()
         {
-            // for (int i = 0; i < ObjectDifficulties.Count; i++)
-            // {
-            //     Console.Write(Math.Round(ObjectDifficulties[i], 2) + ", ");
-            // }
-            //
-            // Console.WriteLine();
-            // Console.WriteLine();
-            // Console.WriteLine();
-            // Console.WriteLine();
-            // Console.WriteLine();
-
             return ObjectDifficulties.Average();
         }
 

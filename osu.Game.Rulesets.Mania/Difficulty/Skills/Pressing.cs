@@ -14,8 +14,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         public Pressing(Mod[] mods)
             : base(mods) { }
 
-        // We want to smooth our difficulty forward and backward by 500ms.
-        private const double smoothing_window_extents = 500;
+        // We want to smooth our difficulty using the 1000ms window surrounding it.
+        private const double smoothing_window_size = 1000;
+        private const double half_size = smoothing_window_size / 2.0;
 
         private double chordAccumulator;
 
@@ -34,7 +35,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 return 0;
             }
 
-            double chordDifficulty = chordAccumulator * 1000 / Math.Min(1000, next.HeadDeltaTime);
+            // We multiply chord difficulty by the portion of the smoothing window of this chord, so that it becomes a constant value when smoothed.
+            double chordDifficulty = chordAccumulator * smoothing_window_size / Math.Min(smoothing_window_size, next.HeadDeltaTime);
 
             chordAccumulator = 0;
 
@@ -45,12 +47,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double GetSmoothedDifficultyAt(double time, double nextDelta)
         {
-            double difficulty = UnsmoothedDifficultyPoints.LastOrDefault() * nextDelta / smoothing_window_extents;
+            // Cap difficulty here to half extents, since we only want the difficulty of the current note up to the future value of our smoothing window.
+            double scaledDifficulty = UnsmoothedDifficultyPoints.LastOrDefault() * Math.Min(nextDelta, half_size) / smoothing_window_size;
             double timeBackwards = 0;
 
             for (int difficultiesBack = UnsmoothedDifficultyPoints.Count - 2; difficultiesBack >= 0; difficultiesBack--)
             {
-                if (timeBackwards >= smoothing_window_extents && difficultiesBack > 1)
+                if (timeBackwards >= half_size && difficultiesBack > 1)
                 {
                     int toRemove = Math.Min(difficultiesBack - 1, UnsmoothedDifficultyPoints.Count);
 
@@ -63,31 +66,32 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 double previousDifficulty = UnsmoothedDifficultyPoints[difficultiesBack];
                 double previousTime = UnsmoothedTimePoints[difficultiesBack];
 
-                double startTime = Math.Max(previousTime, time - smoothing_window_extents);
+                double startTime = Math.Max(previousTime, time - half_size);
                 double endTime = time - timeBackwards;
 
                 double deltaTime = Math.Max(0, endTime - startTime);
 
-                difficulty += previousDifficulty * deltaTime / smoothing_window_extents;
+                scaledDifficulty += previousDifficulty * deltaTime / smoothing_window_size;
                 timeBackwards += deltaTime;
             }
 
-            return difficulty;
+            return scaledDifficulty;
         }
 
         protected override void ApplySmoothingToPreviousDifficulties(double timePointDifficulty, double currentTimePoint, double nextDelta)
         {
-            double smoothedDifficulty = timePointDifficulty * nextDelta / smoothing_window_extents;
+            // Don't cap delta here, we handle this with our overlap distances.
+            double scaledDifficulty = timePointDifficulty * nextDelta / smoothing_window_size;
 
-            if (smoothedDifficulty == 0)
+            if (scaledDifficulty == 0)
                 return;
 
             for (int i = ObjectDifficulties.Count - 1; i >= 0; i--)
             {
                 double prevTime = ObjectTimes[i];
 
-                double overlapStartDistance = Math.Min(smoothing_window_extents, currentTimePoint - prevTime);
-                double overlapEndDistance = Math.Min(smoothing_window_extents, currentTimePoint + nextDelta - prevTime);
+                double overlapStartDistance = Math.Min(half_size, currentTimePoint - prevTime);
+                double overlapEndDistance = Math.Min(half_size, currentTimePoint + nextDelta - prevTime);
 
                 // If we only overlap a portion of the time point's difficulty window, we reduce the amount we add proportionally.
                 double influence = (overlapEndDistance - overlapStartDistance) / nextDelta;
@@ -95,7 +99,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 if (influence == 0)
                     break;
 
-                ObjectDifficulties[i] += smoothedDifficulty * influence;
+                ObjectDifficulties[i] += scaledDifficulty * influence;
             }
         }
     }
