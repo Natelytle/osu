@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double baseDifficulty = 1000.0 / nextDelta;
 
             // Multiplier based on how many long notes are currently being held.
-            double longNoteBonus = 1.0 + 6 * lnHeldSecondsBetween(current.StartTime, next.StartTime, current.PreviousHitObjects);
+            double longNoteBonus = 1.0 + 6 * lnHeldSecondsBetween(current.StartTime, next.StartTime, current.PreviousHeadObjects);
 
             // A bonus for notes with a length between stream_bpm_start and stream_bpm_end.
             double streamBonus = 1.0;

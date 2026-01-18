@@ -7,6 +7,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public static class ManiaDifficultyUtils
     {
+        public const double COLUMN_ACTIVITY_WINDOW = 150;
+
         /// <summary>
         /// Calculates hit window leniency based on the great hit window.
         /// </summary>

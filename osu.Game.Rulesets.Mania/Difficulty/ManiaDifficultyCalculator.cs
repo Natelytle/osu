@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = skills.OfType<Pressing>().Single().DifficultyValue() * difficulty_multiplier,
+                StarRating = skills.OfType<Release>().Single().DifficultyValue() * difficulty_multiplier,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -112,7 +112,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
-            new Pressing(mods)
+            new Pressing(mods),
+            new Release(mods),
         };
 
         protected override Mod[] DifficultyAdjustmentMods

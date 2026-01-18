@@ -16,8 +16,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         {
             if (current.BaseObject is TailNote)
             {
-                // Make sure we bridge the gap made by tail notes by keeping difficulty the same.
-                // ObjectDifficulties.Add(ObjectDifficulties.LastOrDefault());
                 return;
             }
 

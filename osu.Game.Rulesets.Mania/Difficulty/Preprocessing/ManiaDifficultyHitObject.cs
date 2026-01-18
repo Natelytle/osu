@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Scoring;
@@ -47,7 +48,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// <summary>
         /// The hit object earlier in time than this note in each column.
         /// </summary>
-        public readonly ManiaDifficultyHitObject?[] PreviousHitObjects;
+        public readonly ManiaDifficultyHitObject?[] PreviousHeadObjects;
+
+        /// <summary>
+        /// The hit objects (head or tail) surrounding this note in every column.
+        /// </summary>
+        public readonly List<ManiaDifficultyHitObject>[] SurroundingObjects;
 
         public readonly double GreatHitWindow;
 
@@ -66,8 +72,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             tailObjectIndex = tailObjects.Count;
             columnHeadIndex = perColumnHeadObjects[Column].Count;
             columnTailIndex = perColumnTailObjects[Column].Count;
-            PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
+            PreviousHeadObjects = new ManiaDifficultyHitObject[totalColumns];
+            SurroundingObjects = new List<ManiaDifficultyHitObject>[totalColumns];
             GreatHitWindow = BaseObject.HitWindows.WindowFor(HitResult.Great);
+
+            for (int column = 0; column < totalColumns; column++)
+            {
+                SurroundingObjects[column] = new List<ManiaDifficultyHitObject>();
+            }
 
             // Add a reference to the related head/tail for long notes.
             if (BaseObject is TailNote)
@@ -94,13 +106,38 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
             ManiaDifficultyHitObject? prevHeadObj = PrevHead(0);
 
+            for (int i = 0; i < perColumnHeadObjects.Length; i++)
+            {
+                ManiaDifficultyHitObject? columnObject = perColumnHeadObjects[i].LastOrDefault();
+
+                if (columnObject is not null)
+                {
+                    // Get the last object before this time in each column.
+                    PreviousHeadObjects[i] = columnObject.StartTime == StartTime ? columnObject.PrevHeadInColumn(0) : columnObject;
+                }
+            }
+
+            if (index > 0)
+            {
+                ManiaDifficultyHitObject? prev = (ManiaDifficultyHitObject?)objects[index - 1];
+
+                // Collect all previous note positions up to our grace tolerance.
+                while (prev is not null && StartTime - prev.StartTime < ManiaDifficultyUtils.COLUMN_ACTIVITY_WINDOW)
+                {
+                    SurroundingObjects[prev.Column].Add(prev);
+                    prev.SurroundingObjects[Column].Add(this);
+
+                    prev = (ManiaDifficultyHitObject?)prev.Previous(0);
+                }
+            }
+
             if (prevHeadObj is not null)
             {
-                for (int i = 0; i < prevHeadObj.PreviousHitObjects.Length; i++)
-                    PreviousHitObjects[i] = prevHeadObj.PreviousHitObjects[i];
+                for (int i = 0; i < prevHeadObj.PreviousHeadObjects.Length; i++)
+                    PreviousHeadObjects[i] = prevHeadObj.PreviousHeadObjects[i];
 
                 // intentionally depends on processing order to match live.
-                PreviousHitObjects[prevHeadObj.Column] = prevHeadObj;
+                PreviousHeadObjects[prevHeadObj.Column] = prevHeadObj;
             }
         }
 
