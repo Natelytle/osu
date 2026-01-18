@@ -75,7 +75,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 Tail = this;
 
                 // We process forward, so we need to set the tail value for the previous head while we process the tail for it.
-                Head = perColumnHeadObjects[Column].Last();
+                // Can technically be null but setting the head to this in that case should be harmless.
+                Head = perColumnHeadObjects[Column].LastOrDefault() ?? this;
                 Head.Tail = this;
             }
             else

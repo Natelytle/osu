@@ -1,7 +1,9 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
@@ -11,41 +13,69 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public abstract class ManiaSkillBase : Skill
     {
-        protected readonly List<(double, double)> PreviousStrainPointsList = new List<(double, double)>();
+        // Used to retroactively apply smoothing to past objects
+        protected readonly List<double> ObjectTimes = new List<double>();
 
+        // Used to calculate smoothing for the current object
+        protected readonly List<double> UnsmoothedDifficultyPoints = new List<double>();
+        protected readonly List<double> UnsmoothedTimePoints = new List<double>();
+
+        private double timePointDifficulty;
         private double currentTimePoint;
-        private double timePointStrainCache;
-        private int strainPointNoteCount;
+        private int timePointNoteCount;
 
         protected ManiaSkillBase(Mod[] mods)
             : base(mods) { }
 
         public override double DifficultyValue()
         {
-            throw new System.NotImplementedException();
+            // for (int i = 0; i < ObjectDifficulties.Count; i++)
+            // {
+            //     Console.Write(Math.Round(ObjectDifficulties[i], 2) + ", ");
+            // }
+            //
+            // Console.WriteLine();
+            // Console.WriteLine();
+            // Console.WriteLine();
+            // Console.WriteLine();
+            // Console.WriteLine();
+
+            return ObjectDifficulties.Average();
         }
 
         public override void Process(DifficultyHitObject current)
         {
             if (current.StartTime > currentTimePoint || current.Next(0) is null)
             {
-                double smoothedDifficulty = ApplySmoothing(currentTimePoint, timePointStrainCache);
+                // Go back and smooth out the previous points.
+                double nextDelta = current.StartTime - currentTimePoint;
 
-                for (int i = 0; i < strainPointNoteCount; i++)
+                if (nextDelta > 0)
                 {
-                    ObjectDifficulties.Add(smoothedDifficulty);
+                    ApplySmoothingToPreviousDifficulties(timePointDifficulty, currentTimePoint, nextDelta);
                 }
 
-                PreviousStrainPointsList.Add((currentTimePoint, timePointStrainCache));
+                // Get the smoothed difficulty for this point.
+                UnsmoothedDifficultyPoints.Add(timePointDifficulty);
+                UnsmoothedTimePoints.Add(currentTimePoint);
+
+                // Use the next note's time to let the current point contribute to its own smoothed difficulty.
+                double smoothedDifficulty = GetSmoothedDifficultyAt(currentTimePoint, nextDelta);
+
+                for (int i = 0; i < timePointNoteCount; i++)
+                {
+                    ObjectDifficulties.Add(smoothedDifficulty);
+                    ObjectTimes.Add(currentTimePoint);
+                }
 
                 currentTimePoint = current.StartTime;
-                timePointStrainCache = 0;
-                strainPointNoteCount = 0;
+                timePointDifficulty = 0;
+                timePointNoteCount = 0;
             }
 
             double baseDifficulty = ProcessInternal(current);
-            timePointStrainCache += baseDifficulty;
-            strainPointNoteCount++;
+            timePointDifficulty += baseDifficulty;
+            timePointNoteCount++;
         }
 
         protected override double ProcessInternal(DifficultyHitObject current)
@@ -55,6 +85,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected abstract double BaseDifficulty(ManiaDifficultyHitObject current);
 
-        protected abstract double ApplySmoothing(double currentTimePoint, double strain);
+        protected abstract double GetSmoothedDifficultyAt(double time, double nextDelta);
+        protected abstract void ApplySmoothingToPreviousDifficulties(double timePointDifficulty, double currentTimePoint, double nextDelta);
     }
 }

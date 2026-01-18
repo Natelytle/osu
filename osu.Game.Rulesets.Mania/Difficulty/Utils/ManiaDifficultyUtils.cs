@@ -11,13 +11,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// Calculates hit window leniency based on the great hit window.
         /// </summary>
         /// <returns>Hit leniency value in milliseconds (clamped to reasonable bounds)</returns>
-        public static double CalculateHitLeniency(double hitWindow)
-        {
-            double rawLeniency = 0.3 * Math.Sqrt(hitWindow / 500.0);
-
-            rawLeniency = Math.Min(rawLeniency, 0.6 * (rawLeniency - 0.09) + 0.09);
-
-            return Math.Max(1e-9, rawLeniency);
-        }
+        public static double CalculateHitLeniency(double hitWindow) => Math.Min(hitWindow + 45, 0.6 * (hitWindow + 105));
     }
 }

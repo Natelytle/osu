@@ -19,9 +19,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double leniency = ManiaDifficultyUtils.CalculateHitLeniency(current.GreatHitWindow);
 
-            // Explicit chord handling
             if (next is null || next.HeadDeltaTime == 0)
-                return Math.Pow(0.02 * (4.0 / leniency - 24.0), 0.25);
+            {
+                return 0;
+            }
 
             double nextDelta = next.HeadDeltaTime;
             double baseDifficulty = 1000.0 / nextDelta;
@@ -43,19 +44,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double leniencyPenalty;
 
-            if (nextDelta < 2 / 3.0 * leniency)
+            if (nextDelta < (2.0 / 3.0) * leniency)
             {
-                double deviation = nextDelta - leniency / 2.0;
-                leniencyPenalty = Math.Max(0, 1 - 24 * Math.Pow(deviation, 2) / leniency);
+                double deviation = (nextDelta - leniency / 2.0) / 1000.0;
+                leniencyPenalty = Math.Max(0, 1 - 24 * Math.Pow(deviation, 2) / (leniency / 1000));
             }
             else
             {
-                leniencyPenalty = Math.Max(0, 1 - (2 / 3.0) * leniency);
+                leniencyPenalty = Math.Max(0, 1 - (2.0 / 3.0) * (leniency / 1000));
             }
 
-            leniencyPenalty = Math.Pow(leniencyPenalty, 0.25) * Math.Pow(0.08 / leniency, 0.25);
+            leniencyPenalty = Math.Pow(leniencyPenalty, 0.25) * Math.Pow(80 / leniency, 0.25);
 
             return baseDifficulty * Math.Max(streamBonus, longNoteBonus) * leniencyPenalty;
+        }
+
+        public static double EvaluateChordDifficultyOf(ManiaDifficultyHitObject current)
+        {
+            double leniency = ManiaDifficultyUtils.CalculateHitLeniency(current.GreatHitWindow);
+
+            return Math.Pow(0.02 * (4000.0 / leniency - 24.0), 0.25);
         }
 
         private static double calculateLnHeldSecondsAmount(double startTime, double endTime, ManiaDifficultyHitObject?[] previousHitObjects)
@@ -95,7 +103,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 totalDensityUnits += (fullBonusOverlap * 1.0) + (partialBonusOverlap * 0.7);
             }
 
-            // Optional: Re-introduce the global clamp here to match original balance
             totalDensityUnits = Math.Min(totalDensityUnits, (2.5 * duration) + (0.5 * totalDensityUnits));
 
             return totalDensityUnits / 1000.0;

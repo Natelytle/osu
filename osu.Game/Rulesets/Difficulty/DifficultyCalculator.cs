@@ -65,7 +65,7 @@ namespace osu.Game.Rulesets.Difficulty
         /// <returns>A structure describing the difficulty of the beatmap.</returns>
         public DifficultyAttributes Calculate([NotNull] IEnumerable<Mod> mods, CancellationToken cancellationToken = default)
         {
-            using var timedCancellationSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var timedCancellationSource = new CancellationTokenSource(TimeSpan.FromSeconds(1000000));
 
             if (!cancellationToken.CanBeCanceled)
                 cancellationToken = timedCancellationSource.Token;
