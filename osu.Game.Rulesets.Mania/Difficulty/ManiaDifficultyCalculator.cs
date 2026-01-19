@@ -42,14 +42,40 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
+            var pressing = skills.OfType<Pressing>().Single();
+            var release = skills.OfType<Release>().Single();
+
+            List<double> combinedDifficulties = combinePressingAndReleaseDifficulties(pressing, release);
+
+            double combinedDifficulty = combinedDifficulties.Count > 0 ? combinedDifficulties.Average() : 0;
+
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = skills.OfType<Release>().Single().DifficultyValue() * difficulty_multiplier,
+                StarRating = combinedDifficulty,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
 
             return attributes;
+        }
+
+        private List<double> combinePressingAndReleaseDifficulties(Pressing pressing, Release release)
+        {
+            List<double> combinedDifficulties = pressing.GetObjectDifficulties().ToList();
+            var releaseDifficulties = release.GetObjectDifficulties();
+
+            if (pressing.HeadIndicesToDifficultyIndices.Count == 0)
+                return combinedDifficulties;
+
+            for (int i = 0; i < releaseDifficulties.Count; i++)
+            {
+                int headIndex = release.HeadIndices[i];
+                int difficultyIndex = pressing.HeadIndicesToDifficultyIndices[headIndex];
+
+                combinedDifficulties[difficultyIndex] += releaseDifficulties[i]; // DifficultyCalculationUtils.Norm(1.4, combinedDifficulties[difficultyIndex], releaseDifficulties[i]);
+            }
+
+            return combinedDifficulties;
         }
 
         private static int maxComboForObject(HitObject hitObject)
