@@ -186,15 +186,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Penalize for rhythm changes.
                 velocityChangeBonus *= Math.Pow(Math.Min(currentMovement.Time, previousMovement.Time) / Math.Max(currentMovement.Time, previousMovement.Time), 2);
             }
-            /*
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+
             if (isNested)
             {
+                double ratioMultiplier = Math.Pow(Math.Pow(1 - osuCurrObj.PathLengthToMovementLengthRatio, 1) + 1, 1.0);
+                aimStrain *= ratioMultiplier;
+
+                aimStrain *= 5;
+
                 // reduce the bonuses due to the fact that we use a different strain system that doesn't require difficulty values to be overblown
-                acuteAngleBonus *= 0.5;
+                /*acuteAngleBonus *= 0.5;
                 velocityChangeBonus *= 0.5;
                 wiggleBonus *= 0.5;
-                wideAngleBonus *= 0.25;
-            }*/
+                wideAngleBonus *= 0.5;*/
+            }
 
             aimStrain += wiggleBonus * wiggle_multiplier;
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
@@ -205,7 +212,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Apply high circle size bonus
             if (!isNested)
             {
-                var osuCurrObj = (OsuDifficultyHitObject)current;
                 aimStrain *= osuCurrObj.SmallCircleBonus;
                 aimStrain *= highBpmBonus(currentMovement.Time);
             }
