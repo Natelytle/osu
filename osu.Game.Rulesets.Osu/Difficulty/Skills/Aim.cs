@@ -50,8 +50,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double firstMovementDifficulty = AimEvaluator.EvaluateDifficultyOfMovement(current, firstMovement) * skillMultiplier;
 
-            currentStrain *= strainDecay(firstMovement.Time);
-            currentStrain += firstMovementDifficulty;
+            double firstMovementDecay = strainDecay(firstMovement.Time);
+            currentStrain *= firstMovementDecay;
+            currentStrain += firstMovementDifficulty * (1 - firstMovementDecay);
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
@@ -72,12 +73,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 var movement = osuCurrent.Movements[i];
                 lastStrain = currentStrain;
 
-                currentStrain *= strainDecay(movement.Time);
+                double decay = strainDecay(movement.Time);
+                currentStrain *= decay;
 
                 if (IncludeSliders)
                 {
-                    double multi = 0.5 + (Math.Pow(1.0 / i, 0.5) * 0.5);
-                    currentStrain += AimEvaluator.EvaluateDifficultyOfMovement(current, movement) * skillMultiplier * multi * ratioMultiplier;
+                    currentStrain += AimEvaluator.EvaluateDifficultyOfMovement(current, movement) * (1 - decay) * skillMultiplier * ratioMultiplier;
                 }
 
                 yield return new ObjectStrain

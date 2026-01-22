@@ -42,11 +42,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override IEnumerable<ObjectStrain> StrainValuesAt(DifficultyHitObject current)
         {
+            double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
             lastStrain = currentStrain;
             lastRhythm = currentRhythm;
 
-            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * skillMultiplier;
+            currentStrain *= decay;
+            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * (1 - decay) * skillMultiplier;
 
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
 
