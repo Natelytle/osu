@@ -14,8 +14,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class AimEvaluator
     {
         private const double wide_angle_multiplier = 1.5;
-        private const double acute_angle_multiplier = 2.55;
-        private const double slider_multiplier = 1.35;
+        private const double acute_angle_multiplier = 2.3;
+        private const double slider_multiplier = 1.5;
         private const double velocity_change_multiplier = 0.75;
         private const double wiggle_multiplier = 1.02; // WARNING: Increasing this multiplier beyond 1.02 reduces difficulty as distance increases. Refer to the desmos link above the wiggle bonus calculation
 
@@ -194,7 +194,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double ratioMultiplier = Math.Pow(Math.Pow(1 - osuCurrObj.PathLengthToMovementLengthRatio, 1) + 1, 1.0);
                 aimStrain *= ratioMultiplier;
 
-                aimStrain *= 5;
+                aimStrain *= 3;
 
                 // reduce the bonuses due to the fact that we use a different strain system that doesn't require difficulty values to be overblown
                 /*acuteAngleBonus *= 0.5;
