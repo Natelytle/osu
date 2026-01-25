@@ -8,6 +8,7 @@ using osu.Game.Extensions;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
@@ -44,6 +45,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             var pressing = skills.OfType<Pressing>().Single();
             var release = skills.OfType<Release>().Single();
+            var crossColumn = skills.OfType<CrossColumn>().Single();
 
             List<double> combinedDifficulties = combinePressingAndReleaseDifficulties(pressing, release);
 
@@ -51,7 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
-                StarRating = combinedDifficulty,
+                StarRating = crossColumn.DifficultyValue(),
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
@@ -72,7 +74,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 int headIndex = release.HeadIndices[i];
                 int difficultyIndex = pressing.HeadIndicesToDifficultyIndices[headIndex];
 
-                combinedDifficulties[difficultyIndex] += releaseDifficulties[i]; // DifficultyCalculationUtils.Norm(1.4, combinedDifficulties[difficultyIndex], releaseDifficulties[i]);
+                combinedDifficulties[difficultyIndex] = DifficultyCalculationUtils.Norm(1.4, combinedDifficulties[difficultyIndex], releaseDifficulties[i]);
             }
 
             return combinedDifficulties;
@@ -140,6 +142,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             new Pressing(mods),
             new Release(mods),
+            new CrossColumn(mods, ((ManiaBeatmap)beatmap).TotalColumns),
         };
 
         protected override Mod[] DifficultyAdjustmentMods

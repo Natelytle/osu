@@ -32,10 +32,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             releaseDifficulty *= 1.0 + 0.8 * (currentDifficulty + nextDifficulty);
 
             // Divide release difficulty by the number of notes within a +-500ms window (probably to nerf high pressing difficulty situations)
-            double localNoteCount = getHeadCountWithinTimeWindow(500, current);
-            releaseDifficulty *= 35.0 / (localNoteCount + 8.0);
+            // double localNoteCount = getHeadCountWithinTimeWindow(500, current);
+            // releaseDifficulty *= 35.0 / (localNoteCount + 8.0);
 
-            return releaseDifficulty * difficulty_multiplier;
+            return releaseDifficulty * difficulty_multiplier * 3.6;
         }
 
         private static double evaluateIndividualDifficultyOf(ManiaDifficultyHitObject current)

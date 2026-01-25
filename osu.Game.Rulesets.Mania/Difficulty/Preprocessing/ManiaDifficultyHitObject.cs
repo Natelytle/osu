@@ -21,15 +21,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public new readonly double EndTime;
         public readonly double ActualTime;
 
+        public int HeadIndex => Head.headObjectIndex;
+        public int? TailIndex => Tail?.headObjectIndex;
+
         /// <summary>
         /// The time difference to the last processed head note in any other column.
         /// </summary>
         public readonly double HeadDeltaTime;
-
-        /// <summary>
-        /// The time difference to the last processed head note in this column, clamped to 25ms.
-        /// </summary>
-        public readonly double ColumnHeadStrainTime;
 
         public new ManiaHitObject BaseObject => (ManiaHitObject)base.BaseObject;
 
@@ -56,6 +54,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public readonly List<ManiaDifficultyHitObject>[] SurroundingObjects;
 
         public readonly double GreatHitWindow;
+
+        public readonly int headsInOneSecondSurroundingWindow;
 
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects,
                                         List<ManiaDifficultyHitObject> headObjects, List<ManiaDifficultyHitObject> tailObjects,
@@ -102,9 +102,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             EndTime = Tail?.ActualTime ?? Head.ActualTime;
 
             HeadDeltaTime = StartTime - PrevHead(0)?.StartTime ?? StartTime;
-            ColumnHeadStrainTime = StartTime - PrevHeadInColumn(0)?.StartTime ?? StartTime;
-
-            ManiaDifficultyHitObject? prevHeadObj = PrevHead(0);
 
             for (int i = 0; i < perColumnHeadObjects.Length; i++)
             {
@@ -131,6 +128,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 }
             }
 
+            ManiaDifficultyHitObject? prevHeadObj = PrevHead(0);
+
             if (prevHeadObj is not null)
             {
                 for (int i = 0; i < prevHeadObj.PreviousHeadObjects.Length; i++)
@@ -147,8 +146,35 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public ManiaDifficultyHitObject? PrevTail(int backwardsIndex) => getNoteInList(tailObjects, tailObjectIndex, -(backwardsIndex + 1));
         public ManiaDifficultyHitObject? NextTail(int forwardsIndex) => getNoteInList(tailObjects, tailObjectIndex, forwardsIndex + 1);
 
-        public ManiaDifficultyHitObject? PrevHeadInColumn(int backwardsIndex) => getNoteInList(perColumnHeadObjects[Column], columnHeadIndex, -(backwardsIndex + 1));
-        public ManiaDifficultyHitObject? NextHeadInColumn(int forwardsIndex) => getNoteInList(perColumnHeadObjects[Column], columnHeadIndex, forwardsIndex + 1);
+        public ManiaDifficultyHitObject? PrevHeadInColumn(int backwardsIndex, int? column = null, bool inclusive = false)
+        {
+            if (column is null)
+            {
+                return getNoteInList(perColumnHeadObjects[Column], columnHeadIndex, -(backwardsIndex + 1));
+            }
+
+            if (column >= perColumnHeadObjects.Length || column < 0)
+            {
+                return null;
+            }
+
+            return perColumnHeadObjects[column.Value].LastOrDefault(o => inclusive ? o.StartTime <= StartTime : o.StartTime < StartTime);
+        }
+
+        public ManiaDifficultyHitObject? NextHeadInColumn(int forwardsIndex, int? column = null, bool inclusive = false)
+        {
+            if (column is null)
+            {
+                return getNoteInList(perColumnHeadObjects[Column], columnHeadIndex, forwardsIndex + 1);
+            }
+
+            if (column >= perColumnHeadObjects.Length || column < 0)
+            {
+                return null;
+            }
+
+            return perColumnHeadObjects[column.Value].FirstOrDefault(o => inclusive ? o.StartTime >= StartTime : o.StartTime > StartTime);
+        }
 
         public ManiaDifficultyHitObject? PrevTailInColumn(int backwardsIndex) => getNoteInList(perColumnTailObjects[Column], columnTailIndex, -(backwardsIndex + 1));
         public ManiaDifficultyHitObject? NextTailInColumn(int forwardsIndex) => getNoteInList(perColumnTailObjects[Column], columnTailIndex, forwardsIndex + 1);

@@ -10,6 +10,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public static class PressingEvaluator
     {
+        private const double difficulty_multiplier = 0.8;
+
         private const double stream_bpm_start = 320;
         private const double stream_bpm_end = 720;
 
@@ -56,7 +58,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             leniencyPenalty = Math.Pow(leniencyPenalty, 0.25) * Math.Pow(80 / leniency, 0.25);
 
-            return baseDifficulty * Math.Max(streamBonus, longNoteBonus) * leniencyPenalty;
+            return baseDifficulty * Math.Max(streamBonus, longNoteBonus) * leniencyPenalty * difficulty_multiplier;
         }
 
         public static double EvaluateChordDifficultyOf(ManiaDifficultyHitObject current)
