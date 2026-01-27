@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             columnCoordinationDifficulties[rightColumnBoundary] = rightCrossDifficulty;
 
             // Wait until the whole chord is processed before returning.
-            if (current.NextHead(0) is not null && current.NextHead(0)!.DeltaTime == 0)
+            if (current.NextHead(0) is not null && current.NextHead(0)!.HeadDeltaTime == 0)
             {
                 return 0;
             }

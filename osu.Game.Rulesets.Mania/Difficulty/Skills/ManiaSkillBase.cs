@@ -39,17 +39,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (ObjectDifficulties.Count == 0)
                 return 0;
 
-            for (int i = 0; i < ObjectDifficulties.Count; i++)
-            {
-                Console.Write(Math.Round(ObjectDifficulties[i], 2) + ", ");
-            }
-
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine();
-
             return ObjectDifficulties.Average();
         }
 
