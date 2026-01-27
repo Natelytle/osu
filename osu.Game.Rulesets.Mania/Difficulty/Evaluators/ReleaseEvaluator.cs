@@ -62,8 +62,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double holdDifficultyComponent = holdDuration / leniency;
             double timingDifficultyComponent = releaseToNextNote / leniency;
 
-            double lh = DifficultyCalculationUtils.Logistic(holdDifficultyComponent, 0.75, 5.0);
-            double lt = DifficultyCalculationUtils.Logistic(timingDifficultyComponent, 0.75, 5.0);
+            double lh = DifficultyCalculationUtils.Logistic(holdDifficultyComponent, 750, 5.0 / 1000.0);
+            double lt = DifficultyCalculationUtils.Logistic(timingDifficultyComponent, 750, 5.0 / 1000.0);
 
             return 2.0 * (lh * lt) / (lh + lt);
         }
