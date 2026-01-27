@@ -13,15 +13,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
     public class ManiaDifficultyHitObject : DifficultyHitObject
     {
-        public ManiaDifficultyHitObject Head { get; private set; }
-
+        public ManiaDifficultyHitObject? Head { get; private set; }
         public ManiaDifficultyHitObject? Tail { get; private set; }
 
         public new readonly double StartTime;
         public new readonly double EndTime;
         public readonly double ActualTime;
 
-        public int HeadIndex => Head.headObjectIndex;
+        public int? HeadIndex => Head?.headObjectIndex;
         public int? TailIndex => Tail?.headObjectIndex;
 
         /// <summary>
@@ -55,8 +54,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public readonly double GreatHitWindow;
 
-        public readonly int headsInOneSecondSurroundingWindow;
-
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects,
                                         List<ManiaDifficultyHitObject> headObjects, List<ManiaDifficultyHitObject> tailObjects,
                                         List<ManiaDifficultyHitObject>[] perColumnHeadObjects, List<ManiaDifficultyHitObject>[] perColumnTailObjects, int index)
@@ -87,9 +84,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 Tail = this;
 
                 // We process forward, so we need to set the tail value for the previous head while we process the tail for it.
-                // Can technically be null but setting the head to this in that case should be harmless.
-                Head = perColumnHeadObjects[Column].LastOrDefault() ?? this;
-                Head.Tail = this;
+                Head = perColumnHeadObjects[Column].LastOrDefault();
+
+                if (Head is not null)
+                {
+                    Head.Tail = this;
+                }
             }
             else
             {
@@ -98,8 +98,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
             // Actual time is when the nested hit object takes place
             ActualTime = base.StartTime;
-            StartTime = Head.ActualTime;
-            EndTime = Tail?.ActualTime ?? Head.ActualTime;
+            StartTime = Head?.ActualTime ?? ActualTime;
+            EndTime = Tail?.ActualTime ?? ActualTime;
 
             HeadDeltaTime = StartTime - PrevHead(0)?.StartTime ?? StartTime;
 

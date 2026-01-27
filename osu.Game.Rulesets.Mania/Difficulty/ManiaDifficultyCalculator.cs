@@ -66,13 +66,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             List<double> combinedDifficulties = pressing.GetObjectDifficulties().ToList();
             var releaseDifficulties = release.GetObjectDifficulties();
 
-            if (pressing.HeadIndicesToDifficultyIndices.Count == 0)
+            if (pressing.HeadToDifficultyIndex.Count == 0)
                 return combinedDifficulties;
 
             for (int i = 0; i < releaseDifficulties.Count; i++)
             {
-                int headIndex = release.HeadIndices[i];
-                int difficultyIndex = pressing.HeadIndicesToDifficultyIndices[headIndex];
+                int difficultyIndex = 0;
+
+                // If the index doesn't exist, there's no head to go with this tail.
+                // Only happens when the head is the first note in the map, so we just apply the difficulty to the second note.
+                if (release.TailToHeadIndex.TryGetValue(i, out int headIndex))
+                {
+                    difficultyIndex = pressing.HeadToDifficultyIndex[headIndex];
+                }
 
                 combinedDifficulties[difficultyIndex] = DifficultyCalculationUtils.Norm(1.4, combinedDifficulties[difficultyIndex], releaseDifficulties[i]);
             }

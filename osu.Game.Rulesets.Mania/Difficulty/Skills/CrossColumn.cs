@@ -8,7 +8,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class CrossColumn : ManiaSkillHeads
+    public class CrossColumn : ManiaSkill
     {
         private readonly double[] columnCoordinationDifficulties;
         private readonly double[] columnSpeedDifficulties;

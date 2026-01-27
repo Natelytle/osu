@@ -7,12 +7,18 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public abstract class ManiaSkillBase : Skill
+    public abstract class ManiaSkill : Skill
     {
+        // Used to link tail difficulties up with the LN that corresponds with them.
+        public readonly Dictionary<int, int> HeadToDifficultyIndex = new Dictionary<int, int>();
+        public readonly Dictionary<int, int> TailToHeadIndex = new Dictionary<int, int>();
+        private int tailIndex;
+
         // We want to smooth our difficulty using the 1000ms window surrounding it.
         protected double SmoothingWindowSize { get; set; } = 1000;
         private double halfSize => SmoothingWindowSize / 2.0;
@@ -31,8 +37,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         // Hacky thing used to connect LN difficulties together
         protected int ProcessedNoteCount => ObjectDifficulties.Count + chordNoteCount;
 
-        protected ManiaSkillBase(Mod[] mods)
-            : base(mods) { }
+        public enum LnMode
+        {
+            Heads,
+            Tails,
+            Both
+        }
+
+        private readonly LnMode lnProcessingMode;
+
+        protected ManiaSkill(Mod[] mods, LnMode lnProcessingMode = LnMode.Heads)
+            : base(mods)
+        {
+            this.lnProcessingMode = lnProcessingMode;
+        }
 
         public override double DifficultyValue()
         {
@@ -44,6 +62,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         public override void Process(DifficultyHitObject current)
         {
+            ManiaDifficultyHitObject maniaCurrent = (ManiaDifficultyHitObject)current;
+
+            // Block notes that aren't relevant to the skill at hand, depends on LnMode.
+            if (!shouldProcess(current))
+            {
+                return;
+            }
+
             if (current.StartTime > currentChordTime)
             {
                 AddChordDifficulties(current.StartTime);
@@ -54,9 +80,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             chordNoteCount++;
 
             // Add the final chord difficulties
-            if (current.Next(0) is null)
+            switch (lnProcessingMode)
             {
-                AddChordDifficulties(current.StartTime);
+                case LnMode.Both when maniaCurrent.Next(0) is null:
+                case LnMode.Heads when maniaCurrent.NextHead(0) is null:
+                case LnMode.Tails when maniaCurrent.NextTail(0) is null:
+                    AddChordDifficulties(current.StartTime);
+                    break;
+            }
+
+            // And updates the indices.
+            if (maniaCurrent.BaseObject is HeadNote)
+            {
+                if (maniaCurrent.HeadIndex is not null) HeadToDifficultyIndex.Add(maniaCurrent.HeadIndex.Value, ProcessedNoteCount - 1);
+            }
+            else if (maniaCurrent.BaseObject is TailNote)
+            {
+                if (maniaCurrent.HeadIndex is not null) TailToHeadIndex.Add(tailIndex, maniaCurrent.HeadIndex.Value);
+                tailIndex++;
             }
         }
 
@@ -86,6 +127,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             currentChordTime = newStartTime;
             chordDifficulty = 0;
             chordNoteCount = 0;
+        }
+
+        private bool shouldProcess(DifficultyHitObject current)
+        {
+            return current.BaseObject switch
+            {
+                TailNote => lnProcessingMode is LnMode.Tails or LnMode.Both,
+                _ => lnProcessingMode is not LnMode.Tails
+            };
         }
 
         protected override double ProcessInternal(DifficultyHitObject current)

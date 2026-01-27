@@ -8,7 +8,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Pressing : ManiaSkillHeads
+    public class Pressing : ManiaSkill
     {
         public Pressing(Mod[] mods)
             : base(mods) { }

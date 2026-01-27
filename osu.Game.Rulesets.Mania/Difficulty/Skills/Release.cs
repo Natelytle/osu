@@ -7,10 +7,10 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Release : ManiaSkillTails
+    public class Release : ManiaSkill
     {
         public Release(Mod[] mods)
-            : base(mods) { }
+            : base(mods, LnMode.Tails) { }
 
         protected override double BaseDifficulty(ManiaDifficultyHitObject current)
         {
