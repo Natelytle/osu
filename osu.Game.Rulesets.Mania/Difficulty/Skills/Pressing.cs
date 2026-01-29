@@ -8,10 +8,12 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Pressing : ManiaSkill
+    public class Pressing : ManiaSmoothingSkill
     {
         public Pressing(Mod[] mods)
-            : base(mods) { }
+            : base(mods)
+        {
+        }
 
         private double chordAccumulator;
 

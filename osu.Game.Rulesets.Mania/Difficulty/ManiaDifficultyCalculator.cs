@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Beatmaps;
@@ -44,12 +45,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
             var pressing = skills.OfType<Pressing>().Single();
+            var pressingTest = skills.OfType<PressingTest>().Single();
             var release = skills.OfType<Release>().Single();
             var crossColumn = skills.OfType<CrossColumn>().Single();
+            var crossColumnTest = skills.OfType<CrossColumnTest>().Single();
 
             List<double> combinedDifficulties = combinePressingAndReleaseDifficulties(pressing, release);
 
             double combinedDifficulty = combinedDifficulties.Count > 0 ? combinedDifficulties.Average() : 0;
+
+            for (int i = 0; i < 5000; i++)
+            {
+                double d1 = Math.Round(crossColumn.GetObjectDifficulties()[i], 2);
+                double d2 = Math.Round(crossColumnTest.GetObjectDifficulties()[i], 2);
+                // Console.WriteLine(d1 + " - " + d2 + " = " + (d1 - d2));
+
+                Console.Write(d1 + ", ");
+            }
 
             ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
             {
@@ -147,8 +159,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => new Skill[]
         {
             new Pressing(mods),
+            new PressingTest(mods),
             new Release(mods),
             new CrossColumn(mods, ((ManiaBeatmap)beatmap).TotalColumns),
+            new CrossColumnTest(mods, ((ManiaBeatmap)beatmap).TotalColumns)
         };
 
         protected override Mod[] DifficultyAdjustmentMods

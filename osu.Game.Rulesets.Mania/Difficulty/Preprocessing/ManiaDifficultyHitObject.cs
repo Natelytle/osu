@@ -158,7 +158,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 return null;
             }
 
-            return perColumnHeadObjects[column.Value].LastOrDefault(o => inclusive ? o.StartTime <= StartTime : o.StartTime < StartTime);
+            var buffer = perColumnHeadObjects[column.Value].FirstOrDefault(o => inclusive ? o.StartTime > StartTime : o.StartTime >= StartTime);
+            return buffer?.PrevHeadInColumn(backwardsIndex);
         }
 
         public ManiaDifficultyHitObject? NextHeadInColumn(int forwardsIndex, int? column = null, bool inclusive = false)
@@ -173,7 +174,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 return null;
             }
 
-            return perColumnHeadObjects[column.Value].FirstOrDefault(o => inclusive ? o.StartTime >= StartTime : o.StartTime > StartTime);
+            var buffer = perColumnHeadObjects[column.Value].LastOrDefault(o => inclusive ? o.StartTime < StartTime : o.StartTime <= StartTime);
+            return buffer?.NextHeadInColumn(forwardsIndex);
         }
 
         public ManiaDifficultyHitObject? PrevTailInColumn(int backwardsIndex) => getNoteInList(perColumnTailObjects[Column], columnTailIndex, -(backwardsIndex + 1));

@@ -8,25 +8,21 @@ using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
-    public class CrossColumnEvaluator
+    public class CrossColumnEvaluatorTest
     {
         public static double EvaluateSpeedDifficultyOf(ManiaDifficultyHitObject current)
         {
-            ManiaDifficultyHitObject? next = current.NextHeadInColumn(0);
+            ManiaDifficultyHitObject? prev = current.PrevHeadInColumn(0);
 
             // Evaluated as null if column is out of bounds
-            ManiaDifficultyHitObject? leftNext = current.NextHeadInColumn(0, current.Column - 1);
-            ManiaDifficultyHitObject? rightNext = current.NextHeadInColumn(0, current.Column + 1);
+            ManiaDifficultyHitObject? leftPrev = current.PrevHeadInColumn(0, current.Column - 1);
+            ManiaDifficultyHitObject? rightPrev = current.PrevHeadInColumn(0, current.Column + 1);
 
-            // Min value, non-null value if available, null if both are null
-            double? closestTimeLeft = leftNext?.StartTime < next?.StartTime ? leftNext.StartTime : next?.StartTime ?? null;
-            double? closestTimeRight = rightNext?.StartTime < next?.StartTime ? rightNext.StartTime : next?.StartTime ?? null;
+            double? leftDelta = current.StartTime - maxOrNull(leftPrev?.StartTime, prev?.StartTime);
+            double? rightDelta = current.StartTime - maxOrNull(rightPrev?.StartTime, prev?.StartTime);
 
-            // double? leftDelta = closestTimeLeft.Value - current.StartTime;
-            // double? rightDelta = closestTimeRight.Value - current.StartTime;
-
-            double speedDifficultyLeft = closestTimeLeft is not null ? evaluateSingleColumnSpeed(current, closestTimeLeft.Value - current.StartTime, current.Column - 1) : 0.0;
-            double speedDifficultyRight = closestTimeRight is not null ? evaluateSingleColumnSpeed(current, closestTimeRight.Value - current.StartTime, current.Column + 1) : 0.0;
+            double speedDifficultyLeft = leftDelta is not null ? evaluateSingleColumnSpeed(current, leftDelta.Value, current.Column - 1) : 0.0;
+            double speedDifficultyRight = rightDelta is not null ? evaluateSingleColumnSpeed(current, rightDelta.Value, current.Column + 1) : 0.0;
 
             return Math.Sqrt(speedDifficultyLeft * speedDifficultyRight);
         }
@@ -48,18 +44,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         public static (double left, double right) EvaluateCrossDifficultiesOf(ManiaDifficultyHitObject current)
         {
-            ManiaDifficultyHitObject? next = current.NextHeadInColumn(0);
+            ManiaDifficultyHitObject? prev = current.PrevHeadInColumn(0);
 
             // Evaluated as null if column is out of bounds
-            ManiaDifficultyHitObject? leftNext = current.NextHeadInColumn(0, current.Column - 1);
-            ManiaDifficultyHitObject? rightNext = current.NextHeadInColumn(0, current.Column + 1);
+            ManiaDifficultyHitObject? leftPrev = current.PrevHeadInColumn(0, current.Column - 1);
+            ManiaDifficultyHitObject? rightPrev = current.PrevHeadInColumn(0, current.Column + 1);
 
-            // Min value, non-null value if available, null if both are null
-            double? closestTimeLeft = leftNext?.StartTime < next?.StartTime ? leftNext.StartTime : next?.StartTime ?? null;
-            double? closestTimeRight = rightNext?.StartTime < next?.StartTime ? rightNext.StartTime : next?.StartTime ?? null;
+            double? leftDelta = current.StartTime - maxOrNull(leftPrev?.StartTime, prev?.StartTime);
+            double? rightDelta = current.StartTime - maxOrNull(rightPrev?.StartTime, prev?.StartTime);
 
-            double crossDifficultyLeft = closestTimeLeft is not null ? evaluateSingleColumnCross(current, closestTimeLeft.Value - current.StartTime, current.Column - 1) : 0.0;
-            double crossDifficultyRight = closestTimeRight is not null ? evaluateSingleColumnCross(current, closestTimeRight.Value - current.StartTime, current.Column + 1) : 0.0;
+            double crossDifficultyLeft = leftDelta is not null ? evaluateSingleColumnCross(current, leftDelta.Value, current.Column - 1) : 0.0;
+            double crossDifficultyRight = rightDelta is not null ? evaluateSingleColumnCross(current, rightDelta.Value, current.Column + 1) : 0.0;
 
             return (crossDifficultyLeft, crossDifficultyRight);
         }
@@ -90,11 +85,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             double usage = 0;
 
-            var next = current.NextHeadInColumn(0, column);
-            usage = next is not null ? Math.Max(usage, DifficultyCalculationUtils.Smoothstep(next.StartTime - (current.StartTime + delta), 175, 125)) : usage;
+            var next = current.NextHeadInColumn(0, column, true);
+            usage = next is not null ? Math.Max(usage, DifficultyCalculationUtils.Smoothstep(next.StartTime - current.StartTime, 175, 125)) : usage;
 
-            var prev = current.PrevHeadInColumn(0, column, true);
-            usage = prev is not null ? Math.Max(usage, DifficultyCalculationUtils.Smoothstep(current.StartTime - prev.StartTime, 175, 125)) : usage;
+            var prev = current.PrevHeadInColumn(0, column);
+            usage = prev is not null ? Math.Max(usage, DifficultyCalculationUtils.Smoothstep(current.StartTime - (prev.StartTime + delta), 175, 125)) : usage;
 
             return usage;
         }
@@ -129,5 +124,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // Fallback for unsupported key counts - they're pretty hard, so we use 0.4 for every potential binding
             return 0.4;
         }
+
+        private static double? maxOrNull(double? first, double? second) => first > second ? first : second ?? first;
     }
 }
