@@ -40,7 +40,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double strain = distanceBonus * 1000 / osuCurrObj.AdjustedDeltaTime;
 
-            strain *= highBpmBonus(osuCurrObj.AdjustedDeltaTime) * 0.15;
+            strain *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
 
             return strain;
         }
