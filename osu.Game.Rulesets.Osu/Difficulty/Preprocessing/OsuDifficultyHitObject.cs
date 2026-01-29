@@ -37,6 +37,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public readonly double AdjustedDeltaTime;
 
         /// <summary>
+        /// Time (in ms) between the object first appearing and the time it needs to be clicked.
+        /// <see cref="OsuHitObject.TimePreempt"/> adjusted by clock rate.
+        /// </summary>
+        public readonly double Preempt;
+
+        /// <summary>
+        /// Beatmap playback rate.
+        /// </summary>
+        public readonly double ClockRate;
+
+        /// <summary>
+        /// Normalised distance from the "lazy" end position of the previous <see cref="OsuDifficultyHitObject"/> to the start position of this <see cref="OsuDifficultyHitObject"/>.
+        /// <para>
+        /// The "lazy" end position is the position at which the cursor ends up if the previous hitobject is followed with as minimal movement as possible (i.e. on the edge of slider follow circles).
+        /// </para>
+        /// </summary>
+        public double LazyJumpDistance { get; private set; }
+
+        /// <summary>
         /// The position of the cursor at the point of completion of this <see cref="OsuDifficultyHitObject"/> if it is a <see cref="Slider"/>
         /// and was hit with as few movements as possible.
         /// </summary>
@@ -58,6 +77,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// </summary>
         public double SmallCircleBonus { get; private set; }
 
+        // legacy angle
+        public double? Angle { get; private set; }
+
         public double PathLengthToMovementLengthRatio { get; set; } = 1;
 
         public List<Movement> Movements { get; } = new List<Movement>();
@@ -75,6 +97,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             AdjustedDeltaTime = Math.Max(DeltaTime, MIN_DELTA_TIME);
 
             SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 40);
+
+            ClockRate = clockRate;
+            Preempt = BaseObject.TimePreempt / clockRate;
 
             if (BaseObject is Slider sliderObject)
             {
@@ -101,7 +126,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             }
 
             double fadeInStartTime = BaseObject.StartTime - BaseObject.TimePreempt;
-            double fadeInDuration = BaseObject.TimeFadeIn;
+
+            // Equal to `OsuHitObject.TimeFadeIn` minus any adjustments from the HD mod.
+            double fadeInDuration = 400 * Math.Min(1, BaseObject.TimePreempt / OsuHitObject.PREEMPT_MIN);
 
             if (hidden)
             {
@@ -117,6 +144,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             }
 
             return Math.Clamp((time - fadeInStartTime) / fadeInDuration, 0.0, 1.0);
+        }
+
+        /// <summary>
+        /// Returns the amount of time a note spends invisible with the hidden mod at the current approach rate.
+        /// </summary>
+        public double DurationSpentInvisible()
+        {
+            double fadeOutStartTime = BaseObject.StartTime - BaseObject.TimePreempt + BaseObject.TimeFadeIn;
+            double fadeOutDuration = BaseObject.TimePreempt * OsuModHidden.FADE_OUT_DURATION_MULTIPLIER;
+
+            return (fadeOutStartTime + fadeOutDuration) - (BaseObject.StartTime - BaseObject.TimePreempt);
         }
 
         /// <summary>
@@ -293,7 +331,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             var prevEndPosition = prevMovement?.End ?? lastDifficultyObject?.BaseObject.StackedPosition ?? osuLastObj.StackedEndPosition;
             double prevEndTime = prevMovement?.EndTime ?? lastDifficultyObject?.EndTime ?? (osuLastObj.StartTime / clockRate);
 
-            Movements.Add(new Movement
+            var initialMovement = new Movement
             {
                 Start = prevEndPosition,
                 StartTime = prevEndTime,
@@ -301,7 +339,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 End = BaseObject.StackedPosition,
                 EndTime = StartTime,
                 EndRadius = BaseObject.Radius
-            });
+            };
+            Movements.Add(initialMovement);
+
+            // i love kwotaq reading!!
+            if (prevMovement != null)
+            {
+                Angle = initialMovement.Angle(prevMovement);
+            }
+
+            LazyJumpDistance = initialMovement.Distance;
         }
 
         private void adjustPreviousObjectMovements()

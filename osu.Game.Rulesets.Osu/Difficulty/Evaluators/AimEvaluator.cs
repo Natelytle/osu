@@ -194,7 +194,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double ratioMultiplier = Math.Pow(Math.Pow(1 - osuCurrObj.PathLengthToMovementLengthRatio, 1) + 1, 1.0);
                 aimStrain *= ratioMultiplier;
 
-                aimStrain *= 3;
+                aimStrain *= 5;
 
                 // reduce the bonuses due to the fact that we use a different strain system that doesn't require difficulty values to be overblown
                 /*acuteAngleBonus *= 0.5;
