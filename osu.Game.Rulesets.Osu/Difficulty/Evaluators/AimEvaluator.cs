@@ -152,8 +152,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double bonuses = 0;
 
-            bonuses += wiggleBonus * 1.02;
-            bonuses += velocityChangeBonus * 0.25;
+            bonuses += wiggleBonus * 0.4;
+            bonuses += velocityChangeBonus * 0.15;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
             bonuses += Math.Max(acuteAngleBonus * 0.7, wideAngleBonus * 0.3);
