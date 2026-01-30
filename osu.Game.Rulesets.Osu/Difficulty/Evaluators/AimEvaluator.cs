@@ -17,7 +17,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const double acute_angle_multiplier = 2.3;
         private const double slider_multiplier = 1.5;
         private const double velocity_change_multiplier = 0.75;
-        private const double wiggle_multiplier = 1.02; // WARNING: Increasing this multiplier beyond 1.02 reduces difficulty as distance increases. Refer to the desmos link above the wiggle bonus calculation
+
+        private const double
+            wiggle_multiplier = 1.02; // WARNING: Increasing this multiplier beyond 1.02 reduces difficulty as distance increases. Refer to the desmos link above the wiggle bonus calculation
 
         /// <summary>
         /// Evaluates the difficulty of aiming the current object, based on:
@@ -124,7 +126,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     acuteAngleBonus = calcAcuteAngleBonus(currAngle);
 
                     // Penalize angle repetition.
-                    acuteAngleBonus *= 0.08 + 0.92 * (1 - Math.Min(acuteAngleBonus, Math.Pow(calcAcuteAngleBonus(lastAngle), 3)));
+                    acuteAngleBonus *= 0.1 + 0.9 * (1 - Math.Min(acuteAngleBonus, Math.Pow(calcAcuteAngleBonus(lastAngle), 3)));
 
                     // Apply acute angle bonus for BPM above 300 1/2 and distance more than one diameter
                     acuteAngleBonus *= angleBonus *
@@ -187,33 +189,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(currentMovement.Time, previousMovement.Time) / Math.Max(currentMovement.Time, previousMovement.Time), 2);
             }
 
-            var osuCurrObj = (OsuDifficultyHitObject)current;
+            double bonuses = 0;
 
-            if (isNested)
-            {
-                aimStrain *= 7.27;
-
-                // reduce the bonuses due to the fact that we use a different strain system that doesn't require difficulty values to be overblown
-                /*acuteAngleBonus *= 0.5;
-                velocityChangeBonus *= 0.5;
-                wiggleBonus *= 0.5;
-                wideAngleBonus *= 0.5;*/
-            }
-
-            aimStrain += wiggleBonus * wiggle_multiplier;
-            aimStrain += velocityChangeBonus * velocity_change_multiplier;
+            bonuses += wiggleBonus * 0.4;
+            bonuses += velocityChangeBonus * 0.15;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            bonuses += Math.Max(acuteAngleBonus * 0.7, wideAngleBonus * 0.3);
 
             // Apply high circle size bonus
-            if (!isNested)
-            {
-                aimStrain *= osuCurrObj.SmallCircleBonus;
-                aimStrain *= highBpmBonus(currentMovement.Time);
-            }
+            aimStrain *= osuCurrObj.SmallCircleBonus;
 
-            return aimStrain;
+            bonuses *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
+
+            return aimStrain + bonuses;
         }
 
         private static double highBpmBonus(double ms) => 1 / (1 - Math.Pow(0.15, ms / 1000));
