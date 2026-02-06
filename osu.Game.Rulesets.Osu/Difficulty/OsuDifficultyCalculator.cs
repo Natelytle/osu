@@ -62,7 +62,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedDifficultyValue = speed.DifficultyValue();
             double readingDifficultyValue = reading.DifficultyValue();
 
-            double aimDifficultStrainCount = aim.CountTopWeightedStrains(aimDifficultyValue);
             Polynomial aimMissPenaltyCurve = aim.GetMissPenaltyCurve();
             double speedDifficultStrainCount = speed.CountTopWeightedObjectDifficulties(speedDifficultyValue);
             double readingDifficultNoteCount = reading.CountTopWeightedObjectDifficulties(readingDifficultyValue);
