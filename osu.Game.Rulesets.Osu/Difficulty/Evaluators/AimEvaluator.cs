@@ -154,12 +154,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             bonuses += velocityChangeBonus * 0.15;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            bonuses += Math.Max(acuteAngleBonus * 0.7, wideAngleBonus * 0.3);
+            bonuses += Math.Max(acuteAngleBonus * 0.9, wideAngleBonus * 0.3);
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;
 
-            bonuses *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
+            bonuses *= highBpmBonus(osuCurrObj.AdjustedDeltaTime, osuCurrObj.LazyJumpDistance);
 
             return aimStrain + bonuses;
         }
