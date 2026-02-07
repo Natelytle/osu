@@ -5,15 +5,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
-namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
+namespace osu.Game.Rulesets.Difficulty.Skills
 {
-    public abstract class OsuFcProbSkill : Skill
+    public abstract class ProbabilitySkill : Skill
     {
-        protected OsuFcProbSkill(Mod[] mods)
+        protected ProbabilitySkill(Mod[] mods)
             : base(mods)
         {
         }
@@ -85,24 +84,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// <summary>
         /// The coefficients of a quartic fitted to the miss counts at each skill level.
         /// </summary>
-        /// <returns>The coefficients for ax^4+bx^3+cx^2. The 4th coefficient for dx^1 can be deduced from the first 3 in the performance calculator.</returns>
-        public Polynomial GetMissPenaltyCurve()
+        /// <returns>The coefficients for our penalty polynomial.</returns>
+        public double[] GetMissPenaltyCoefficients()
         {
             Dictionary<double, double> missCounts = new Dictionary<double, double>();
 
-            Polynomial missPenaltyCurve = new Polynomial();
-
-            // If there are no notes, we just return the polynomial with all coefficients 0.
+            // If there are no notes, we just return a zero-polynomial.
             if (ObjectDifficulties.Count == 0 || ObjectDifficulties.Max() == 0)
-                return missPenaltyCurve;
+                return Array.Empty<double>();
 
             double fcSkill = DifficultyValue();
 
             var bins = Bin.CreateBins(ObjectDifficulties, difficulty_bin_count);
 
-            foreach (double skillProportion in Polynomial.SKILL_PROPORTIONS)
+            foreach (double skillProportion in PolynomialPenaltyUtils.SKILL_PROPORTIONS)
             {
-                if (skillProportion == 0)
+                if (skillProportion == 1)
                 {
                     missCounts[skillProportion] = 0;
                     continue;
@@ -114,9 +111,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                 missCounts[skillProportion] = Math.Log(getMissCountAtSkill(penalizedSkill, bins) + 1);
             }
 
-            missPenaltyCurve.Fit(missCounts);
-
-            return missPenaltyCurve;
+            return PolynomialPenaltyUtils.GetPenaltyCoefficients(missCounts);
         }
 
         /// <summary>
@@ -155,5 +150,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             // Use a weighted sum of all strains. Constants are arbitrary and give nice values
             return ObjectDifficulties.Sum(s => 1.1 / (1 + Math.Exp(-10 * (s / consistentTopStrain - 0.88))));
         }
+
+        public static double DifficultyToPerformance(double difficulty) => 4.0 * Math.Pow(difficulty, 3.0);
     }
 }

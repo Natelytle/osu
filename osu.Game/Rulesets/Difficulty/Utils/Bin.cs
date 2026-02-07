@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace osu.Game.Rulesets.Osu.Difficulty.Utils
+namespace osu.Game.Rulesets.Difficulty.Utils
 {
     public struct Bin
     {

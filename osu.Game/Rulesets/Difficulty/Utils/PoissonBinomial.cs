@@ -3,9 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using osu.Game.Rulesets.Difficulty.Utils;
 
-namespace osu.Game.Rulesets.Osu.Difficulty.Utils
+namespace osu.Game.Rulesets.Difficulty.Utils
 {
     /// <summary>
     /// Approximation of the Poisson binomial distribution:
