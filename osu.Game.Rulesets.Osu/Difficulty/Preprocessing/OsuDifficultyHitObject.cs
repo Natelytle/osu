@@ -37,6 +37,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public readonly double AdjustedDeltaTime;
 
         /// <summary>
+        /// Amount of time elapsed between lastDifficultyObject's <see cref="DifficultyHitObject.EndTime"/> and <see cref="DifficultyHitObject.StartTime"/> capped to a minimum of <see cref="MIN_DELTA_TIME"/>ms.
+        /// </summary>
+        public double LastObjectEndDeltaTime { get; private set; }
+
+        /// <summary>
         /// Time (in ms) between the object first appearing and the time it needs to be clicked.
         /// <see cref="OsuHitObject.TimePreempt"/> adjusted by clock rate.
         /// </summary>
@@ -95,6 +100,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
             // Capped to 25ms to prevent difficulty calculation breaking from simultaneous objects.
             AdjustedDeltaTime = Math.Max(DeltaTime, MIN_DELTA_TIME);
+            LastObjectEndDeltaTime = lastDifficultyObject != null ? Math.Max(StartTime - lastDifficultyObject.EndTime, MIN_DELTA_TIME) : AdjustedDeltaTime;
 
             SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 60);
 
@@ -144,17 +150,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             }
 
             return Math.Clamp((time - fadeInStartTime) / fadeInDuration, 0.0, 1.0);
-        }
-
-        /// <summary>
-        /// Returns the amount of time a note spends invisible with the hidden mod at the current approach rate.
-        /// </summary>
-        public double DurationSpentInvisible()
-        {
-            double fadeOutStartTime = BaseObject.StartTime - BaseObject.TimePreempt + BaseObject.TimeFadeIn;
-            double fadeOutDuration = BaseObject.TimePreempt * OsuModHidden.FADE_OUT_DURATION_MULTIPLIER;
-
-            return (fadeOutStartTime + fadeOutDuration) - (BaseObject.StartTime - BaseObject.TimePreempt);
         }
 
         /// <summary>
