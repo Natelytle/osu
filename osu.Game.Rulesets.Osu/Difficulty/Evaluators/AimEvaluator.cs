@@ -195,7 +195,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             bonuses += velocityChangeBonus * 0.15;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            bonuses += Math.Max(acuteAngleBonus * 0.7, wideAngleBonus * 0.3);
+            bonuses += Math.Max(acuteAngleBonus * 0.9, wideAngleBonus * 0.3);
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
 
