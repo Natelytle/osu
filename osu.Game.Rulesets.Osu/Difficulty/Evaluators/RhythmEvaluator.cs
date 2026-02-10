@@ -85,7 +85,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // for example a slider-circle-circle pattern should be evaluated as a regular triple and not as a single->double
                 if (prevObj.BaseObject is Slider)
                 {
-                    double sliderLazyEndDelta = currObj.MinimumJumpTime;
+                    double sliderLazyEndDelta = currObj.Movements.First().Time;
                     double sliderLazyDeltaDifference = Math.Max(sliderLazyEndDelta, currDelta) / Math.Min(sliderLazyEndDelta, currDelta);
 
                     double sliderRealEndDelta = currObj.LastObjectEndDeltaTime;
