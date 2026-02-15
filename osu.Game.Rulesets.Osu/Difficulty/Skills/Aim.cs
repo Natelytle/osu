@@ -68,13 +68,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             }
 
             double firstMovementAimDecay = strainDecayAim(firstMovement.Time);
-            double firstMovementSpeedDecay = strainDecaySpeed(firstMovement.Time);
-
             currentAimStrain *= firstMovementAimDecay;
             currentAimStrain += firstMovementAimDifficulty * (1 - firstMovementAimDecay) * skillMultiplierAim;
 
-            currentSpeedStrain *= firstMovementSpeedDecay;
-            currentSpeedStrain += firstMovementSpeedDifficulty * (1 - firstMovementSpeedDecay) * skillMultiplierSpeed;
+            double speedDecay = strainDecaySpeed(osuCurrent.AdjustedDeltaTime);
+            currentSpeedStrain *= speedDecay;
+            currentSpeedStrain += firstMovementSpeedDifficulty * (1 - speedDecay) * skillMultiplierSpeed;
 
             double totalStrain = DifficultyCalculationUtils.Norm(meanExponent, currentAimStrain, currentSpeedStrain) * skillMultiplierTotal;
 
@@ -94,18 +93,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             {
                 var movement = osuCurrent.Movements[i];
                 lastAimStrain = currentAimStrain;
-                lastSpeedStrain = currentSpeedStrain;
 
                 double decay = strainDecayAim(movement.Time);
                 currentAimStrain *= decay;
-                currentSpeedStrain *= strainDecaySpeed(movement.Time);
+
+                // we don't want to save it since we always decay the full object deltatime
+                double movementSpeedStrain = currentSpeedStrain * strainDecaySpeed(movement.Time);
 
                 if (IncludeSliders)
                 {
                     currentAimStrain += AimEvaluator.EvaluateDifficultyOfMovement(current, movement) * (1 - decay) * skillMultiplierAim;
                 }
 
-                totalStrain = DifficultyCalculationUtils.Norm(meanExponent, currentAimStrain, currentSpeedStrain) * skillMultiplierTotal;
+                totalStrain = DifficultyCalculationUtils.Norm(meanExponent, currentAimStrain, movementSpeedStrain) * skillMultiplierTotal;
 
                 if (current.BaseObject is Slider)
                     sliderStrains.Add(totalStrain);

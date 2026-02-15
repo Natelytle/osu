@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -22,55 +21,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             wiggle_multiplier = 1.02; // WARNING: Increasing this multiplier beyond 1.02 reduces difficulty as distance increases. Refer to the desmos link above the wiggle bonus calculation
 
         /// <summary>
-        /// Evaluates the difficulty of aiming the current object, based on:
+        /// Evaluates the difficulty of aiming a movement, based on:
         /// <list type="bullet">
-        /// <item><description>cursor velocity to the current object,</description></item>
+        /// <item><description>cursor velocity to the movement,</description></item>
         /// <item><description>angle difficulty,</description></item>
-        /// <item><description>sharp velocity increases,</description></item>
-        /// <item><description>and slider difficulty.</description></item>
+        /// <item><description>and sharp velocity increases.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
-        {
-            if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
-                return 0;
-
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
-
-            if (osuLastLastObj != null && osuLastLastObj.BaseObject is Spinner)
-                osuLastLastObj = null;
-
-            double aimStrain = 0;
-
-            var movementStrains = new List<double>();
-
-            foreach (var currentMovement in osuCurrObj.Movements)
-            {
-                int indexOfMovement = osuCurrObj.Movements.IndexOf(currentMovement);
-
-                var previousMovement = indexOfMovement > 0
-                    ? osuCurrObj.Movements[indexOfMovement - 1]
-                    : osuLastObj.Movements.Last();
-
-                var prevPrevMovement = indexOfMovement > 1
-                    ? osuCurrObj.Movements[indexOfMovement - 2]
-                    : osuLastObj.Movements.Count > 1
-                        ? osuLastObj.Movements[^2]
-                        : osuLastLastObj?.Movements.LastOrDefault();
-
-                movementStrains.Add(calcMovementStrain(current, currentMovement, previousMovement, prevPrevMovement, indexOfMovement > 0));
-            }
-
-            if (withSliderTravelDistance)
-                aimStrain = movementStrains.Sum();
-            else
-                aimStrain = movementStrains[0];
-
-            return aimStrain;
-        }
-
         public static double EvaluateDifficultyOfMovement(DifficultyHitObject current, Movement currentMovement)
         {
             if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
@@ -102,6 +59,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         {
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
 
             double currVelocity = currentMovement.Distance / (currentMovement.IsNested ? Math.Pow(currentMovement.Time, 1) : currentMovement.Time);
             double prevVelocity = previousMovement.Distance / (previousMovement.IsNested ? Math.Pow(previousMovement.Time, 1) : previousMovement.Time);
@@ -140,7 +99,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
 
                 // Apply full wide angle bonus for distance more than SINGLE_SPACING_THRESHOLD
-                wideAngleBonus *= angleBonus * DifficultyCalculationUtils.Smootherstep(currentMovement.Distance, 0, SpeedAimEvaluator.SINGLE_SPACING_THRESHOLD);
+                wideAngleBonus *= angleBonus * Math.Pow(DifficultyCalculationUtils.Smoothstep(currentMovement.Distance, 0, SpeedAimEvaluator.SINGLE_SPACING_THRESHOLD), 3.0);
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -173,10 +132,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
             {
-                // We want to use the average velocity over the whole object when awarding differences, not the individual jump and slider path velocities.
-                //prevVelocity = (osuLastObj.LazyJumpDistance + osuLastLastObj.TravelDistance) / osuLastObj.AdjustedDeltaTime;
-                //currVelocity = (osuCurrObj.LazyJumpDistance + osuLastObj.TravelDistance) / osuCurrObj.AdjustedDeltaTime;
-
                 // Scale with ratio of difference compared to 0.5 * max dist.
                 double distRatio = DifficultyCalculationUtils.Smoothstep(Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity), 0, 1);
 
@@ -213,8 +168,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private static double highBpmBonus(double ms, double distance) => 1 / (1 - Math.Pow(0.15, ms / 1000))
                                                                           * DifficultyCalculationUtils.Smootherstep(distance, 0, OsuDifficultyHitObject.NORMALISED_RADIUS);
 
-        private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(70), double.DegreesToRadians(110));
+        private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
 
-        private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(110), double.DegreesToRadians(70));
+        private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
     }
 }
