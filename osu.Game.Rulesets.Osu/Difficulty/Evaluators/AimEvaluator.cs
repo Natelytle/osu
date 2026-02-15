@@ -60,8 +60,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-
             double currVelocity = currentMovement.Distance / (currentMovement.IsNested ? Math.Pow(currentMovement.Time, 1) : currentMovement.Time);
             double prevVelocity = previousMovement.Distance / (previousMovement.IsNested ? Math.Pow(previousMovement.Time, 1) : previousMovement.Time);
 
@@ -150,7 +148,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             bonuses += velocityChangeBonus * 0.15;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            bonuses += Math.Max(acuteAngleBonus * 0.9, wideAngleBonus * 0.3);
+            bonuses += Math.Max(acuteAngleBonus * 0.7, wideAngleBonus * 0.3);
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
 
