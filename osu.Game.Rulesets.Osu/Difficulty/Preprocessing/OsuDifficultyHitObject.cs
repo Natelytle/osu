@@ -48,11 +48,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public readonly double Preempt;
 
         /// <summary>
-        /// Beatmap playback rate.
-        /// </summary>
-        public readonly double ClockRate;
-
-        /// <summary>
         /// Normalised distance from the "lazy" end position of the previous <see cref="OsuDifficultyHitObject"/> to the start position of this <see cref="OsuDifficultyHitObject"/>.
         /// <para>
         /// The "lazy" end position is the position at which the cursor ends up if the previous hitobject is followed with as minimal movement as possible (i.e. on the edge of slider follow circles).
@@ -71,11 +66,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// and was hit with as few movements as possible.
         /// </summary>
         public double LazyTravelTime { get; private set; }
-
-        /// <summary>
-        /// Retrieves the full hit window for a Great <see cref="HitResult"/>.
-        /// </summary>
-        public double HitWindowGreat { get; private set; }
 
         /// <summary>
         /// Selective bonus for maps with higher circle size.
@@ -104,17 +94,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
             SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 40);
 
-            ClockRate = clockRate;
             Preempt = BaseObject.TimePreempt / clockRate;
-
-            if (BaseObject is Slider sliderObject)
-            {
-                HitWindowGreat = 2 * sliderObject.HeadCircle.HitWindows.WindowFor(HitResult.Great) / clockRate;
-            }
-            else
-            {
-                HitWindowGreat = 2 * BaseObject.HitWindows.WindowFor(HitResult.Great) / clockRate;
-            }
 
             adjustPreviousObjectMovements();
             addInitialMovement((OsuHitObject)lastObject, clockRate);
@@ -165,7 +145,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 double deltaDifference = Math.Abs(nextDeltaTime - currDeltaTime);
 
                 double speedRatio = currDeltaTime / Math.Max(currDeltaTime, deltaDifference);
-                double windowRatio = Math.Pow(Math.Min(1, currDeltaTime / HitWindowGreat), 5);
+                double windowRatio = Math.Pow(Math.Min(1, currDeltaTime / HitWindow(HitResult.Great)), 5);
 
                 return 1.0 - Math.Pow(speedRatio, 1 - windowRatio);
             }
