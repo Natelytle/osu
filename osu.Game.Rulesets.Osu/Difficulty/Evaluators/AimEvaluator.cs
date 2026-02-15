@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -20,55 +19,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const double wiggle_multiplier = 1.02; // WARNING: Increasing this multiplier beyond 1.02 reduces difficulty as distance increases. Refer to the desmos link above the wiggle bonus calculation
 
         /// <summary>
-        /// Evaluates the difficulty of aiming the current object, based on:
+        /// Evaluates the difficulty of aiming a movement, based on:
         /// <list type="bullet">
-        /// <item><description>cursor velocity to the current object,</description></item>
+        /// <item><description>cursor velocity to the movement,</description></item>
         /// <item><description>angle difficulty,</description></item>
-        /// <item><description>sharp velocity increases,</description></item>
-        /// <item><description>and slider difficulty.</description></item>
+        /// <item><description>and sharp velocity increases.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
-        {
-            if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
-                return 0;
-
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
-
-            if (osuLastLastObj != null && osuLastLastObj.BaseObject is Spinner)
-                osuLastLastObj = null;
-
-            double aimStrain = 0;
-
-            var movementStrains = new List<double>();
-
-            foreach (var currentMovement in osuCurrObj.Movements)
-            {
-                int indexOfMovement = osuCurrObj.Movements.IndexOf(currentMovement);
-
-                var previousMovement = indexOfMovement > 0
-                    ? osuCurrObj.Movements[indexOfMovement - 1]
-                    : osuLastObj.Movements.Last();
-
-                var prevPrevMovement = indexOfMovement > 1
-                    ? osuCurrObj.Movements[indexOfMovement - 2]
-                    : osuLastObj.Movements.Count > 1
-                        ? osuLastObj.Movements[^2]
-                        : osuLastLastObj?.Movements.LastOrDefault();
-
-                movementStrains.Add(calcMovementStrain(current, currentMovement, previousMovement, prevPrevMovement, indexOfMovement > 0));
-            }
-
-            if (withSliderTravelDistance)
-                aimStrain = movementStrains.Sum();
-            else
-                aimStrain = movementStrains[0];
-
-            return aimStrain;
-        }
-
         public static double EvaluateDifficultyOfMovement(DifficultyHitObject current, Movement currentMovement)
         {
             if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
@@ -100,6 +57,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         {
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
 
             double currVelocity = currentMovement.Distance / (currentMovement.IsNested ? Math.Pow(currentMovement.Time, 1) : currentMovement.Time);
             double prevVelocity = previousMovement.Distance / (previousMovement.IsNested ? Math.Pow(previousMovement.Time, 1) : previousMovement.Time);
@@ -171,10 +130,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
             {
-                // We want to use the average velocity over the whole object when awarding differences, not the individual jump and slider path velocities.
-                //prevVelocity = (osuLastObj.LazyJumpDistance + osuLastLastObj.TravelDistance) / osuLastObj.AdjustedDeltaTime;
-                //currVelocity = (osuCurrObj.LazyJumpDistance + osuLastObj.TravelDistance) / osuCurrObj.AdjustedDeltaTime;
-
                 // Scale with ratio of difference compared to 0.5 * max dist.
                 double distRatio = DifficultyCalculationUtils.Smoothstep(Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity), 0, 1);
 
@@ -187,17 +142,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(currentMovement.Time, previousMovement.Time) / Math.Max(currentMovement.Time, previousMovement.Time), 2);
             }
 
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-
             if (isNested)
             {
-                aimStrain *= 7.27;
-
-                // reduce the bonuses due to the fact that we use a different strain system that doesn't require difficulty values to be overblown
-                /*acuteAngleBonus *= 0.5;
-                velocityChangeBonus *= 0.5;
-                wiggleBonus *= 0.5;
-                wideAngleBonus *= 0.5;*/
+                aimStrain *= 8.0;
             }
 
             aimStrain += wiggleBonus * wiggle_multiplier;
@@ -206,9 +153,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
             aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
 
-            // Apply high circle size bonus
             if (!isNested)
             {
+                // Apply high circle size and high bpm bonuses only to the main movements
                 aimStrain *= osuCurrObj.SmallCircleBonus;
                 aimStrain *= highBpmBonus(currentMovement.Time, currentMovement.Distance);
             }
