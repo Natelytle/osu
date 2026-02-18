@@ -29,7 +29,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (mods.Any(m => m is OsuModAutopilot))
                 return 0;
 
-            double aimRating = CalculateDifficultyRating(aimDifficultyValue);
+            double aimRating = CalculateAimDifficultyRating(aimDifficultyValue);
 
             if (mods.Any(m => m is OsuModRelax))
                 aimRating *= 0.9;
@@ -133,5 +133,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         public static double CalculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * difficulty_multiplier;
+        public static double CalculateAimDifficultyRating(double difficultyValue) => Math.Pow(difficultyValue, 0.7) * difficulty_multiplier;
     }
 }

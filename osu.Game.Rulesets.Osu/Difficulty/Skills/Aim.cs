@@ -34,9 +34,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double lastAimStrain;
         private double lastSpeedStrain;
 
-        private double skillMultiplierAim => 24.0;
+        private double skillMultiplierAim => 23.0;
         private double skillMultiplierSpeed => 0.6;
-        private double skillMultiplierTotal => 4.80;
+        private double skillMultiplierTotal => 0.42;
         private double meanExponent => 1.2;
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -47,7 +47,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double CalculateInitialStrain(double deltaTime) =>
             DifficultyCalculationUtils.Norm(meanExponent,
                 lastAimStrain * strainDecayAim(deltaTime),
-                lastSpeedStrain * strainDecaySpeed(deltaTime));
+                lastSpeedStrain * strainDecaySpeed(deltaTime)) * skillMultiplierTotal;
 
         protected override IEnumerable<ObjectStrain> StrainValuesAt(DifficultyHitObject current)
         {
