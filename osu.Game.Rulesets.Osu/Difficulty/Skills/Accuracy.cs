@@ -31,13 +31,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override IJudgementProbabilities JudgementProbabilities(double skill, double difficulty, DifficultyHitObject hitObject)
         {
-            double deviation = UnstableRateAtSkill(skill) / 10;
+            // Multiply deviation by the difficulty of this note.
+            // Deviation is unstable rate divided by 10.
+            double deviation = difficulty * UnstableRateAtSkill(skill) / 10;
 
             if (hitObject.BaseObject is HitCircle || (sliderAccuracy && hitObject.BaseObject is Slider))
             {
-                double greatHitWindow = hitObject.HitWindow(HitResult.Great);
-                double okHitWindow = hitObject.HitWindow(HitResult.Ok);
-                double mehHitWindow = hitObject.HitWindow(HitResult.Meh);
+                double greatHitWindow = hitObject.HitWindow(HitResult.Great) / 2.0;
+                double okHitWindow = hitObject.HitWindow(HitResult.Ok) / 2.0;
+                double mehHitWindow = hitObject.HitWindow(HitResult.Meh) / 2.0;
 
                 double greatProb = DifficultyCalculationUtils.Erf(greatHitWindow / (Math.Sqrt(2) * deviation));
                 double okProb = DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviation)) - DifficultyCalculationUtils.Erf(greatHitWindow / (Math.Sqrt(2) * deviation));
