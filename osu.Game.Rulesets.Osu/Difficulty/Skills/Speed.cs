@@ -11,6 +11,7 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -23,7 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> sliderStrains = new List<double>();
 
-        private double currentDifficulty;
+        private readonly Queue<DifficultyPoint> speedDifficultyPoints = new Queue<DifficultyPoint>();
 
         private double strainDecayBase => 0.3;
 
@@ -35,18 +36,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
         }
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
-
         protected override double ObjectDifficultyOf(DifficultyHitObject current)
         {
-            double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
+            double speedDifficulty = SpeedEvaluator.EvaluateDifficultyOf(current);
 
-            currentDifficulty *= decay;
-            currentDifficulty += SpeedEvaluator.EvaluateDifficultyOf(current) * (1 - decay) * skillMultiplier;
+            DifficultyPoint speedDifficultyPoint = new DifficultyPoint
+            {
+                Difficulty = speedDifficulty * skillMultiplier,
+                Time = ((OsuDifficultyHitObject)current).StartTime,
+                DeltaTime = ((OsuDifficultyHitObject)current).StartTime - speedDifficultyPoints.LastOrDefault().Time
+            };
+
+            speedDifficultyPoints.Enqueue(speedDifficultyPoint);
+
+            double currentStrain = OsuStrainUtils.GetStrainValueOf(speedDifficultyPoints, current.StartTime, strainDecayBase);
 
             double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
 
-            double totalDifficulty = currentDifficulty * currentRhythm;
+            double totalDifficulty = currentStrain * currentRhythm;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(totalDifficulty);

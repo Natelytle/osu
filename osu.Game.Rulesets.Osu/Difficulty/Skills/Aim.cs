@@ -28,8 +28,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             IncludeSliders = includeSliders;
         }
 
-        private double currentAimStrain;
-        private double currentSpeedStrain;
+        private readonly Queue<DifficultyPoint> aimDifficultyPoints = new Queue<DifficultyPoint>();
+        private readonly Queue<DifficultyPoint> speedDifficultyPoints = new Queue<DifficultyPoint>();
 
         private double skillMultiplierAim => 25.0;
         private double skillMultiplierSpeed => 1.4;
@@ -38,19 +38,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> sliderStrains = new List<double>();
 
-        private double strainDecayAim(double ms) => Math.Pow(0.15, ms / 1000);
-        private double strainDecaySpeed(double ms) => Math.Pow(0.3, ms / 1000);
-
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) =>
             DifficultyCalculationUtils.Norm(meanExponent,
-                currentAimStrain * strainDecayAim(time - current.Previous(0).StartTime),
-                currentSpeedStrain * strainDecaySpeed(time - current.Previous(0).StartTime)) * skillMultiplierTotal;
+                OsuStrainUtils.GetStrainValueOf(aimDifficultyPoints, time, 0.15),
+                OsuStrainUtils.GetStrainValueOf(speedDifficultyPoints, time, 0.3)) * skillMultiplierTotal;
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double decayAim = strainDecayAim(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-            double decaySpeed = strainDecaySpeed(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-
             double aimDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
             double speedDifficulty = SpeedAimEvaluator.EvaluateDifficultyOf(current);
 
@@ -65,11 +59,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 speedDifficulty *= 0.0;
             }
 
-            currentAimStrain *= decayAim;
-            currentAimStrain += aimDifficulty * (1 - decayAim) * skillMultiplierAim;
+            DifficultyPoint aimDifficultyPoint = new DifficultyPoint
+            {
+                Difficulty = aimDifficulty * skillMultiplierAim,
+                Time = ((OsuDifficultyHitObject)current).StartTime,
+                DeltaTime = ((OsuDifficultyHitObject)current).StartTime - aimDifficultyPoints.LastOrDefault().Time
+            };
 
-            currentSpeedStrain *= decaySpeed;
-            currentSpeedStrain += speedDifficulty * (1 - decaySpeed) * skillMultiplierSpeed;
+            aimDifficultyPoints.Enqueue(aimDifficultyPoint);
+
+            DifficultyPoint speedDifficultyPoint = new DifficultyPoint
+            {
+                Difficulty = speedDifficulty * skillMultiplierSpeed,
+                Time = ((OsuDifficultyHitObject)current).StartTime,
+                DeltaTime = ((OsuDifficultyHitObject)current).StartTime - speedDifficultyPoints.LastOrDefault().Time
+            };
+
+            speedDifficultyPoints.Enqueue(speedDifficultyPoint);
+
+            double currentAimStrain = OsuStrainUtils.GetStrainValueOf(aimDifficultyPoints, current.StartTime, 0.15);
+            double currentSpeedStrain = OsuStrainUtils.GetStrainValueOf(speedDifficultyPoints, current.StartTime, 0.3);
 
             double totalStrain = DifficultyCalculationUtils.Norm(meanExponent, currentAimStrain, currentSpeedStrain) * skillMultiplierTotal;
 
