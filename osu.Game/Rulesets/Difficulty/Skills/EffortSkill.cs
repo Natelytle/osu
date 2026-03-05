@@ -10,19 +10,35 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Difficulty.Skills
 {
-    public abstract class TimeSkill : Skill
+    public abstract class EffortSkill : Skill
     {
-        protected TimeSkill(Mod[] mods)
+        protected EffortSkill(Mod[] mods)
             : base(mods)
         {
         }
 
+        private const double effort_threshold = 100;
+
         private const double ms_to_minutes = 1.0 / 60000.0;
 
+        /// <summary>
+        /// The maximum time (in minutes) that a player can spend on this map that will fall under <see cref="effort_threshold"/>
+        /// Lowering this value increases difficulty, as you require more skill to spend less time retrying.
+        /// </summary>
+        protected abstract double EffortMaxTime { get; }
+
+        private double effortPerMinute => effort_threshold / EffortMaxTime;
+
+        /// <summary>
+        /// The maximum retries that a player can spend on this map that will fall under <see cref="effort_threshold"/>
+        /// Lowering this value increases difficulty, as you require more skill to spend fewer retries.
+        /// </summary>
+        protected abstract double EffortMaxRetries { get; }
+
+        private double effortPerRetry => effort_threshold / EffortMaxRetries;
+
         // FC time specific constants
-        private const double time_threshold_minutes = 24;
         private const double max_delta_time = 5000;
-        private const double retry_cooldown_time = 60000;
 
         // Bin specific constants
         private const double bin_threshold_note_count = difficulty_bin_count * time_bin_count;
@@ -41,7 +57,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         protected override double ProcessInternal(DifficultyHitObject current)
         {
             times.Add(current.Index == 0
-                ? retry_cooldown_time + Math.Min(current.DeltaTime, max_delta_time)
+                ? Math.Min(current.DeltaTime, max_delta_time)
                 : times.Last() + Math.Min(current.DeltaTime, max_delta_time));
 
             return StrainValueAt(current);
@@ -63,10 +79,10 @@ namespace osu.Game.Rulesets.Difficulty.Skills
             }
 
             // Lower bound and upper bound are generally unimportant
-            return RootFinding.FindRootExpand(skill => timeSpentRetryingAtSkill(skill, binList) - time_threshold_minutes, 0, 10);
+            return RootFinding.FindRootExpand(skill => effortSpentAtSkill(skill, binList) - effort_threshold, 0, 10);
         }
 
-        private double timeSpentRetryingAtSkill(double skill, List<Bin>? binList = null)
+        private double effortSpentAtSkill(double skill, List<Bin>? binList = null)
         {
             if (skill <= 0) return double.PositiveInfinity;
 
@@ -95,7 +111,11 @@ namespace osu.Game.Rulesets.Difficulty.Skills
                 }
             }
 
-            return timeSpentRetrying * ms_to_minutes;
+            // We subtract one to not count the FC run in the retry count.
+            double retriesSpent = hitProbabilityProduct > 0 ? 1.0 / hitProbabilityProduct - 1 : double.PositiveInfinity;
+            double minutesSpentOnRetries = timeSpentRetrying * ms_to_minutes;
+
+            return retriesSpent * effortPerRetry + minutesSpentOnRetries * effortPerMinute;
         }
 
         /// <summary>
@@ -138,7 +158,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         }
 
         /// <summary>
-        /// Find the lowest misscount that a player with the provided <paramref name="skill"/> would likely achieve within 12 minutes of retrying.
+        /// Find the lowest misscount that a player with the provided <paramref name="skill"/> would likely achieve with the provided effort.
         /// </summary>
         private double getMissCountAtSkill(double skill, List<Bin>? binList = null)
         {
@@ -151,7 +171,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
 
             IterativePoissonBinomial poiBin = new IterativePoissonBinomial();
 
-            return Math.Max(0, RootFinding.FindRootExpand(x => retryTimeRequiredToObtainMissCount(x) - time_threshold_minutes, -50, 1000, accuracy: 0.01));
+            return Math.Max(0, RootFinding.FindRootExpand(x => retryTimeRequiredToObtainMissCount(x) - effort_threshold, -50, 1000, accuracy: 0.01));
 
             double retryTimeRequiredToObtainMissCount(double missCount)
             {
@@ -190,7 +210,10 @@ namespace osu.Game.Rulesets.Difficulty.Skills
                     }
                 }
 
-                return timeSpentRetrying * ms_to_minutes;
+                double retriesSpent = poiBin.Cdf(missCount) > 0 ? 1.0 / poiBin.Cdf(missCount) - 1 : double.PositiveInfinity;
+                double minutesSpentOnRetries = timeSpentRetrying * ms_to_minutes;
+
+                return retriesSpent * effortPerRetry + minutesSpentOnRetries * effortPerMinute;
             }
         }
 

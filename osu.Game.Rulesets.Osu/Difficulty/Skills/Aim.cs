@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : TimeSkill
+    public class Aim : EffortSkill
     {
         public readonly bool IncludeSliders;
 
@@ -32,9 +32,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double currentAimStrain;
         private double currentSpeedStrain;
 
-        private double skillMultiplierAim => 326.0;
-        private double skillMultiplierSpeed => 14.0;
-        private double skillMultiplierTotal => 0.94;
+        protected override double EffortMaxTime => 60;
+        protected override double EffortMaxRetries => 70;
+
+        private double skillMultiplierAim => 325.0;
+        private double skillMultiplierSpeed => 12.5;
+        private double skillMultiplierTotal => 1.0;
         private double meanExponent => 1.2;
 
         private readonly List<double> sliderStrains = new List<double>();
