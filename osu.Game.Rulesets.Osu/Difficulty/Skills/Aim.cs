@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -31,9 +30,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplierSnap => 350.0;
+        private double skillMultiplierSnap => 355.0;
         private double skillMultiplierAgility => 10.0;
-        private double skillMultiplierFlow => 1200.0;
+        private double skillMultiplierFlow => 1100.0;
         private double skillMultiplierTotal => 1.1;
         private double meanExponent => 1.2;
 
