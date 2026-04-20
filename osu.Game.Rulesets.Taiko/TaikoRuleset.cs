@@ -138,6 +138,7 @@ namespace osu.Game.Rulesets.Taiko
                         new TaikoModNoFail(),
                         new MultiMod(new TaikoModHalfTime(), new TaikoModDaycore()),
                         new TaikoModSimplifiedRhythm(),
+                        new TaikoModGhosting()
                     };
 
                 case ModType.DifficultyIncrease:

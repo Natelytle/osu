@@ -26,6 +26,11 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
         public TaikoAction[] HitActions { get; internal set; }
 
         /// <summary>
+        /// A list of keys which will be ignored for this HitObject.
+        /// </summary>
+        public TaikoAction[] IgnoreActions { get; internal set; }
+
+        /// <summary>
         /// The action that caused this <see cref="DrawableHit"/> to be hit.
         /// </summary>
         public TaikoAction? HitAction
@@ -119,7 +124,7 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
         {
             if (lastPressHandleTime == Time.Current)
                 return true;
-            if (Judged)
+            if (Judged || (IgnoreActions?.Contains(e.Action) ?? false))
                 return false;
 
             validActionPressed = HitActions.Contains(e.Action);
