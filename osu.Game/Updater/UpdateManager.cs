@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,9 +11,11 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Logging;
 using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Localisation;
+using osu.Game.Online.Multiplayer;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Utils;
@@ -53,22 +56,22 @@ namespace osu.Game.Updater
         {
             base.LoadComplete();
 
-            string version = game.Version;
-            string lastVersion = config.Get<string>(OsuSetting.Version);
-
-            if (game.IsDeployedBuild && version != lastVersion)
+            if (game.IsDeployedBuild)
             {
-                // only show a notification if we've previously saved a version to the config file (ie. not the first run).
-                if (!string.IsNullOrEmpty(lastVersion))
-                    Notifications.Post(new UpdateCompleteNotification(version));
+                // make sure the release stream setting matches the build which was just run.
+                if (FixedReleaseStream != null)
+                    config.SetValue(OsuSetting.ReleaseStream, FixedReleaseStream.Value);
 
+                // notify the user if they're using a build that is not officially sanctioned.
                 if (RuntimeInfo.EntryAssembly.GetCustomAttribute<OfficialBuildAttribute>() == null)
                     Notifications.Post(new SimpleNotification { Text = NotificationsStrings.NotOfficialBuild });
             }
-
-            // debug / local compilations will reset to a non-release string.
-            // can be useful to check when an install has transitioned between release and otherwise (see OsuConfigManager's migrations).
-            config.SetValue(OsuSetting.Version, version);
+            else
+            {
+                // log that this is not an official build, for if users build their own game without an assembly version.
+                // this is only logged because a notification would be too spammy in local test builds.
+                Logger.Log(NotificationsStrings.NotOfficialBuild.ToString());
+            }
 
             config.BindWith(OsuSetting.ReleaseStream, releaseStream);
             releaseStream.BindValueChanged(_ => CheckForUpdate());
@@ -81,13 +84,16 @@ namespace osu.Game.Updater
         /// </summary>
         public void CheckForUpdate()
         {
-            _ = CheckForUpdateAsync();
+            CheckForUpdateAsync().FireAndForget();
         }
 
         /// <summary>
         /// Immediately checks for any available update.
         /// </summary>
-        /// <returns><c>true</c> if any updates are available, <c>false</c> otherwise.</returns>
+        /// <returns>
+        /// <c>true</c> if any updates are available, <c>false</c> otherwise.
+        /// May return true if an error occured (there is potentially an update available).
+        /// </returns>
         public async Task<bool> CheckForUpdateAsync(CancellationToken cancellationToken = default) => await Task.Run(async () =>
         {
             if (!CanCheckForUpdate)
@@ -99,7 +105,15 @@ namespace osu.Game.Updater
             using (var lastCts = Interlocked.Exchange(ref updateCancellationSource, cts))
                 await lastCts.CancelAsync().ConfigureAwait(false);
 
-            return await PerformUpdateCheck(cts.Token).ConfigureAwait(false);
+            try
+            {
+                return await PerformUpdateCheck(cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Logger.Log($"{nameof(PerformUpdateCheck)} failed ({e.Message})");
+                return true;
+            }
         }, cancellationToken).ConfigureAwait(false);
 
         /// <summary>
@@ -114,31 +128,6 @@ namespace osu.Game.Updater
 
             updateCancellationSource.Cancel();
             updateCancellationSource.Dispose();
-        }
-
-        private partial class UpdateCompleteNotification : SimpleNotification
-        {
-            private readonly string version;
-
-            public UpdateCompleteNotification(string version)
-            {
-                this.version = version;
-                Text = NotificationsStrings.GameVersionAfterUpdate(version);
-            }
-
-            [BackgroundDependencyLoader]
-            private void load(OsuColour colours, ChangelogOverlay changelog, INotificationOverlay notificationOverlay)
-            {
-                Icon = FontAwesome.Solid.CheckSquare;
-                IconContent.Colour = colours.BlueDark;
-
-                Activated = delegate
-                {
-                    notificationOverlay.Hide();
-                    changelog.ShowBuild(version);
-                    return true;
-                };
-            }
         }
 
         public partial class UpdateDownloadProgressNotification : ProgressNotification
@@ -236,6 +225,31 @@ namespace osu.Game.Updater
                 if (cancellationToken.IsCancellationRequested)
                     Close(false);
             }
+        }
+    }
+
+    public partial class UpdateCompleteNotification : SimpleNotification
+    {
+        private readonly string version;
+
+        public UpdateCompleteNotification(string version)
+        {
+            this.version = version;
+            Text = NotificationsStrings.GameVersionAfterUpdate(version);
+        }
+
+        [BackgroundDependencyLoader]
+        private void load(OsuColour colours, ChangelogOverlay changelog, INotificationOverlay notificationOverlay)
+        {
+            Icon = FontAwesome.Solid.CheckSquare;
+            IconContent.Colour = colours.BlueDark;
+
+            Activated = delegate
+            {
+                notificationOverlay.Hide();
+                changelog.ShowBuild(version);
+                return true;
+            };
         }
     }
 }
