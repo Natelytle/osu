@@ -15,17 +15,48 @@ using osu.Game.Rulesets.Mania.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.MathUtils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
-using osu.Game.Rulesets.Mania.Scoring;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double difficulty_multiplier = 0.018;
+        private const double combine_lambda = 2.77504;
+
+        private const double speed_weight = 1.12808;
+        private const double jack_weight = 1.41285;
+        private const double coordination_weight = 2.49980;
+        private const double technical_weight = 2.49955;
+        private const double release_weight = 2.83449;
+
+        private readonly double[] highPercentiles = { 0.945, 0.935, 0.925, 0.915 };
+        private readonly double[] midPercentiles = { 0.845, 0.835, 0.825, 0.815 };
+
+        private const double high_percentile_weight = 0.25;
+        private const double high_percentile_scale = 0.88;
+
+        private const double mid_percentile_weight = 0.20;
+        private const double mid_percentile_scale = 0.94;
+
+        private const double power_mean_weight = 0.55;
+        private const double power_mean_exponent = 5.0;
+
+        private const double note_count_offset = 230.16920;
+        private const double final_scaling = 0.89752;
+
+        private const double overall_multiplier = 0.38460;
+        private const double power_exponent = 0.53000;
+
+        /// SR *= (1 - full_ln_damper * lnRatio^2).
+        private const double full_ln_damper = 0.06263;
+
+        private const double od_weight = 0.188;
+        private static readonly double leniency_at_od8 = hitLeniency(8.0);
+
+        private const double long_note_weight_per_200_ms = 0.6;
+        private const double max_long_note_weight_duration_ms = 1000.0;
 
         private readonly bool isForCurrentRuleset;
 
@@ -42,20 +73,154 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new ManiaDifficultyAttributes { Mods = mods };
 
-            HitWindows hitWindows = new ManiaHitWindows();
-            hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
+            var speed = (Speed)skills[0];
+            var technical = (Technical)skills[1];
+            var jack = (Jack)skills[2];
+            var coordination = (Coordination)skills[3];
+            var release = (Release)skills[4];
 
-            ManiaDifficultyAttributes attributes = new ManiaDifficultyAttributes
+            double noteWeight = totalNoteWeight(beatmap);
+            double odMult = odMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
+            double lnRatio = computeLnRatio(beatmap);
+            double lnDamper = 1.0 - full_ln_damper * lnRatio * lnRatio;
+
+            double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper;
+
+            return new ManiaDifficultyAttributes
             {
-                StarRating = skills.OfType<Strain>().Single().DifficultyValue() * difficulty_multiplier,
+                StarRating = starRating,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
+                SpeedDifficulty = skillStarRating(speed, noteWeight) * odMult,
+                TechnicalDifficulty = skillStarRating(technical, noteWeight) * odMult,
+                JackDifficulty = skillStarRating(jack, noteWeight) * odMult,
+                CoordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult,
+                ReleaseDifficulty = skillStarRating(release, noteWeight) * odMult,
             };
-
-            return attributes;
         }
 
-        private static int maxComboForObject(HitObject hitObject)
+        private IEnumerable<double> combineObjectStrains(Speed speed, Technical technical, Jack jack, Coordination coordination, Release release)
+        {
+            var speedStrains = speed.GetObjectDifficulties();
+            var technicalStrains = technical.GetObjectDifficulties();
+            var jackStrains = jack.GetObjectDifficulties();
+            var coordinationStrains = coordination.GetObjectDifficulties();
+            var releaseStrains = release.GetObjectDifficulties();
+
+            for (int i = 0; i < speedStrains.Count; i++)
+            {
+                double powerSum = speed_weight * Math.Pow(speedStrains[i], combine_lambda)
+                                  + jack_weight * Math.Pow(jackStrains[i], combine_lambda)
+                                  + coordination_weight * Math.Pow(coordinationStrains[i], combine_lambda)
+                                  + technical_weight * Math.Pow(technicalStrains[i], combine_lambda);
+
+                double tapDifficulty = powerSum > 0 ? Math.Pow(powerSum, 1.0 / combine_lambda) : 0.0;
+                yield return tapDifficulty + release_weight * releaseStrains[i];
+            }
+        }
+
+        private double aggregateDifficulty(IEnumerable<double> strains, double noteWeight)
+        {
+            double[] sortedStrains = strains.Where(strain => strain > 0).OrderBy(strain => strain).ToArray();
+
+            if (sortedStrains.Length == 0)
+                return 0.0;
+
+            double highMean = calculatePercentileMean(sortedStrains, highPercentiles);
+            double midMean = calculatePercentileMean(sortedStrains, midPercentiles);
+            double powerMean = calculatePowerMean(sortedStrains, power_mean_exponent);
+
+            double rawDifficulty = high_percentile_weight * (high_percentile_scale * highMean)
+                                   + mid_percentile_weight * (mid_percentile_scale * midMean)
+                                   + power_mean_weight * powerMean;
+
+            return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
+        }
+
+        private static double scaleToStarRating(double aggregatedDifficulty)
+        {
+            if (aggregatedDifficulty <= 0)
+                return 0.0;
+
+            return overall_multiplier * Math.Pow(aggregatedDifficulty, power_exponent);
+        }
+
+        private double skillStarRating(StrainSkill skill, double noteWeight)
+            => scaleToStarRating(aggregateDifficulty(skill.GetObjectDifficulties(), noteWeight));
+
+        private static double hitLeniency(double overallDifficulty)
+        {
+            double hitWindow300Ms = 34.0 + 3.0 * Math.Min(10.0, Math.Max(0.0, 10.0 - overallDifficulty));
+            double q = hitWindow300Ms / 1000.0;
+            double baseValue = 0.3 * Math.Sqrt(q);
+            double alt = 0.6 * (baseValue - 0.09) + 0.09;
+            return Math.Max(1e-9, Math.Min(baseValue, alt));
+        }
+
+        private double odMultiplier(double overallDifficulty)
+        {
+            double raw = leniency_at_od8 / hitLeniency(overallDifficulty);
+            return 1.0 + od_weight * (raw - 1.0);
+        }
+
+        /// <summary>
+        /// Calculates the mean of specific percentile values from a sorted array.
+        /// </summary>
+        /// <param name="sortedValues">Array of difficulty values, sorted ascending.</param>
+        /// <param name="percentiles">Array of percentile positions (0.0 to 1.0).</param>
+        private double calculatePercentileMean(double[] sortedValues, double[] percentiles)
+        {
+            int maxIndex = sortedValues.Length - 1;
+            double sum = 0.0;
+
+            foreach (double percentile in percentiles)
+            {
+                int index = Math.Clamp((int)Math.Round(maxIndex * percentile), 0, maxIndex);
+                sum += sortedValues[index];
+            }
+
+            return sum / percentiles.Length;
+        }
+
+        private double calculatePowerMean(double[] values, double exponent)
+        {
+            double sum = values.Sum(value => Math.Pow(value, exponent));
+            return Math.Pow(sum / values.Length, 1.0 / exponent);
+        }
+
+        private static double computeLnRatio(IBeatmap beatmap)
+        {
+            int total = 0, ln = 0;
+
+            foreach (var hitObject in beatmap.HitObjects)
+            {
+                total++;
+                if (hitObject is HoldNote)
+                    ln++;
+            }
+
+            return total > 0 ? (double)ln / total : 0.0;
+        }
+
+        private double totalNoteWeight(IBeatmap beatmap)
+        {
+            double weight = 0.0;
+
+            foreach (var hitObject in beatmap.HitObjects)
+            {
+                if (hitObject is HoldNote holdNote)
+                {
+                    double duration = Math.Min(holdNote.EndTime - holdNote.StartTime, max_long_note_weight_duration_ms);
+                    weight += 1.0 + long_note_weight_per_200_ms * duration / 200.0;
+                }
+                else
+                    weight += 1.0;
+            }
+
+            return weight;
+        }
+
+        private int maxComboForObject(HitObject hitObject)
         {
             if (hitObject is HoldNote hold)
                 return 1 + (int)((hold.EndTime - hold.StartTime) / 100);
@@ -88,13 +253,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return objects;
         }
 
-        // Sorting is done in CreateDifficultyHitObjects, since the full list of hitobjects is required.
         protected override IEnumerable<DifficultyHitObject> SortObjects(IEnumerable<DifficultyHitObject> input) => input;
 
-        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods) => new Skill[]
+        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods)
         {
-            new Strain(mods, ((ManiaBeatmap)Beatmap).TotalColumns)
-        };
+            int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
+
+            return new Skill[]
+            {
+                new Speed(mods, totalColumns),
+                new Technical(mods, totalColumns),
+                new Jack(mods, totalColumns),
+                new Coordination(mods, totalColumns),
+                new Release(mods, totalColumns),
+            };
+        }
 
         protected override Mod[] DifficultyAdjustmentMods
         {
@@ -111,7 +284,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 if (isForCurrentRuleset)
                     return mods;
 
-                // if we are a convert, we can be played in any key mod.
                 return mods.Concat(new Mod[]
                 {
                     new ManiaModKey1(),

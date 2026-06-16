@@ -1,7 +1,8 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 
@@ -9,6 +10,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyAttributes : DifficultyAttributes
     {
+        [JsonProperty("speed_difficulty")]
+        public double SpeedDifficulty { get; set; }
+
+        [JsonProperty("technical_difficulty")]
+        public double TechnicalDifficulty { get; set; }
+
+        [JsonProperty("jack_difficulty")]
+        public double JackDifficulty { get; set; }
+
+        [JsonProperty("coordination_difficulty")]
+        public double CoordinationDifficulty { get; set; }
+
+        [JsonProperty("release_difficulty")]
+        public double ReleaseDifficulty { get; set; }
+
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {
             foreach (var v in base.ToDatabaseAttributes())
