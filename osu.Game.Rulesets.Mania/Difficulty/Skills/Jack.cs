@@ -18,6 +18,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double chordjack_buff = 0.17460;
         private const double chordjack_multiplier_minimum = 0.1;
         private const double chordjack_nerf = 0.45397;
+        private const double chord_speed_threshold_ms = 140.625;
 
         private const double jack_speed_buff = 0.70000;
         private const double jack_speed_buff_midpoint = 5.0;
@@ -49,7 +50,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             double tapRate = 1.0 / (Math.Max(columnDelta, 1.0) / 1000.0 + jack_rate_offset);
 
-            double chordjackMultiplier = Math.Max(chordjack_multiplier_minimum, 1.0 + chordjack_buff * (chordSize - 1));
+            double chordSpeedFactor = Math.Clamp(chord_speed_threshold_ms / columnDelta, 0.1, 2.0);
+            double chordjackMultiplier = Math.Max(chordjack_multiplier_minimum, 1.0 + chordjack_buff * chordSpeedFactor * (chordSize - 1));
             double speedBuff = 1.0 + jack_speed_buff * DifficultyCalculationUtils.Logistic(tapRate, jack_speed_buff_midpoint, jack_speed_buff_slope);
 
             double rawStrain = tapRate * chordjackMultiplier * speedBuff;

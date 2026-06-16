@@ -17,6 +17,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private const double chord_load_per_extra_column = 0.9;
         private const double chordjack_nerf = 0.45397;
+        private const double chord_speed_threshold_ms = 140.625;
 
         private const double held_long_note_weight = 0.01003;
         private const double held_speed_factor_offset = 0.08;
@@ -48,7 +49,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double lastStartTime = LastStartTimeInColumn(hitObject.Column);
             double columnDelta = double.IsNegativeInfinity(lastStartTime) ? double.PositiveInfinity : hitObject.StartTime - lastStartTime;
             bool isChordjack = chordSize >= 2 && columnDelta <= JACK_WINDOW_MS;
-            double chordLoad = chordSize >= 2 ? chord_load_per_extra_column * (chordSize - 1) * (isChordjack ? chordjack_nerf : 1.0) : 0.0;
+            double chordSpeedFactor = !double.IsPositiveInfinity(columnDelta)
+                ? Math.Clamp(chord_speed_threshold_ms / columnDelta, 0.1, 2.0)
+                : 1.0;
+            double chordLoad = chordSize >= 2 ? chord_load_per_extra_column * (chordSize - 1) * (isChordjack ? chordjack_nerf : 1.0) * chordSpeedFactor : 0.0;
 
             int heldColumns = ConcurrentlyHeldColumns(hitObject.Column, hitObject.StartTime);
             double heldSpeedFactor = hitObject.DeltaTime >= CHORD_TOLERANCE ? 1.0 / (hitObject.DeltaTime / 1000.0 + held_speed_factor_offset) : 1.0;
