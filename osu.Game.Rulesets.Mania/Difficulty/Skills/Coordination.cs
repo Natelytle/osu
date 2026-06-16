@@ -8,20 +8,6 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    /// <summary>
-    /// Cross-column coordination and chord pressure.
-    /// </summary>
-    /// <remarks>
-    /// Three live signals are computed per note:
-    /// <list type="bullet">
-    /// <item>cross-column - a quick transition to a different column, scaled by how far apart the columns
-    /// are (wide jumps demand more hand movement).</item>
-    /// <item>chord load - the cost of pressing several columns at once, growing with chord size; chordjacks
-    /// are nerfed to avoid double-counting with <see cref="Jack"/>.</item>
-    /// <item>long-note coordination - pressing a note while other columns are still held, scaled by speed
-    /// so fast hybrid patterns are credited more than slow ones.</item>
-    /// </list>
-    /// </remarks>
     public class Coordination : ManiaSkill
     {
         private const double strain_decay_base = 0.52909;

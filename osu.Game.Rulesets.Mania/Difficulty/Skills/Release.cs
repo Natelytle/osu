@@ -10,14 +10,6 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    /// <summary>
-    /// Long-note / release difficulty.
-    /// </summary>
-    /// <remarks>
-    /// Each hold contributes a base cost that scales with its length, plus an awkward-release penalty when
-    /// another column's hold ends near this one's tail (overlapping releases are read off the live
-    /// per-column end-time memory, no precomputed long-note tables).
-    /// </remarks>
     public class Release : ManiaSkill
     {
         private const double strain_decay_base = 0.89647;
