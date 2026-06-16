@@ -14,7 +14,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         protected const double CHORD_TOLERANCE = 8.0;
         protected const double JACK_WINDOW_MS = 350.0;
 
-        private const double trill_nerf = 0.62814;
+        private const double trill_nerf = 0.62864;
         private const double trill_run_ramp = 4.99947;
 
         protected readonly int TotalColumns;

@@ -16,7 +16,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private const double max_long_note_duration_ms = 1000.0;
 
-        private const double long_note_gate_midpoint_ms = 100.0;
+        private const double long_note_gate_midpoint_ms = 110.90068;
         private const double long_note_gate_slope = 0.07;
 
         private const double long_note_base_load = 0.42;

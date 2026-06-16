@@ -25,10 +25,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
     {
         private const double combine_lambda = 2.77504;
 
-        private const double speed_weight = 1.12808;
-        private const double jack_weight = 1.41285;
+        private const double speed_weight = 1.02237;
+        private const double jack_weight = 1.42793;
         private const double coordination_weight = 2.49980;
-        private const double technical_weight = 2.49955;
+        private const double technical_weight = 2.49916;
         private const double release_weight = 2.83449;
 
         private readonly double[] highPercentiles = { 0.945, 0.935, 0.925, 0.915 };
@@ -43,11 +43,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double power_mean_weight = 0.55;
         private const double power_mean_exponent = 5.0;
 
-        private const double note_count_offset = 230.16920;
-        private const double final_scaling = 0.89752;
+        private const double note_count_offset = 34.64147;
+        private const double final_scaling = 0.90741;
 
-        private const double overall_multiplier = 0.38460;
-        private const double power_exponent = 0.53000;
+        private const double overall_multiplier = 0.38374;
+        private const double power_exponent = 0.52899;
 
         /// SR *= (1 - full_ln_damper * lnRatio^2).
         private const double full_ln_damper = 0.06263;

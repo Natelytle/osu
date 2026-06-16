@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private const double jack_convex = 1.29407;
 
-        private const double jack_scale = 0.61211;
+        private const double jack_scale = 0.62159;
 
         public Jack(Mod[] mods, int totalColumns)
             : base(mods, totalColumns)

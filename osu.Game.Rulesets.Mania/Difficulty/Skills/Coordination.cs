@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double strain_decay_base = 0.52909;
 
         private const double cross_column_rate_offset = 0.045;
-        private const double coordination_scale = 1.19990;
+        private const double coordination_scale = 1.14529;
 
         private const double chord_load_per_extra_column = 0.9;
         private const double chordjack_nerf = 0.45397;

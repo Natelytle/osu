@@ -9,10 +9,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Speed : ManiaSkill
     {
-        private const double strain_decay_base = 0.05481;
+        private const double strain_decay_base = 0.05007;
         private const double tap_rate_offset = 0.030;
         private const double jack_speed_nerf = 0.49996;
-        private const double speed_scale = 1.35127;
+        private const double speed_scale = 1.39127;
 
         public Speed(Mod[] mods, int totalColumns)
             : base(mods, totalColumns)

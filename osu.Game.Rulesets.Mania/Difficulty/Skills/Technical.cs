@@ -10,7 +10,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Technical : ManiaSkill
     {
-        private const double strain_decay_base = 0.05007;
+        private const double strain_decay_base = 0.06696;
 
         private const double speed_factor_offset = 0.050;
 
@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double reversal_coefficient_multiplier = 2.0;
 
         private const double pattern_buff = 0.69740;
-        private const double technical_scale = 1.49988;
+        private const double technical_scale = 1.49964;
 
         private double previousDeltaTime = -1.0;
 
