@@ -78,19 +78,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double clockRate = ModUtils.CalculateRateWithMods(mods);
 
-            List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
-            ManiaMapState mapState = new ManiaMapState(totalColumns);
+            ManiaMapData mapData = new ManiaMapData(totalColumns);
 
             for (int i = 1; i < sortedObjects.Length; i++)
             {
-                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate,
-                    objects, mapState, objects.Count);
+                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, mapData, mapData.Objects.Count);
 
-                objects.Add(currentObject);
-                mapState.Add(currentObject);
+                mapData.Add(currentObject);
             }
 
-            return objects;
+            return mapData.Objects;
         }
 
         // Sorting is done in CreateDifficultyHitObjects, since the full list of hitobjects is required.

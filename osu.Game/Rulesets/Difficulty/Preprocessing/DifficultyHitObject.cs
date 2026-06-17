@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Difficulty.Preprocessing
         /// <param name="clockRate">The rate at which the gameplay clock is run at.</param>
         /// <param name="objects">The list of <see cref="DifficultyHitObject"/>s in the current beatmap.</param>
         /// <param name="index">The index of this <see cref="DifficultyHitObject"/> in <paramref name="objects"/> list.</param>
-        public DifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, int index)
+        public DifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, IReadOnlyList<DifficultyHitObject> objects, int index)
         {
             difficultyHitObjects = objects;
             Index = index;

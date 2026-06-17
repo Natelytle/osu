@@ -9,8 +9,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
     /// <summary>
     /// Data processing class that makes it easy to traverse the whole map based on note type and column.
     /// </summary>
-    public class ManiaMapState
+    public class ManiaMapData
     {
+        public IReadOnlyList<ManiaDifficultyHitObject> Objects => objects;
+        private readonly List<ManiaDifficultyHitObject> objects = new List<ManiaDifficultyHitObject>();
+
         private readonly List<ManiaDifficultyHitObject> heads = new List<ManiaDifficultyHitObject>();
         private readonly List<ManiaDifficultyHitObject> tails = new List<ManiaDifficultyHitObject>();
         private readonly List<ManiaDifficultyHitObject>[] columnHeads;
@@ -20,7 +23,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public int HeadCount => heads.Count;
         public int TailCount => tails.Count;
 
-        public ManiaMapState(int totalColumns)
+        public ManiaMapData(int totalColumns)
         {
             TotalColumns = totalColumns;
             columnHeads = new List<ManiaDifficultyHitObject>[totalColumns];
@@ -35,6 +38,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public void Add(ManiaDifficultyHitObject obj)
         {
+            objects.Add(obj);
+
             if (obj.BaseObject is TailNote)
             {
                 tails.Add(obj);
