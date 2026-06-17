@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
@@ -65,6 +66,39 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         {
             int index = columnIndex + (forwardsIndex + 1);
             return index >= 0 && index < perColumnObjects[Column].Count ? (ManiaDifficultyHitObject)perColumnObjects[Column][index] : null;
+        }
+
+        /// <summary>
+        /// The start time of the most recent <see cref="ManiaDifficultyHitObject"/> in <paramref name="column"/> prior to this one.
+        /// </summary>
+        public double LastStartTimeInColumn(int column) => PreviousHitObjects[column]?.StartTime ?? double.NegativeInfinity;
+
+        /// <summary>
+        /// The end time of the most recent <see cref="ManiaDifficultyHitObject"/> in <paramref name="column"/> prior to this one.
+        /// </summary>
+        public double LastEndTimeInColumn(int column) => PreviousHitObjects[column]?.EndTime ?? double.NegativeInfinity;
+
+        /// <summary>
+        /// The number of columns, other than this object's own, that are currently held (i.e. a long note is sustaining through this object's <see cref="DifficultyHitObject.StartTime"/>).
+        /// </summary>
+        /// <param name="chordTolerance">The time window within which two notes are considered to start simultaneously.</param>
+        public int ConcurrentlyHeldColumns(double chordTolerance)
+        {
+            int heldColumns = 0;
+
+            for (int otherColumn = 0; otherColumn < PreviousHitObjects.Length; otherColumn++)
+            {
+                if (otherColumn == Column)
+                    continue;
+
+                if (Math.Abs(LastStartTimeInColumn(otherColumn) - StartTime) <= chordTolerance)
+                    continue;
+
+                if (LastEndTimeInColumn(otherColumn) > StartTime + chordTolerance)
+                    heldColumns++;
+            }
+
+            return heldColumns;
         }
     }
 }

@@ -257,15 +257,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods)
         {
-            int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
-
             return new Skill[]
             {
-                new Speed(mods, totalColumns),
-                new Technical(mods, totalColumns),
-                new Jack(mods, totalColumns),
-                new Coordination(mods, totalColumns),
-                new Release(mods, totalColumns),
+                new Speed(mods),
+                new Technical(mods),
+                new Jack(mods),
+                new Coordination(mods),
+                new Release(mods),
             };
         }
 
