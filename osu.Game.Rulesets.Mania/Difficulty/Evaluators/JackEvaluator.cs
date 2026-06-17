@@ -9,9 +9,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public static class JackEvaluator
     {
-        /// <summary>
-        /// The maximum gap between two notes in the same column for them to still be considered part of a jack.
-        /// </summary>
         public const double JACK_WINDOW_MS = 350.0;
 
         private const double jack_rate_offset = 0.060;
@@ -41,7 +38,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double tapRate = 1.0 / (Math.Max(columnDelta, 1.0) / 1000.0 + jack_rate_offset);
 
             double chordSpeedFactor = Math.Clamp(chord_speed_threshold_ms / columnDelta, 0.1, 2.0);
-            double chordjackMultiplier = Math.Max(chordjack_multiplier_minimum, 1.0 + chordjack_buff * chordSpeedFactor * (chordSize - 1));
+
+            double chordjackMultiplier = Math.Max(chordjack_multiplier_minimum,
+                (1.0 + chordjack_buff * chordSpeedFactor * (chordSize - 1))
+                * ChordEvaluator.FullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta)
+                * ChordEvaluator.NearFullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta));
             double speedBuff = 1.0 + jack_speed_buff * DifficultyCalculationUtils.Logistic(tapRate, jack_speed_buff_midpoint, jack_speed_buff_slope);
 
             double rawStrain = tapRate * chordjackMultiplier * speedBuff;

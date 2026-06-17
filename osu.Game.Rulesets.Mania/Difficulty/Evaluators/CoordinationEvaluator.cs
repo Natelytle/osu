@@ -39,7 +39,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double chordSpeedFactor = !double.IsPositiveInfinity(columnDelta)
                 ? Math.Clamp(chord_speed_threshold_ms / columnDelta, 0.1, 2.0)
                 : 1.0;
-            double chordLoad = chordSize >= 2 ? chord_load_per_extra_column * (chordSize - 1) * (isChordjack ? chordjack_nerf : 1.0) * chordSpeedFactor : 0.0;
+            // A chordjack repeats a chord on columns it just used (e.g. 4-2-2-4), already paid for by Jack,
+            // so the dampening here only targets degenerate sustained full/near-full chord spam.
+            double chordLoad = chordSize >= 2
+                ? chord_load_per_extra_column * (chordSize - 1) * ChordEvaluator.FullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta)
+                  * ChordEvaluator.NearFullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta)
+                  * (isChordjack ? chordjack_nerf : 1.0) * chordSpeedFactor
+                : 0.0;
 
             int heldColumns = hitObject.ConcurrentlyHeldColumns(ChordEvaluator.CHORD_TOLERANCE_MS);
             double heldSpeedFactor = hitObject.DeltaTime >= ChordEvaluator.CHORD_TOLERANCE_MS ? 1.0 / (hitObject.DeltaTime / 1000.0 + held_speed_factor_offset) : 1.0;
