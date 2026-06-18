@@ -45,6 +45,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return sum;
         }
 
+        public static double Coefficient(int boundaryIndex, int totalColumns)
+        {
+            double[] coefficients = totalColumns >= 1 && totalColumns <= cross_matrix.Length
+                ? coefficientsByKeyCount[totalColumns - 1]
+                : buildFallback(totalColumns);
+
+            return boundaryIndex >= 0 && boundaryIndex < coefficients.Length ? coefficients[boundaryIndex] : 0.0;
+        }
+
+        public static double CoefficientAverage(int columnA, int columnB, int totalColumns)
+        {
+            int span = Math.Abs(columnA - columnB);
+
+            if (span <= 0)
+                return 0.0;
+
+            return CoefficientSum(columnA, columnB, totalColumns) / span * Math.Sqrt(span);
+        }
+
         private static double[][] buildCoefficientsByKeyCount()
         {
             var result = new double[cross_matrix.Length][];

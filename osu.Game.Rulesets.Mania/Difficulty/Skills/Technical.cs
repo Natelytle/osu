@@ -67,7 +67,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 }
 
                 if (Math.Abs(currentDirection) >= 2)
-                    columnComplexity += CrossColumnEvaluator.CoefficientSum(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length); // wide jump, weighted by path
+                    columnComplexity += CrossColumnEvaluator.CoefficientAverage(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length); // wide jump, averaged path scaled by sqrt(span)
             }
 
             double speedFactor = 1.0 / (hitObject.DeltaTime / 1000.0 + speed_factor_offset);
