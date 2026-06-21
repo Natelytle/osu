@@ -10,11 +10,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     {
         public const double CHORD_TOLERANCE_MS = 8.0;
 
-        private const double full_chord_nerf = 0.25;
+        private const double full_chord_nerf = 0.50;
 
         private const double full_chord_run_ramp = 2.0;
 
-        private const double near_full_chord_nerf = 0.40;
+        private const double near_full_chord_nerf = 0.65;
 
         private const double near_full_chord_run_ramp = 55.0;
 
