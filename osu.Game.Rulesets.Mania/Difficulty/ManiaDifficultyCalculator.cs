@@ -23,32 +23,42 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double tap_combine_exponent = 2.77504;
+        private const double combine_lambda = 2.77504;
 
-        private const double speed_skill_weight = 1.02237;
-        private const double jack_skill_weight = 1.42793;
-        private const double coordination_skill_weight = 2.49980;
-        private const double technical_skill_weight = 2.49916;
-        private const double release_skill_weight = 2.83449;
+        private const double speed_weight = 1.02237;
+        private const double jack_weight = 1.42793;
+        private const double coordination_weight = 2.49980;
+        private const double technical_weight = 2.49916;
+        private const double release_weight = 2.83449;
 
-        private const double long_note_ratio_damping = 0.06263;
+        private readonly double[] highPercentiles = { 0.945, 0.935, 0.925, 0.915 };
+        private readonly double[] midPercentiles = { 0.845, 0.835, 0.825, 0.815 };
+
+        private const double high_percentile_weight = 0.25;
+        private const double high_percentile_scale = 0.88;
+
+        private const double mid_percentile_weight = 0.20;
+        private const double mid_percentile_scale = 0.94;
+
+        private const double power_mean_weight = 0.55;
+        private const double power_mean_exponent = 5.0;
+
+        private const double note_count_offset = 34.64147;
+        private const double final_scaling = 0.90741;
+
+        private const double overall_multiplier = 0.38374;
+        private const double power_exponent = 0.52899;
+
+        /// SR *= (1 - full_ln_damper * lnRatio^2).
+        private const double full_ln_damper = 0.06263;
 
         private const double od_weight = 0.188;
+        private static readonly double leniency_at_od8 = hitLeniency(8.0);
 
-        private static readonly double baselineHitLeniency = calculateHitLeniency(8.0);
+        private const double long_note_weight_per_200_ms = 0.6;
+        private const double max_long_note_weight_duration_ms = 1000.0;
 
         private readonly bool isForCurrentRuleset;
-
-        private IReadOnlyList<DifficultyHitObject> difficultyHitObjects = null!;
-
-        private DifficultyAggregator combinedAggregator = null!;
-        private DifficultyAggregator speedAggregator = null!;
-        private DifficultyAggregator technicalAggregator = null!;
-        private DifficultyAggregator jackAggregator = null!;
-        private DifficultyAggregator coordinationAggregator = null!;
-        private DifficultyAggregator releaseAggregator = null!;
-
-        private int processedStrainCount;
 
         public override int Version => 20241007;
 
@@ -58,91 +68,87 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             isForCurrentRuleset = beatmap.BeatmapInfo.Ruleset.MatchesOnlineID(ruleset);
         }
 
-        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods)
-        {
-            combinedAggregator = new DifficultyAggregator();
-            speedAggregator = new DifficultyAggregator();
-            technicalAggregator = new DifficultyAggregator();
-            jackAggregator = new DifficultyAggregator();
-            coordinationAggregator = new DifficultyAggregator();
-            releaseAggregator = new DifficultyAggregator();
-
-            processedStrainCount = 0;
-
-            return new Skill[]
-            {
-                new Speed(mods),
-                new Technical(mods),
-                new Jack(mods),
-                new Coordination(mods),
-                new Release(mods),
-            };
-        }
-
         protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills)
         {
             if (beatmap.HitObjects.Count == 0)
                 return new ManiaDifficultyAttributes { Mods = mods };
 
-            var speed = skills.OfType<Speed>().Single();
-            var technical = skills.OfType<Technical>().Single();
-            var jack = skills.OfType<Jack>().Single();
-            var coordination = skills.OfType<Coordination>().Single();
-            var release = skills.OfType<Release>().Single();
+            var speed = (Speed)skills[0];
+            var technical = (Technical)skills[1];
+            var jack = (Jack)skills[2];
+            var coordination = (Coordination)skills[3];
+            var release = (Release)skills[4];
 
-            double odMultiplier = calculateOdMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
+            double noteWeight = totalNoteWeight(beatmap);
+            double odMult = odMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
+            double lnRatio = computeLnRatio(beatmap);
+            double lnDamper = 1.0 - full_ln_damper * lnRatio * lnRatio;
 
+            double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper;
+
+            return new ManiaDifficultyAttributes
+            {
+                StarRating = starRating,
+                Mods = mods,
+                MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
+                SpeedDifficulty = skillStarRating(speed, noteWeight) * odMult,
+                TechnicalDifficulty = skillStarRating(technical, noteWeight) * odMult,
+                JackDifficulty = skillStarRating(jack, noteWeight) * odMult,
+                CoordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult,
+                ReleaseDifficulty = skillStarRating(release, noteWeight) * odMult,
+            };
+        }
+
+        private IEnumerable<double> combineObjectStrains(Speed speed, Technical technical, Jack jack, Coordination coordination, Release release)
+        {
             var speedStrains = speed.GetObjectDifficulties();
             var technicalStrains = technical.GetObjectDifficulties();
             var jackStrains = jack.GetObjectDifficulties();
             var coordinationStrains = coordination.GetObjectDifficulties();
             var releaseStrains = release.GetObjectDifficulties();
 
-            for (int i = processedStrainCount; i < speedStrains.Count; i++)
+            for (int i = 0; i < speedStrains.Count; i++)
             {
-                var hitObject = (ManiaDifficultyHitObject)difficultyHitObjects[i];
+                double powerSum = speed_weight * Math.Pow(speedStrains[i], combine_lambda)
+                                  + jack_weight * Math.Pow(jackStrains[i], combine_lambda)
+                                  + coordination_weight * Math.Pow(coordinationStrains[i], combine_lambda)
+                                  + technical_weight * Math.Pow(technicalStrains[i], combine_lambda);
 
-                double tapStrain = combineTapStrains(speedStrains[i], jackStrains[i], coordinationStrains[i], technicalStrains[i]);
-                double combinedStrain = tapStrain + release_skill_weight * releaseStrains[i];
-
-                double longNoteDamper = calculateLongNoteDamper(hitObject.LongNoteRatio);
-
-                combinedAggregator.Add(combinedStrain, hitObject.CumulativeNoteWeight, odMultiplier, longNoteDamper);
-                speedAggregator.Add(speedStrains[i], hitObject.CumulativeNoteWeight, odMultiplier, 1.0);
-                technicalAggregator.Add(technicalStrains[i], hitObject.CumulativeNoteWeight, odMultiplier, 1.0);
-                jackAggregator.Add(jackStrains[i], hitObject.CumulativeNoteWeight, odMultiplier, 1.0);
-                coordinationAggregator.Add(coordinationStrains[i], hitObject.CumulativeNoteWeight, odMultiplier, 1.0);
-                releaseAggregator.Add(releaseStrains[i], hitObject.CumulativeNoteWeight, odMultiplier, 1.0);
+                double tapDifficulty = powerSum > 0 ? Math.Pow(powerSum, 1.0 / combine_lambda) : 0.0;
+                yield return tapDifficulty + release_weight * releaseStrains[i];
             }
-
-            processedStrainCount = speedStrains.Count;
-
-            return new ManiaDifficultyAttributes
-            {
-                StarRating = combinedAggregator.CurrentRating,
-                Mods = mods,
-                MaxCombo = beatmap.HitObjects.Sum(maxComboFor),
-                SpeedDifficulty = speedAggregator.CurrentRating,
-                TechnicalDifficulty = technicalAggregator.CurrentRating,
-                JackDifficulty = jackAggregator.CurrentRating,
-                CoordinationDifficulty = coordinationAggregator.CurrentRating,
-                ReleaseDifficulty = releaseAggregator.CurrentRating,
-            };
         }
 
-        private static double combineTapStrains(double speedStrain, double jackStrain, double coordinationStrain, double technicalStrain)
+        private double aggregateDifficulty(IEnumerable<double> strains, double noteWeight)
         {
-            double powerSum = speed_skill_weight * Math.Pow(speedStrain, tap_combine_exponent) + jack_skill_weight * Math.Pow(jackStrain, tap_combine_exponent)
-                                                                                               + coordination_skill_weight * Math.Pow(coordinationStrain, tap_combine_exponent)
-                                                                                               + technical_skill_weight * Math.Pow(technicalStrain, tap_combine_exponent);
+            double[] sortedStrains = strains.Where(strain => strain > 0).OrderBy(strain => strain).ToArray();
 
-            return powerSum > 0 ? Math.Pow(powerSum, 1.0 / tap_combine_exponent) : 0.0;
+            if (sortedStrains.Length == 0)
+                return 0.0;
+
+            double highMean = calculatePercentileMean(sortedStrains, highPercentiles);
+            double midMean = calculatePercentileMean(sortedStrains, midPercentiles);
+            double powerMean = calculatePowerMean(sortedStrains, power_mean_exponent);
+
+            double rawDifficulty = high_percentile_weight * (high_percentile_scale * highMean)
+                                   + mid_percentile_weight * (mid_percentile_scale * midMean)
+                                   + power_mean_weight * powerMean;
+
+            return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
         }
 
-        private static double calculateLongNoteDamper(double longNoteRatio)
-            => 1.0 - long_note_ratio_damping * longNoteRatio * longNoteRatio;
+        private static double scaleToStarRating(double aggregatedDifficulty)
+        {
+            if (aggregatedDifficulty <= 0)
+                return 0.0;
 
-        private static double calculateHitLeniency(double overallDifficulty)
+            return overall_multiplier * Math.Pow(aggregatedDifficulty, power_exponent);
+        }
+
+        private double skillStarRating(StrainSkill skill, double noteWeight)
+            => scaleToStarRating(aggregateDifficulty(skill.GetObjectDifficulties(), noteWeight));
+
+        private static double hitLeniency(double overallDifficulty)
         {
             double hitWindow300Ms = 34.0 + 3.0 * Math.Min(10.0, Math.Max(0.0, 10.0 - overallDifficulty));
             double q = hitWindow300Ms / 1000.0;
@@ -151,13 +157,70 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return Math.Max(1e-9, Math.Min(baseValue, alt));
         }
 
-        private static double calculateOdMultiplier(double overallDifficulty)
+        private double odMultiplier(double overallDifficulty)
         {
-            double raw = baselineHitLeniency / calculateHitLeniency(overallDifficulty);
+            double raw = leniency_at_od8 / hitLeniency(overallDifficulty);
             return 1.0 + od_weight * (raw - 1.0);
         }
 
-        private static int maxComboFor(HitObject hitObject)
+        /// <summary>
+        /// Calculates the mean of specific percentile values from a sorted array.
+        /// </summary>
+        /// <param name="sortedValues">Array of difficulty values, sorted ascending.</param>
+        /// <param name="percentiles">Array of percentile positions (0.0 to 1.0).</param>
+        private double calculatePercentileMean(double[] sortedValues, double[] percentiles)
+        {
+            int maxIndex = sortedValues.Length - 1;
+            double sum = 0.0;
+
+            foreach (double percentile in percentiles)
+            {
+                int index = Math.Clamp((int)Math.Round(maxIndex * percentile), 0, maxIndex);
+                sum += sortedValues[index];
+            }
+
+            return sum / percentiles.Length;
+        }
+
+        private double calculatePowerMean(double[] values, double exponent)
+        {
+            double sum = values.Sum(value => Math.Pow(value, exponent));
+            return Math.Pow(sum / values.Length, 1.0 / exponent);
+        }
+
+        private static double computeLnRatio(IBeatmap beatmap)
+        {
+            int total = 0, ln = 0;
+
+            foreach (var hitObject in beatmap.HitObjects)
+            {
+                total++;
+                if (hitObject is HoldNote)
+                    ln++;
+            }
+
+            return total > 0 ? (double)ln / total : 0.0;
+        }
+
+        private double totalNoteWeight(IBeatmap beatmap)
+        {
+            double weight = 0.0;
+
+            foreach (var hitObject in beatmap.HitObjects)
+            {
+                if (hitObject is HoldNote holdNote)
+                {
+                    double duration = Math.Min(holdNote.EndTime - holdNote.StartTime, max_long_note_weight_duration_ms);
+                    weight += 1.0 + long_note_weight_per_200_ms * duration / 200.0;
+                }
+                else
+                    weight += 1.0;
+            }
+
+            return weight;
+        }
+
+        private int maxComboForObject(HitObject hitObject)
         {
             if (hitObject is HoldNote hold)
                 return 1 + (int)((hold.EndTime - hold.StartTime) / 100);
@@ -187,11 +250,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }
 
-            difficultyHitObjects = objects;
             return objects;
         }
 
         protected override IEnumerable<DifficultyHitObject> SortObjects(IEnumerable<DifficultyHitObject> input) => input;
+
+        protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods)
+        {
+            return new Skill[]
+            {
+                new Speed(mods),
+                new Technical(mods),
+                new Jack(mods),
+                new Coordination(mods),
+                new Release(mods),
+            };
+        }
 
         protected override Mod[] DifficultyAdjustmentMods
         {
