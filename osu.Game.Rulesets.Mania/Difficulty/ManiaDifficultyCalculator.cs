@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.MathUtils;
@@ -249,6 +250,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 objects.Add(currentObject);
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }
+
+            ManipulationEvaluator.Evaluate(objects.Cast<ManiaDifficultyHitObject>().ToList());
 
             return objects;
         }

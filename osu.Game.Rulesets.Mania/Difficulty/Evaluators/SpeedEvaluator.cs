@@ -8,7 +8,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     public static class SpeedEvaluator
     {
         private const double tap_rate_offset = 0.030;
-        private const double jack_speed_nerf = 0.49996;
+        private const double jack_speed_nerf = 0.59996;
         private const double speed_scale = 1.39127;
 
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
@@ -24,7 +24,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 ? jack_speed_nerf
                 : TrillEvaluator.TrillFactor(hitObject);
 
-            return tapRate * patternMultiplier * speed_scale;
+            return tapRate * patternMultiplier * speed_scale * hitObject.ManipulationFactor;
         }
     }
 }

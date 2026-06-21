@@ -24,6 +24,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public readonly double ColumnStrainTime;
 
+        /// <summary>
+        /// Multiplier in (0, 1] that dampens manipulable patterns (fast, sustained rolls / stairs /
+        /// split-rolls / vibro) which are far easier to hit than their raw tap rate implies.
+        /// Computed once after all objects are built (see <see cref="Evaluators.ManipulationEvaluator"/>)
+        /// and applied to every skill except Release. Defaults to 1.0 (no dampening).
+        /// </summary>
+        public double ManipulationFactor = 1.0;
+
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index)
             : base(hitObject, lastObject, clockRate, objects, index)
         {

@@ -45,7 +45,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double heldSpeedFactor = hitObject.DeltaTime >= ChordEvaluator.CHORD_TOLERANCE_MS ? 1.0 / (hitObject.DeltaTime / 1000.0 + held_speed_factor_offset) : 1.0;
             double heldNoteLoad = held_long_note_weight * Math.Sqrt(heldColumns) * heldSpeedFactor;
 
-            return crossColumnStrain * coordination_scale + chordLoad + heldNoteLoad;
+            return (crossColumnStrain * coordination_scale + chordLoad + heldNoteLoad) * hitObject.ManipulationFactor;
         }
 
         private static double boundaryPressure(ManiaDifficultyHitObject hitObject)

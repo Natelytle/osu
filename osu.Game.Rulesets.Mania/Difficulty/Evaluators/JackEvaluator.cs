@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             else
                 strain *= TrillEvaluator.TrillFactor(hitObject);
 
-            return strain;
+            return strain * hitObject.ManipulationFactor;
         }
     }
 }

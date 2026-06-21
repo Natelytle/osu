@@ -74,7 +74,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             previousDeltaTime = hitObject.DeltaTime;
 
-            return pattern_buff * (rhythmIrregularity + columnComplexity) * speedFactor * technical_scale;
+            return pattern_buff * (rhythmIrregularity + columnComplexity) * speedFactor * technical_scale * hitObject.ManipulationFactor;
         }
     }
 }
