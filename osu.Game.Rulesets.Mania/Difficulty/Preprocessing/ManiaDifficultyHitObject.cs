@@ -11,6 +11,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
     public class ManiaDifficultyHitObject : DifficultyHitObject
     {
+        private const double long_note_weight_per_200_ms = 0.6;
+        private const double max_long_note_weight_duration_ms = 1000.0;
+
         public new ManiaHitObject BaseObject => (ManiaHitObject)base.BaseObject;
 
         private readonly List<DifficultyHitObject>[] perColumnObjects;
@@ -24,6 +27,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
         public readonly double ColumnStrainTime;
 
+        public readonly double NoteWeight;
+        public readonly double CumulativeNoteWeight;
+        public readonly int CumulativeLongNoteCount;
+        public readonly double LongNoteRatio;
+
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
@@ -34,6 +42,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
             ColumnStrainTime = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
 
+            NoteWeight = calculateNoteWeight(hitObject);
+
             if (index > 0)
             {
                 ManiaDifficultyHitObject prevNote = (ManiaDifficultyHitObject)objects[index - 1];
@@ -43,7 +53,28 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
                 // intentionally depends on processing order to match live.
                 PreviousHitObjects[prevNote.Column] = prevNote;
+
+                CumulativeNoteWeight = prevNote.CumulativeNoteWeight + NoteWeight;
+                CumulativeLongNoteCount = prevNote.CumulativeLongNoteCount + (hitObject is HoldNote ? 1 : 0);
             }
+            else
+            {
+                CumulativeNoteWeight = calculateNoteWeight(lastObject) + NoteWeight;
+                CumulativeLongNoteCount = (lastObject is HoldNote ? 1 : 0) + (hitObject is HoldNote ? 1 : 0);
+            }
+
+            LongNoteRatio = (double)CumulativeLongNoteCount / (index + 2);
+        }
+
+        private static double calculateNoteWeight(HitObject hitObject)
+        {
+            if (hitObject is HoldNote holdNote)
+            {
+                double duration = Math.Min(holdNote.EndTime - holdNote.StartTime, max_long_note_weight_duration_ms);
+                return 1.0 + long_note_weight_per_200_ms * duration / 200.0;
+            }
+
+            return 1.0;
         }
 
         /// <summary>
