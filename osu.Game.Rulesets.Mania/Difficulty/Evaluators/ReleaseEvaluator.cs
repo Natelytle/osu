@@ -26,9 +26,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             double load = 0.0;
 
-            if (hitObject.BaseObject is HoldNote holdNote)
+            if (hitObject.BaseObject is HoldNote)
             {
-                double duration = Math.Min(holdNote.Duration, max_long_note_duration_ms);
+                double duration = Math.Min(hitObject.EndTime - hitObject.StartTime, max_long_note_duration_ms);
                 double longNoteGate = DifficultyCalculationUtils.Logistic(duration, long_note_gate_midpoint_ms, long_note_gate_slope);
 
                 load += (long_note_base_load + long_note_duration_load * (duration / 1000.0)) * longNoteGate;
