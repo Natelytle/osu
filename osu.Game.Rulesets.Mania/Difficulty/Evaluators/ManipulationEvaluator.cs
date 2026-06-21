@@ -18,6 +18,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double speed_hi_ms = 82.0;
         private const double speed_lo_ms = 30.0;
 
+        private const double jumptrill_nerf = 0.88;
+        private const double jumptrill_ramp = 2.5;
+        private const double jumptrill_speed_hi_ms = 140.0;
+        private const double jumptrill_speed_lo_ms = 38.0;
+
         public static void Evaluate(IReadOnlyList<ManiaDifficultyHitObject> objects)
         {
             if (objects.Count == 0)
@@ -53,25 +58,66 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             for (int row = 0; row < rowColumns.Count; row++)
             {
                 double rowDelta = row > 0 ? rowTimes[row] - rowTimes[row - 1] : double.PositiveInfinity;
-                double speedScale = speedScaleFor(rowDelta);
 
-                if (speedScale <= 0.0)
+                double factor = Math.Min(
+                    manipulationFactor(rowColumns, row, rowDelta),
+                    jumptrillFactor(rowColumns, row, rowDelta));
+
+                if (factor >= 1.0)
                     continue;
-
-                int run = rollRun(rowColumns, row);
-
-                for (int period = 2; period <= max_period; period++)
-                    run = Math.Max(run, periodRun(rowColumns, row, period));
-
-                if (run == 0)
-                    continue;
-
-                double runWeight = Math.Min(1.0, run / period_ramp);
-                double factor = 1.0 - high_speed_nerf * runWeight * speedScale;
 
                 foreach (var member in rowMembers[row])
                     member.ManipulationFactor = factor;
             }
+        }
+
+        /// <summary>General roll / stair / split-roll / vibro dampening (sustained, fast).</summary>
+        private static double manipulationFactor(List<int[]> rowColumns, int row, double rowDelta)
+        {
+            double speedScale = speedScaleFor(rowDelta);
+
+            if (speedScale <= 0.0)
+                return 1.0;
+
+            int run = rollRun(rowColumns, row);
+
+            for (int period = 2; period <= max_period; period++)
+                run = Math.Max(run, periodRun(rowColumns, row, period));
+
+            if (run == 0)
+                return 1.0;
+
+            double runWeight = Math.Min(1.0, run / period_ramp);
+            return 1.0 - high_speed_nerf * runWeight * speedScale;
+        }
+
+        private static double jumptrillFactor(List<int[]> rowColumns, int row, double rowDelta)
+        {
+            if (rowColumns[row].Length != 2)
+                return 1.0;
+
+            double speedScale = DifficultyCalculationUtils.Smoothstep(jumptrill_speed_hi_ms - rowDelta, 0.0, jumptrill_speed_hi_ms - jumptrill_speed_lo_ms);
+
+            if (speedScale <= 0.0)
+                return 1.0;
+
+            int run = 0;
+
+            for (int k = row;
+                 k - 2 >= 0
+                 && rowColumns[k].Length == 2
+                 && sameColumns(rowColumns[k], rowColumns[k - 2])
+                 && !sameColumns(rowColumns[k], rowColumns[k - 1]);
+                 k--)
+            {
+                run++;
+            }
+
+            if (run == 0)
+                return 1.0;
+
+            double runWeight = Math.Min(1.0, run / jumptrill_ramp);
+            return 1.0 - jumptrill_nerf * runWeight * speedScale;
         }
 
         private static double speedScaleFor(double rowDelta)
