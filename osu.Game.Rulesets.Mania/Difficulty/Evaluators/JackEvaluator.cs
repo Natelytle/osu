@@ -26,6 +26,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         private const double jack_scale = 0.62159;
 
+        private const double held_ln_jack_buff = 0.6;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
         {
             double lastStartTime = hitObject.LastStartTimeInColumn(hitObject.Column);
@@ -52,6 +54,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 strain *= chordjack_nerf;
             else
                 strain *= TrillEvaluator.TrillFactor(hitObject);
+
+            int totalColumns = hitObject.PreviousHitObjects.Length;
+
+            if (totalColumns > 1)
+            {
+                double heldFraction = hitObject.ConcurrentlyHeldColumns(ChordEvaluator.CHORD_TOLERANCE_MS) / (double)(totalColumns - 1);
+                strain *= 1.0 + held_ln_jack_buff * heldFraction;
+            }
 
             return strain * hitObject.ManipulationFactor;
         }
