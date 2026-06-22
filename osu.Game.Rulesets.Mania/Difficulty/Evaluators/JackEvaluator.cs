@@ -28,6 +28,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         private const double held_ln_jack_buff = 0.6;
 
+        private const double chord_speed_fast_ms = 100.0;
+        private const double chord_speed_slow_ms = 140.0;
+        private const double chord_speed_veryfast_ms = 70.0;
+        private const double chord_speed_slow_mult = 0.6;
+        private const double chord_speed_fast_mult = 1.2;
+        private const double chord_speed_veryfast_mult = 0.75;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
         {
             double lastStartTime = hitObject.LastStartTimeInColumn(hitObject.Column);
@@ -51,7 +58,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double strain = jack_scale * Math.Pow(rawStrain, jack_convex);
 
             if (chordSize >= 2)
+            {
                 strain *= chordjack_nerf;
+
+                double bpmScale = DifficultyCalculationUtils.Smoothstep(chord_speed_slow_ms - columnDelta, 0.0, chord_speed_slow_ms - chord_speed_fast_ms);
+                double chordSpeedMult = chord_speed_slow_mult + (chord_speed_fast_mult - chord_speed_slow_mult) * bpmScale;
+
+                // Roll the buff back down for very fast chord jacks so the scaling slows past ~160bpm.
+                double fastRolloff = DifficultyCalculationUtils.Smoothstep(chord_speed_fast_ms - columnDelta, 0.0, chord_speed_fast_ms - chord_speed_veryfast_ms);
+                chordSpeedMult += (chord_speed_veryfast_mult - chord_speed_fast_mult) * fastRolloff;
+
+                strain *= chordSpeedMult;
+            }
             else
                 strain *= TrillEvaluator.TrillFactor(hitObject);
 
