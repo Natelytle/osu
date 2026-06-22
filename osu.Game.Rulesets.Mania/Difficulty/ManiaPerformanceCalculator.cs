@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
@@ -13,6 +14,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaPerformanceCalculator : PerformanceCalculator
     {
+        // How strongly each skill counts toward being hard (vs easy) to accuracy.
+        private const double release_acc_weight = 1;
+        private const double jack_ease = 3.0;
+
+        private const double acc_floor = 0.80;
+        private const double acc_balance_low = 0.27;
+        private const double acc_balance_high = 0.50;
+        private const double acc_curve_nerf = 1.90;
+        private const double acc_curve_buff = 0.62;
+
         private int countPerfect;
         private int countGreat;
         private int countGood;
@@ -57,11 +68,32 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double difficultyValue = 8.0 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) // Star rating to pp curve
-                                         * Math.Max(0, 5 * scoreAccuracy - 4) // From 80% accuracy, 1/20th of total pp is awarded per additional 1% accuracy
-                                         * (1 + 0.1 * Math.Min(1, totalHits / 1500)); // Length bonus, capped at 1500 notes
+            double baseValue = 8.0 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
 
-            return difficultyValue;
+            // Acc-difficulty aware accuracy scaling (replaces the flat "5*acc - 4").
+            double accBalance = accDifficultyBalance(attributes);
+            double t = DifficultyCalculationUtils.Smoothstep(accBalance, acc_balance_low, acc_balance_high);
+            double accCurve = acc_curve_nerf + (acc_curve_buff - acc_curve_nerf) * t;
+            double accFactor = Math.Pow(Math.Clamp((scoreAccuracy - acc_floor) / (1.0 - acc_floor), 0.0, 1.0), accCurve);
+
+            double lengthBonus = 1 + 0.1 * Math.Min(1, totalHits / 1500);
+
+            return baseValue * accFactor * lengthBonus;
+        }
+
+        /// <summary>
+        /// How hard the map is to accuracy, in [0, 1]. Higher = harder: speed / technical
+        /// / coordination / release patterns demand precise timing, while jacks are regular
+        /// and easy to acc, so they pull the balance toward 0.
+        /// </summary>
+        private static double accDifficultyBalance(ManiaDifficultyAttributes attributes)
+        {
+            double hardToAcc = attributes.SpeedDifficulty + attributes.TechnicalDifficulty
+                                                          + attributes.CoordinationDifficulty
+                                                          + release_acc_weight * attributes.ReleaseDifficulty;
+            double easyToAcc = attributes.JackDifficulty;
+
+            return hardToAcc / (hardToAcc + jack_ease * easyToAcc + 1e-9);
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;
