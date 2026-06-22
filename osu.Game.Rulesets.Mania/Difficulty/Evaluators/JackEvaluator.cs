@@ -35,6 +35,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double chord_speed_fast_mult = 1.2;
         private const double chord_speed_veryfast_mult = 0.75;
 
+        private const double quad_minijack_buff = 2.5;
+        private const int quad_minijack_min_chord = 4;
+        private const double quad_minijack_fast_ms = 85.0;
+        private const double quad_minijack_slow_ms = 110.0;
+        private const double quad_minijack_manip_lo = 0.95;
+        private const double quad_minijack_manip_hi = 0.99;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
         {
             double lastStartTime = hitObject.LastStartTimeInColumn(hitObject.Column);
@@ -79,6 +86,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             {
                 double heldFraction = hitObject.ConcurrentlyHeldColumns(ChordEvaluator.CHORD_TOLERANCE_MS) / (double)(totalColumns - 1);
                 strain *= 1.0 + held_ln_jack_buff * heldFraction;
+            }
+
+            var previous = hitObject.Previous(0);
+
+            if (previous != null && ChordEvaluator.Size(previous) >= quad_minijack_min_chord)
+            {
+                double speedGate = DifficultyCalculationUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
+                double manipGate = Math.Clamp((hitObject.ManipulationFactor - quad_minijack_manip_lo) / (quad_minijack_manip_hi - quad_minijack_manip_lo), 0.0, 1.0);
+                strain *= 1.0 + quad_minijack_buff * speedGate * manipGate;
             }
 
             return strain * hitObject.ManipulationFactor;
