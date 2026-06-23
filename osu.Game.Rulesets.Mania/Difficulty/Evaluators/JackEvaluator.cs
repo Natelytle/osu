@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         private const double chord_speed_fast_ms = 100.0;
         private const double chord_speed_slow_ms = 140.0;
-        private const double chord_speed_veryfast_ms = 70.0;
+        private const double chord_speed_veryfast_ms = 84.0;
         private const double chord_speed_slow_mult = 0.6;
         private const double chord_speed_fast_mult = 1.2;
         private const double chord_speed_veryfast_mult = 0.75;
