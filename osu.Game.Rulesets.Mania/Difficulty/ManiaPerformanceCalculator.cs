@@ -14,7 +14,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaPerformanceCalculator : PerformanceCalculator
     {
-        // How strongly each skill counts toward being hard (vs easy) to accuracy.
         private const double release_acc_weight = 1;
         private const double jack_ease = 3.0;
 
@@ -70,7 +69,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             double baseValue = 8.0 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
 
-            // Acc-difficulty aware accuracy scaling (replaces the flat "5*acc - 4").
             double accBalance = accDifficultyBalance(attributes);
             double t = DifficultyCalculationUtils.Smoothstep(accBalance, acc_balance_low, acc_balance_high);
             double accCurve = acc_curve_nerf + (acc_curve_buff - acc_curve_nerf) * t;

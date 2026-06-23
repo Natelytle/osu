@@ -18,6 +18,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double speed_hi_ms = 82.0;
         private const double speed_lo_ms = 30.0;
 
+        private const double movement_fast_ms = 60.0;
+        private const int movement_cap = 400;
+        private const double movement_taper_lo = 70.0;
+        private const double movement_taper_hi = 160.0;
+        private const double movement_stamina_relief = 0.9;
+
+        private const double movement_dir_lo = 0.30;
+        private const double movement_dir_hi = 0.46;
+
+        private const int movement_chord_window = 14;
+        private const double movement_chord_lo = 0.14;
+        private const double movement_chord_hi = 0.34;
+
         private const double jumptrill_nerf = 0.88;
         private const double jumptrill_ramp = 2.5;
         private const double jumptrill_speed_hi_ms = 140.0;
@@ -60,7 +73,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 double rowDelta = row > 0 ? rowTimes[row] - rowTimes[row - 1] : double.PositiveInfinity;
 
                 double factor = Math.Min(
-                    manipulationFactor(rowColumns, row, rowDelta),
+                    manipulationFactor(rowColumns, rowTimes, row, rowDelta),
                     jumptrillFactor(rowColumns, row, rowDelta));
 
                 if (factor >= 1.0)
@@ -71,8 +84,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
         }
 
-        /// <summary>General roll / stair / split-roll / vibro dampening (sustained, fast).</summary>
-        private static double manipulationFactor(List<int[]> rowColumns, int row, double rowDelta)
+        private static double manipulationFactor(List<int[]> rowColumns, List<double> rowTimes, int row, double rowDelta)
         {
             double speedScale = speedScaleFor(rowDelta);
 
@@ -84,10 +96,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             for (int period = 2; period <= max_period; period++)
                 run = Math.Max(run, periodRun(rowColumns, row, period));
 
-            if (run == 0)
+            double runWeight = Math.Min(1.0, run / period_ramp);
+            int moveRun = movementRun(rowColumns, rowTimes, row, out double directionConsistency);
+
+            if (moveRun >= 2)
+            {
+                double staminaRelief = movement_stamina_relief * DifficultyCalculationUtils.Smoothstep(moveRun, movement_taper_lo, movement_taper_hi);
+                double rollGate = DifficultyCalculationUtils.Smoothstep(directionConsistency, movement_dir_lo, movement_dir_hi);
+                double chordGate = 1.0 - DifficultyCalculationUtils.Smoothstep(localChordDensity(rowColumns, row), movement_chord_lo, movement_chord_hi);
+                double moveWeight = Math.Min(1.0, moveRun / period_ramp) * (1.0 - staminaRelief) * rollGate * chordGate;
+                runWeight = Math.Max(runWeight, moveWeight);
+            }
+
+            if (runWeight <= 0.0)
                 return 1.0;
 
-            double runWeight = Math.Min(1.0, run / period_ramp);
             return 1.0 - high_speed_nerf * runWeight * speedScale;
         }
 
@@ -123,6 +146,69 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double speedScaleFor(double rowDelta)
         {
             return DifficultyCalculationUtils.Smoothstep(speed_hi_ms - rowDelta, 0.0, speed_hi_ms - speed_lo_ms);
+        }
+
+        private static int movementRun(List<int[]> rows, List<double> rowTimes, int row, out double directionConsistency)
+        {
+            directionConsistency = 0.0;
+
+            if (rows[row].Length != 1)
+                return 0;
+
+            int lo = row;
+            while (row - lo < movement_cap && isFastMove(rows, rowTimes, lo))
+                lo--;
+
+            int hi = row;
+            while (hi - row < movement_cap && isFastMove(rows, rowTimes, hi + 1))
+                hi++;
+
+            // Fraction of consecutive moves that keep the same spatial direction (a roll sweep) rather than
+            // reversing/jumping (reading).
+            int dirPairs = 0;
+            int sameDir = 0;
+            int prevDir = 0;
+
+            for (int k = lo + 1; k <= hi; k++)
+            {
+                int dir = Math.Sign(rows[k][0] - rows[k - 1][0]);
+
+                if (prevDir != 0)
+                {
+                    dirPairs++;
+                    if (dir == prevDir)
+                        sameDir++;
+                }
+
+                prevDir = dir;
+            }
+
+            if (dirPairs > 0)
+                directionConsistency = (double)sameDir / dirPairs;
+
+            return hi - lo + 1;
+        }
+
+        private static double localChordDensity(List<int[]> rows, int row)
+        {
+            int lo = Math.Max(0, row - movement_chord_window);
+            int hi = Math.Min(rows.Count - 1, row + movement_chord_window);
+            int chords = 0;
+
+            for (int r = lo; r <= hi; r++)
+            {
+                if (rows[r].Length > 1)
+                    chords++;
+            }
+
+            return (double)chords / (hi - lo + 1);
+        }
+
+        private static bool isFastMove(List<int[]> rows, List<double> rowTimes, int k)
+        {
+            return k - 1 >= 0 && k < rows.Count && rows[k].Length == 1 && rows[k - 1].Length == 1
+                   && rows[k][0] != rows[k - 1][0]
+                   && rowTimes[k] - rowTimes[k - 1] < movement_fast_ms;
         }
 
         private static int periodRun(List<int[]> rows, int row, int period)

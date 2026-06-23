@@ -53,6 +53,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         /// SR *= (1 - full_ln_damper * lnRatio^2).
         private const double full_ln_damper = 0.06263;
 
+        private const double ln_hybrid_damper = 0.028;
+        private const double ln_hybrid_ramp_lo = 0.15;
+        private const double ln_hybrid_ramp_hi = 0.35;
+        private const double ln_hybrid_fade_lo = 0.50;
+        private const double ln_hybrid_fade_hi = 0.75;
+
         private const double od_weight = 0.188;
         private static readonly double leniency_at_od8 = hitLeniency(8.0);
 
@@ -83,7 +89,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double noteWeight = totalNoteWeight(beatmap);
             double odMult = odMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
             double lnRatio = computeLnRatio(beatmap);
-            double lnDamper = 1.0 - full_ln_damper * lnRatio * lnRatio;
+            double hybridLn = smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
+            double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
             double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper;
 
@@ -136,6 +143,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                                    + power_mean_weight * powerMean;
 
             return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
+        }
+
+        private static double smoothstep(double x, double edge0, double edge1)
+        {
+            double t = Math.Clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+            return t * t * (3.0 - 2.0 * t);
         }
 
         private static double scaleToStarRating(double aggregatedDifficulty)
