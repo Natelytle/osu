@@ -24,7 +24,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double combine_lambda = 2.77504;
+        private const double combine_lambda = 2.0;
 
         private const double speed_weight = 1.02237;
         private const double jack_weight = 1.42793;
@@ -47,7 +47,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double note_count_offset = 34.64147;
         private const double final_scaling = 0.90741;
 
-        private const double overall_multiplier = 0.38374;
+        private const double overall_multiplier = 0.360643;
         private const double power_exponent = 0.52899;
 
         /// SR *= (1 - full_ln_damper * lnRatio^2).

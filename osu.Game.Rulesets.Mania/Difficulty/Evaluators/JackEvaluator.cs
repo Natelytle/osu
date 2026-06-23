@@ -42,6 +42,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double quad_minijack_manip_lo = 0.95;
         private const double quad_minijack_manip_hi = 0.99;
 
+        private const double quad_minijack_run_ms = 110.0;
+        private const int quad_minijack_run_cap = 32;
+        private const double quad_minijack_run_start = 3.0;
+        private const double quad_minijack_run_end = 4.0;
+
+        private const double quad_minijack_vfast_hi_ms = 74.0;
+        private const double quad_minijack_vfast_lo_ms = 66.0;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
         {
             double lastStartTime = hitObject.LastStartTimeInColumn(hitObject.Column);
@@ -89,12 +97,45 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             var previous = hitObject.Previous(0);
+            int fullChord = Math.Max(quad_minijack_min_chord, totalColumns);
 
-            if (previous != null && ChordEvaluator.Size(previous) >= quad_minijack_min_chord)
+            if (previous != null && ChordEvaluator.Size(previous) >= fullChord)
             {
                 double speedGate = DifficultyCalculationUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
                 double manipGate = Math.Clamp((hitObject.ManipulationFactor - quad_minijack_manip_lo) / (quad_minijack_manip_hi - quad_minijack_manip_lo), 0.0, 1.0);
-                strain *= 1.0 + quad_minijack_buff * speedGate * manipGate;
+
+                int runLength = 1;
+                ManiaDifficultyHitObject cur = hitObject;
+
+                for (int back = 0; back < quad_minijack_run_cap; back++)
+                {
+                    var prevInColumn = hitObject.PrevInColumn(back);
+
+                    if (prevInColumn == null || cur.StartTime - prevInColumn.StartTime > quad_minijack_run_ms)
+                        break;
+
+                    runLength++;
+                    cur = prevInColumn;
+                }
+
+                cur = hitObject;
+
+                for (int forward = 0; forward < quad_minijack_run_cap; forward++)
+                {
+                    var nextInColumn = hitObject.NextInColumn(forward);
+
+                    if (nextInColumn == null || nextInColumn.StartTime - cur.StartTime > quad_minijack_run_ms)
+                        break;
+
+                    runLength++;
+                    cur = nextInColumn;
+                }
+
+                double runGate = 1.0 - DifficultyCalculationUtils.Smoothstep(runLength - quad_minijack_run_start, 0.0, quad_minijack_run_end - quad_minijack_run_start);
+
+                double vFastGate = 1.0 - DifficultyCalculationUtils.Smoothstep(quad_minijack_vfast_hi_ms - columnDelta, 0.0, quad_minijack_vfast_hi_ms - quad_minijack_vfast_lo_ms);
+
+                strain *= 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * vFastGate;
             }
 
             return strain * hitObject.ManipulationFactor;
