@@ -23,6 +23,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double acc_curve_nerf = 1.90;
         private const double acc_curve_buff = 0.62;
 
+        private const double variety_floor = 0.88;
+        private const double variety_cap = 1.10;
+        private const double variety_midpoint = 3.7;
+        private const double variety_steepness = 2.0;
+
         private int countPerfect;
         private int countGreat;
         private int countGood;
@@ -56,13 +61,29 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 multiplier *= 0.5;
 
             double difficultyValue = computeDifficultyValue(maniaAttributes);
-            double totalValue = difficultyValue * multiplier;
+            double varietyMultiplier = this.varietyMultiplier(maniaAttributes.Variety);
+            double lengthMultiplier = this.lengthMultiplier(totalHits, maniaAttributes.StarRating);
+            double totalValue = difficultyValue * varietyMultiplier * lengthMultiplier * multiplier;
 
             return new ManiaPerformanceAttributes
             {
                 Difficulty = difficultyValue,
                 Total = totalValue
             };
+        }
+
+        private double varietyMultiplier(double variety)
+        {
+            double range = variety_cap - variety_floor;
+            return variety_floor + range / (1.0 + Math.Exp(-variety_steepness * (variety - variety_midpoint)));
+        }
+
+        private double lengthMultiplier(double totalNotes, double starRating)
+        {
+            if (totalNotes <= 0)
+                return 1.0;
+
+            return 1.1 / (1.0 + Math.Sqrt(starRating / (2.0 * totalNotes)));
         }
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
@@ -74,9 +95,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double accCurve = acc_curve_nerf + (acc_curve_buff - acc_curve_nerf) * t;
             double accFactor = Math.Pow(Math.Clamp((scoreAccuracy - acc_floor) / (1.0 - acc_floor), 0.0, 1.0), accCurve);
 
-            double lengthBonus = 1 + 0.1 * Math.Min(1, totalHits / 1500);
-
-            return baseValue * accFactor * lengthBonus;
+            return baseValue * accFactor;
         }
 
         /// <summary>

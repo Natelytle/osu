@@ -94,17 +94,38 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper;
 
+            double speedDifficulty = skillStarRating(speed, noteWeight) * odMult;
+            double technicalDifficulty = skillStarRating(technical, noteWeight) * odMult;
+            double jackDifficulty = skillStarRating(jack, noteWeight) * odMult;
+            double coordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult;
+            double releaseDifficulty = skillStarRating(release, noteWeight) * odMult;
+
             return new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
-                SpeedDifficulty = skillStarRating(speed, noteWeight) * odMult,
-                TechnicalDifficulty = skillStarRating(technical, noteWeight) * odMult,
-                JackDifficulty = skillStarRating(jack, noteWeight) * odMult,
-                CoordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult,
-                ReleaseDifficulty = skillStarRating(release, noteWeight) * odMult,
+                SpeedDifficulty = speedDifficulty,
+                TechnicalDifficulty = technicalDifficulty,
+                JackDifficulty = jackDifficulty,
+                CoordinationDifficulty = coordinationDifficulty,
+                ReleaseDifficulty = releaseDifficulty,
+                Variety = participationRatio(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty),
             };
+        }
+
+        private static double participationRatio(params double[] difficulties)
+        {
+            double sum = 0;
+            double sumSquares = 0;
+
+            foreach (double d in difficulties)
+            {
+                sum += d;
+                sumSquares += d * d;
+            }
+
+            return sumSquares > 0 ? sum * sum / sumSquares : 1.0;
         }
 
         private IEnumerable<double> combineObjectStrains(Speed speed, Technical technical, Jack jack, Coordination coordination, Release release)
