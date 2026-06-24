@@ -24,7 +24,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 ? jack_speed_nerf
                 : TrillEvaluator.TrillFactor(hitObject);
 
-            return tapRate * patternMultiplier * speed_scale * hitObject.ManipulationFactor;
+            return tapRate * patternMultiplier * speed_scale * hitObject.ManipulationFactor * hitObject.StaminaFactor;
         }
     }
 }

@@ -11,7 +11,6 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Beatmaps;
-using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.MathUtils;
@@ -114,8 +113,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double shortLnCoordMult = shortLnCoordNerf(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty, lnRatio, noteWeight);
 
             double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper * shortLnCoordMult;
-
-            Console.WriteLine($"Variety: {participationRatio(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty)}");
 
             return new ManiaDifficultyAttributes
             {
@@ -311,7 +308,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }
 
-            ManipulationEvaluator.Evaluate(objects.Cast<ManiaDifficultyHitObject>().ToList());
+            ManiaManipulationDifficultyPreprocessor.ProcessAndAssign(objects.Cast<ManiaDifficultyHitObject>().ToList());
 
             return objects;
         }

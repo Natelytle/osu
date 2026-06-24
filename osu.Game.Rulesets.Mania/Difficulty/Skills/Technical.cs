@@ -16,7 +16,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private const double speed_factor_offset = 0.050;
 
-        // A reversal at a boundary scores a base amount plus a multiple of how hard that boundary is to cross.
         private const double reversal_base_complexity = 0.6;
         private const double reversal_coefficient_multiplier = 2.0;
 
@@ -74,7 +73,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             previousDeltaTime = hitObject.DeltaTime;
 
-            return pattern_buff * (rhythmIrregularity + columnComplexity) * speedFactor * technical_scale * hitObject.ManipulationFactor;
+            return pattern_buff * (rhythmIrregularity + columnComplexity) * speedFactor * technical_scale * hitObject.ManipulationFactor * hitObject.StaminaFactor;
         }
     }
 }

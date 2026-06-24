@@ -4,11 +4,11 @@
 using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 
-namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
+namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
-    public static class ManipulationEvaluator
+    public static class ManiaManipulationDifficultyPreprocessor
     {
         private const double high_speed_nerf = 0.72;
         private const double period_ramp = 26.0;
@@ -36,7 +36,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double jumptrill_speed_hi_ms = 140.0;
         private const double jumptrill_speed_lo_ms = 38.0;
 
-        public static void Evaluate(IReadOnlyList<ManiaDifficultyHitObject> objects)
+        private const double stamina_buff = 0.52;
+        private const double stamina_speed_hi_ms = 85.0;
+        private const double stamina_speed_lo_ms = 62.0;
+        private const double stamina_speed_vfast_hi_ms = 62.0;
+        private const double stamina_speed_vfast_lo_ms = 48.0;
+        private const double stamina_vfast_taper = 0.72;
+        private const double stamina_run_lo = 6.0;
+        private const double stamina_run_hi = 30.0;
+        private const int stamina_run_cap = 256;
+
+        public static void ProcessAndAssign(IReadOnlyList<ManiaDifficultyHitObject> objects)
         {
             if (objects.Count == 0)
                 return;
@@ -76,11 +86,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     manipulationFactor(rowColumns, rowTimes, row, rowDelta),
                     jumptrillFactor(rowColumns, row, rowDelta));
 
-                if (factor >= 1.0)
-                    continue;
+                double stamina = staminaFactor(rowColumns, rowTimes, row, rowDelta);
 
                 foreach (var member in rowMembers[row])
-                    member.ManipulationFactor = factor;
+                {
+                    if (factor < 1.0)
+                        member.ManipulationFactor = factor;
+
+                    if (stamina > 1.0)
+                        member.StaminaFactor = stamina;
+                }
             }
         }
 
@@ -148,6 +163,31 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return DifficultyCalculationUtils.Smoothstep(speed_hi_ms - rowDelta, 0.0, speed_hi_ms - speed_lo_ms);
         }
 
+        private static double staminaFactor(List<int[]> rowColumns, List<double> rowTimes, int row, double rowDelta)
+        {
+            if (rowColumns[row].Length != 2)
+                return 1.0;
+
+            double speedScale = DifficultyCalculationUtils.Smoothstep(stamina_speed_hi_ms - rowDelta, 0.0, stamina_speed_hi_ms - stamina_speed_lo_ms)
+                                * (1.0 - stamina_vfast_taper * DifficultyCalculationUtils.Smoothstep(stamina_speed_vfast_hi_ms - rowDelta, 0.0, stamina_speed_vfast_hi_ms - stamina_speed_vfast_lo_ms));
+
+            if (speedScale <= 0.0)
+                return 1.0;
+
+            int run = 1;
+
+            for (int k = row; run < stamina_run_cap && k - 1 >= 0; k--)
+            {
+                if (rowColumns[k - 1].Length != 2 || rowTimes[k] - rowTimes[k - 1] > stamina_speed_hi_ms)
+                    break;
+
+                run++;
+            }
+
+            double runWeight = DifficultyCalculationUtils.Smoothstep(run, stamina_run_lo, stamina_run_hi);
+            return 1.0 + stamina_buff * speedScale * runWeight;
+        }
+
         private static int movementRun(List<int[]> rows, List<double> rowTimes, int row, out double directionConsistency)
         {
             directionConsistency = 0.0;
@@ -163,8 +203,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             while (hi - row < movement_cap && isFastMove(rows, rowTimes, hi + 1))
                 hi++;
 
-            // Fraction of consecutive moves that keep the same spatial direction (a roll sweep) rather than
-            // reversing/jumping (reading).
             int dirPairs = 0;
             int sameDir = 0;
             int prevDir = 0;

@@ -138,7 +138,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 strain *= 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * vFastGate;
             }
 
-            return strain * hitObject.ManipulationFactor;
+            return strain * hitObject.ManipulationFactor * hitObject.StaminaFactor;
         }
     }
 }
