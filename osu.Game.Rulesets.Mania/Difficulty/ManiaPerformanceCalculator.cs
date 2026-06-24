@@ -28,6 +28,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double variety_midpoint = 3.7;
         private const double variety_steepness = 2.0;
 
+        private const double dense_buff = 0.18;
+        private const double dense_coact_lo = 3.0;
+        private const double dense_coact_hi = 5.0;
+        private const double dense_release_lo = 1.5;
+        private const double dense_release_hi = 3.0;
+        private const double dense_sr_taper_lo = 9.5;
+        private const double dense_sr_taper_hi = 13.0;
+
         private int countPerfect;
         private int countGreat;
         private int countGood;
@@ -95,7 +103,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double accCurve = acc_curve_nerf + (acc_curve_buff - acc_curve_nerf) * t;
             double accFactor = Math.Pow(DifficultyCalculationUtils.ReverseLerp(scoreAccuracy, acc_floor, 1.0), accCurve);
 
-            return baseValue * accFactor;
+            return baseValue * denseFastMultiplier(attributes) * accFactor;
+        }
+
+        private static double denseFastMultiplier(ManiaDifficultyAttributes attributes)
+        {
+            double coActivation = Math.Min(attributes.SpeedDifficulty, attributes.JackDifficulty);
+            double coGate = DifficultyCalculationUtils.Smoothstep(coActivation, dense_coact_lo, dense_coact_hi);
+            double releaseGate = 1.0 - DifficultyCalculationUtils.Smoothstep(attributes.ReleaseDifficulty, dense_release_lo, dense_release_hi);
+            double srTaper = 1.0 - DifficultyCalculationUtils.Smoothstep(attributes.StarRating, dense_sr_taper_lo, dense_sr_taper_hi);
+
+            return 1.0 + dense_buff * coGate * releaseGate * srTaper;
         }
 
         /// <summary>
