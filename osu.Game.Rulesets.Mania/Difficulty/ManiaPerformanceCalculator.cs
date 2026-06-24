@@ -74,8 +74,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double varietyMultiplier(double variety)
         {
-            double range = variety_cap - variety_floor;
-            return variety_floor + range / (1.0 + Math.Exp(-variety_steepness * (variety - variety_midpoint)));
+            const double range = variety_cap - variety_floor;
+            return variety_floor + DifficultyCalculationUtils.Logistic(variety, variety_midpoint, variety_steepness, range);
         }
 
         private double lengthMultiplier(double totalNotes, double starRating)
@@ -93,7 +93,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double accBalance = accDifficultyBalance(attributes);
             double t = DifficultyCalculationUtils.Smoothstep(accBalance, acc_balance_low, acc_balance_high);
             double accCurve = acc_curve_nerf + (acc_curve_buff - acc_curve_nerf) * t;
-            double accFactor = Math.Pow(Math.Clamp((scoreAccuracy - acc_floor) / (1.0 - acc_floor), 0.0, 1.0), accCurve);
+            double accFactor = Math.Pow(DifficultyCalculationUtils.ReverseLerp(scoreAccuracy, acc_floor, 1.0), accCurve);
 
             return baseValue * accFactor;
         }

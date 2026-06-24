@@ -102,7 +102,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (previous != null && ChordEvaluator.Size(previous) >= fullChord)
             {
                 double speedGate = DifficultyCalculationUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
-                double manipGate = Math.Clamp((hitObject.ManipulationFactor - quad_minijack_manip_lo) / (quad_minijack_manip_hi - quad_minijack_manip_lo), 0.0, 1.0);
+                double manipGate = DifficultyCalculationUtils.ReverseLerp(hitObject.ManipulationFactor, quad_minijack_manip_lo, quad_minijack_manip_hi);
 
                 int runLength = 1;
                 ManiaDifficultyHitObject cur = hitObject;

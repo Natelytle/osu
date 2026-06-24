@@ -96,7 +96,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             for (int period = 2; period <= max_period; period++)
                 run = Math.Max(run, periodRun(rowColumns, row, period));
 
-            double runWeight = Math.Min(1.0, run / period_ramp);
+            double runWeight = DifficultyCalculationUtils.ReverseLerp(run, 0.0, period_ramp);
             int moveRun = movementRun(rowColumns, rowTimes, row, out double directionConsistency);
 
             if (moveRun >= 2)
@@ -104,7 +104,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 double staminaRelief = movement_stamina_relief * DifficultyCalculationUtils.Smoothstep(moveRun, movement_taper_lo, movement_taper_hi);
                 double rollGate = DifficultyCalculationUtils.Smoothstep(directionConsistency, movement_dir_lo, movement_dir_hi);
                 double chordGate = 1.0 - DifficultyCalculationUtils.Smoothstep(localChordDensity(rowColumns, row), movement_chord_lo, movement_chord_hi);
-                double moveWeight = Math.Min(1.0, moveRun / period_ramp) * (1.0 - staminaRelief) * rollGate * chordGate;
+                double moveWeight = DifficultyCalculationUtils.ReverseLerp(moveRun, 0.0, period_ramp) * (1.0 - staminaRelief) * rollGate * chordGate;
                 runWeight = Math.Max(runWeight, moveWeight);
             }
 
@@ -139,7 +139,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (run == 0)
                 return 1.0;
 
-            double runWeight = Math.Min(1.0, run / jumptrill_ramp);
+            double runWeight = DifficultyCalculationUtils.ReverseLerp(run, 0.0, jumptrill_ramp);
             return 1.0 - jumptrill_nerf * runWeight * speedScale;
         }
 

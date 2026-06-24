@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 }
 
                 if (!double.IsPositiveInfinity(closestRelease))
-                    load += longNoteGate / (1.0 + Math.Exp(overlapping_release_slope * (closestRelease - overlapping_release_offset_ms)));
+                    load += DifficultyCalculationUtils.Logistic(overlapping_release_slope * (closestRelease - overlapping_release_offset_ms), longNoteGate);
             }
 
             return load;

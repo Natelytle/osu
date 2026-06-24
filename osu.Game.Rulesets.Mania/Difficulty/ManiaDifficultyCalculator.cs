@@ -9,6 +9,7 @@ using osu.Game.Extensions;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
@@ -59,6 +60,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double ln_hybrid_fade_lo = 0.50;
         private const double ln_hybrid_fade_hi = 0.75;
 
+        // Short, dense, high-LN maps dominated by Coordination (staggered "light-LN" release
+        // maps, e.g. pupa / Take a Hint) are over-rated. Dampen the star rating, gated on all
+        // three traits at once so genuine LN maps (long, or release/jack-dominant, or low
+        // coordination like Circulation) are left untouched.
+        private const double short_ln_coord_nerf = 0.17;
+        private const double slc_ln_lo = 0.45;
+        private const double slc_ln_hi = 0.65;
+        private const double slc_weight_lo = 750.0;
+        private const double slc_weight_hi = 2200.0;
+        private const double slc_coord_dom_lo = 0.230;
+        private const double slc_coord_dom_hi = 0.247;
+
         private const double od_weight = 0.188;
         private static readonly double leniency_at_od8 = hitLeniency(8.0);
 
@@ -89,16 +102,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double noteWeight = totalNoteWeight(beatmap);
             double odMult = odMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
             double lnRatio = computeLnRatio(beatmap);
-            double hybridLn = smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
+            double hybridLn = DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
-
-            double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper;
 
             double speedDifficulty = skillStarRating(speed, noteWeight) * odMult;
             double technicalDifficulty = skillStarRating(technical, noteWeight) * odMult;
             double jackDifficulty = skillStarRating(jack, noteWeight) * odMult;
             double coordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult;
             double releaseDifficulty = skillStarRating(release, noteWeight) * odMult;
+
+            double shortLnCoordMult = shortLnCoordNerf(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty, lnRatio, noteWeight);
+
+            double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper * shortLnCoordMult;
+
+            Console.WriteLine($"Variety: {participationRatio(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty)}");
 
             return new ManiaDifficultyAttributes
             {
@@ -166,10 +183,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
         }
 
-        private static double smoothstep(double x, double edge0, double edge1)
+        private static double shortLnCoordNerf(double speed, double technical, double jack, double coordination, double release, double lnRatio, double noteWeight)
         {
-            double t = Math.Clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
-            return t * t * (3.0 - 2.0 * t);
+            double total = speed + technical + jack + coordination + release;
+
+            if (total <= 0.0)
+                return 1.0;
+
+            double coordDom = coordination / total;
+            double lnGate = DifficultyCalculationUtils.Smoothstep(lnRatio, slc_ln_lo, slc_ln_hi);
+            double shortGate = DifficultyCalculationUtils.Smoothstep(slc_weight_hi - noteWeight, 0.0, slc_weight_hi - slc_weight_lo);
+            double coordGate = DifficultyCalculationUtils.Smoothstep(coordDom, slc_coord_dom_lo, slc_coord_dom_hi);
+
+            return 1.0 - short_ln_coord_nerf * lnGate * shortGate * coordGate;
         }
 
         private static double scaleToStarRating(double aggregatedDifficulty)

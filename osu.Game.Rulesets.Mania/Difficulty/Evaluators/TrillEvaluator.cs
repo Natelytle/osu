@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
@@ -45,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 current = previousNote;
             }
 
-            double t = Math.Min(1.0, (run - 1) / ramp);
+            double t = DifficultyCalculationUtils.ReverseLerp(run - 1, 0.0, ramp);
             return 1.0 - (1.0 - trill_nerf) * t;
         }
     }
