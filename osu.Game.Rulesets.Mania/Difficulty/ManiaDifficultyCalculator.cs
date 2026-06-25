@@ -59,10 +59,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double ln_hybrid_fade_lo = 0.50;
         private const double ln_hybrid_fade_hi = 0.75;
 
-        // Short, dense, high-LN maps dominated by Coordination (staggered "light-LN" release
-        // maps, e.g. pupa / Take a Hint) are over-rated. Dampen the star rating, gated on all
-        // three traits at once so genuine LN maps (long, or release/jack-dominant, or low
-        // coordination like Circulation) are left untouched.
         private const double short_ln_coord_nerf = 0.17;
         private const double slc_ln_lo = 0.45;
         private const double slc_ln_hi = 0.65;
