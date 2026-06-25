@@ -67,6 +67,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double slc_coord_dom_lo = 0.230;
         private const double slc_coord_dom_hi = 0.247;
 
+        private const double top_compress_knee = 11.5;
+        private const double top_compress_strength = 0.5;
+        private const double tc_coord_lo = 5.9;
+        private const double tc_coord_hi = 6.6;
+
+        private const double lift_center = 10.5;
+        private const double lift_strength = 0.7;
+        private const double lift_sr_lo = 9.55;
+        private const double lift_sr_hi = 9.85;
+
         private const double od_weight = 0.188;
         private static readonly double leniency_at_od8 = hitLeniency(8.0);
 
@@ -100,15 +110,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double hybridLn = DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
-            double speedDifficulty = skillStarRating(speed, noteWeight) * odMult;
-            double technicalDifficulty = skillStarRating(technical, noteWeight) * odMult;
-            double jackDifficulty = skillStarRating(jack, noteWeight) * odMult;
-            double coordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult;
-            double releaseDifficulty = skillStarRating(release, noteWeight) * odMult;
+            double speedDifficulty = computeSkillStarRating(speed, noteWeight) * odMult;
+            double technicalDifficulty = computeSkillStarRating(technical, noteWeight) * odMult;
+            double jackDifficulty = computeSkillStarRating(jack, noteWeight) * odMult;
+            double coordinationDifficulty = computeSkillStarRating(coordination, noteWeight) * odMult;
+            double releaseDifficulty = computeSkillStarRating(release, noteWeight) * odMult;
 
-            double shortLnCoordMult = shortLnCoordNerf(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty, lnRatio, noteWeight);
+            double shortLnCoordMult = shortLnCoordinationNerf(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty, lnRatio, noteWeight);
 
-            double starRating = scaleToStarRating(aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper * shortLnCoordMult;
+            double starRating = scaleToStarRating(aggregateStrains(combinePerNoteStrains(speed, technical, jack, coordination, release), noteWeight)) * odMult * lnDamper * shortLnCoordMult;
+
+            starRating = liftUnderratedBand(starRating, coordinationDifficulty);
+            starRating = compressHighEnd(starRating, coordinationDifficulty);
 
             return new ManiaDifficultyAttributes
             {
@@ -120,11 +133,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 JackDifficulty = jackDifficulty,
                 CoordinationDifficulty = coordinationDifficulty,
                 ReleaseDifficulty = releaseDifficulty,
-                Variety = participationRatio(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty),
+                Variety = computeVariety(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty),
             };
         }
 
-        private static double participationRatio(params double[] difficulties)
+        private static double computeVariety(params double[] difficulties)
         {
             double sum = 0;
             double sumSquares = 0;
@@ -138,7 +151,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return sumSquares > 0 ? sum * sum / sumSquares : 1.0;
         }
 
-        private IEnumerable<double> combineObjectStrains(Speed speed, Technical technical, Jack jack, Coordination coordination, Release release)
+        private IEnumerable<double> combinePerNoteStrains(Speed speed, Technical technical, Jack jack, Coordination coordination, Release release)
         {
             var speedStrains = speed.GetObjectDifficulties();
             var technicalStrains = technical.GetObjectDifficulties();
@@ -158,7 +171,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             }
         }
 
-        private double aggregateDifficulty(IEnumerable<double> strains, double noteWeight)
+        private double aggregateStrains(IEnumerable<double> strains, double noteWeight)
         {
             double[] sortedStrains = strains.Where(strain => strain > 0).OrderBy(strain => strain).ToArray();
 
@@ -176,7 +189,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
         }
 
-        private static double shortLnCoordNerf(double speed, double technical, double jack, double coordination, double release, double lnRatio, double noteWeight)
+        private static double shortLnCoordinationNerf(double speed, double technical, double jack, double coordination, double release, double lnRatio, double noteWeight)
         {
             double total = speed + technical + jack + coordination + release;
 
@@ -191,6 +204,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return 1.0 - short_ln_coord_nerf * lnGate * shortGate * coordGate;
         }
 
+        private static double liftUnderratedBand(double starRating, double coordination)
+        {
+            if (starRating >= lift_center)
+                return starRating;
+
+            double coordGate = DifficultyCalculationUtils.Smoothstep(coordination, tc_coord_lo, tc_coord_hi);
+            double srWindow = DifficultyCalculationUtils.Smoothstep(starRating, lift_sr_lo, lift_sr_hi);
+
+            return starRating + lift_strength * coordGate * srWindow * (lift_center - starRating);
+        }
+
+        private static double compressHighEnd(double starRating, double coordination)
+        {
+            if (starRating <= top_compress_knee)
+                return starRating;
+
+            double coordGate = DifficultyCalculationUtils.Smoothstep(coordination, tc_coord_lo, tc_coord_hi);
+            double excess = starRating - top_compress_knee;
+            return top_compress_knee + excess * (1.0 - top_compress_strength * coordGate);
+        }
+
         private static double scaleToStarRating(double aggregatedDifficulty)
         {
             if (aggregatedDifficulty <= 0)
@@ -199,8 +233,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return overall_multiplier * Math.Pow(aggregatedDifficulty, power_exponent);
         }
 
-        private double skillStarRating(StrainSkill skill, double noteWeight)
-            => scaleToStarRating(aggregateDifficulty(skill.GetObjectDifficulties(), noteWeight));
+        private double computeSkillStarRating(StrainSkill skill, double noteWeight)
+            => scaleToStarRating(aggregateStrains(skill.GetObjectDifficulties(), noteWeight));
 
         private static double hitLeniency(double overallDifficulty)
         {
