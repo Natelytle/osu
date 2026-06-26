@@ -2,8 +2,11 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
@@ -22,7 +25,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double pattern_buff = 0.69740;
         private const double technical_scale = 1.49964;
 
+        private const int variety_window = 8;
+        private const double variety_floor = 1.55;
+        private const double variety_lo = 2.5;
+        private const double variety_hi = 5.5;
+        private const double variety_gap_log_base = 1.18;
+
         private double previousDeltaTime = -1.0;
+
+        private readonly Queue<(int rhythmClass, int direction)> recentShapes = new Queue<(int, int)>();
 
         public Technical(Mod[] mods)
             : base(mods)
@@ -72,8 +83,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double speedFactor = 1.0 / (hitObject.DeltaTime / 1000.0 + speed_factor_offset);
 
             previousDeltaTime = hitObject.DeltaTime;
+            double complexity = Math.Max(rhythmIrregularity + columnComplexity, variety_floor * patternVariety(hitObject));
 
-            return pattern_buff * (rhythmIrregularity + columnComplexity) * speedFactor * technical_scale * hitObject.ManipulationFactor * hitObject.StaminaFactor;
+            return pattern_buff * complexity * speedFactor * technical_scale * hitObject.ManipulationFactor * hitObject.StaminaFactor;
+        }
+
+        private double patternVariety(ManiaDifficultyHitObject hitObject)
+        {
+            int rhythmClass = (int)Math.Round(Math.Log(hitObject.DeltaTime) / Math.Log(variety_gap_log_base));
+            int direction = hitObject.Previous(0) is ManiaDifficultyHitObject previous ? Math.Sign(hitObject.Column - previous.Column) : 0;
+
+            recentShapes.Enqueue((rhythmClass, direction));
+
+            while (recentShapes.Count > variety_window)
+                recentShapes.Dequeue();
+
+            int distinctShapes = recentShapes.Distinct().Count();
+
+            return DifficultyCalculationUtils.Smoothstep(distinctShapes, variety_lo, variety_hi);
         }
     }
 }
