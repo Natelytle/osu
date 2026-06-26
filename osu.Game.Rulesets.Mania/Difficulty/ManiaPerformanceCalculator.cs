@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double jack_ease = 3.0;
 
         private const double acc_floor = 0.80;
-        private const double acc_exp_low_sr = 3.00;
+        private const double acc_exp_low_sr = 1.53;
         private const double acc_exp_high_sr = 0.62;
         private const double acc_sr_lo = 2.0;
         private const double acc_sr_hi = 11.0;
