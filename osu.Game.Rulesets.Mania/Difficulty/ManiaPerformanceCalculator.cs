@@ -18,10 +18,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double jack_ease = 3.0;
 
         private const double acc_floor = 0.80;
+        private const double acc_exp_low_sr = 3.00;
+        private const double acc_exp_high_sr = 0.62;
+        private const double acc_sr_lo = 2.0;
+        private const double acc_sr_hi = 11.0;
+
+        private const double acc_jack_boost = 0.25;
         private const double acc_balance_low = 0.27;
         private const double acc_balance_high = 0.50;
-        private const double acc_curve_nerf = 1.90;
-        private const double acc_curve_buff = 0.62;
 
         private const double variety_floor = 0.88;
         private const double variety_cap = 1.10;
@@ -42,7 +46,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private int countOk;
         private int countMeh;
         private int countMiss;
-        private double scoreAccuracy;
 
         public ManiaPerformanceCalculator()
             : base(new ManiaRuleset())
@@ -59,7 +62,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countOk = score.Statistics.GetValueOrDefault(HitResult.Ok);
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
-            scoreAccuracy = calculateCustomAccuracy();
 
             double multiplier = 1.0;
 
@@ -96,14 +98,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double baseValue = 8.0 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
+            double baseValue = 7.5 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
+            return baseValue * denseFastMultiplier(attributes) * accuracyFactor(attributes);
+        }
 
-            double accBalance = accDifficultyBalance(attributes);
-            double t = DifficultyCalculationUtils.Smoothstep(accBalance, acc_balance_low, acc_balance_high);
-            double accCurve = acc_curve_nerf + (acc_curve_buff - acc_curve_nerf) * t;
-            double accFactor = Math.Pow(DifficultyCalculationUtils.ReverseLerp(scoreAccuracy, acc_floor, 1.0), accCurve);
+        private double accuracyFactor(ManiaDifficultyAttributes attributes)
+        {
+            double srHardness = DifficultyCalculationUtils.Smoothstep(attributes.StarRating, acc_sr_lo, acc_sr_hi);
+            double exponent = acc_exp_low_sr + (acc_exp_high_sr - acc_exp_low_sr) * srHardness;
 
-            return baseValue * denseFastMultiplier(attributes) * accFactor;
+            double balance = accDifficultyBalance(attributes);
+            double jackiness = 1.0 - DifficultyCalculationUtils.Smoothstep(balance, acc_balance_low, acc_balance_high);
+            exponent *= 1.0 + acc_jack_boost * jackiness;
+
+            return Math.Pow(DifficultyCalculationUtils.ReverseLerp(calculateCustomAccuracy(), acc_floor, 1.0), exponent);
         }
 
         private static double denseFastMultiplier(ManiaDifficultyAttributes attributes)
@@ -116,19 +124,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return 1.0 + dense_buff * coGate * releaseGate * srTaper;
         }
 
-        /// <summary>
-        /// How hard the map is to accuracy, in [0, 1]. Higher = harder: speed / technical
-        /// / coordination / release patterns demand precise timing, while jacks are regular
-        /// and easy to acc, so they pull the balance toward 0.
-        /// </summary>
         private static double accDifficultyBalance(ManiaDifficultyAttributes attributes)
         {
-            double hardToAcc = attributes.SpeedDifficulty + attributes.TechnicalDifficulty
-                                                          + attributes.CoordinationDifficulty
-                                                          + release_acc_weight * attributes.ReleaseDifficulty;
-            double easyToAcc = attributes.JackDifficulty;
-
-            return hardToAcc / (hardToAcc + jack_ease * easyToAcc + 1e-9);
+            double skillsDifficultySum = attributes.SpeedDifficulty + attributes.TechnicalDifficulty + attributes.CoordinationDifficulty
+                                         + release_acc_weight * attributes.ReleaseDifficulty;
+            double jackDifficulty = attributes.JackDifficulty;
+            return skillsDifficultySum / (skillsDifficultySum + jack_ease * jackDifficulty + 1e-9);
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;
