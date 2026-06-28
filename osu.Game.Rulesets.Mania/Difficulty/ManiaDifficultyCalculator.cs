@@ -59,13 +59,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double ln_hybrid_fade_lo = 0.50;
         private const double ln_hybrid_fade_hi = 0.75;
 
-        private const double short_ln_coord_nerf = 0.17;
-        private const double slc_ln_lo = 0.45;
-        private const double slc_ln_hi = 0.65;
-        private const double slc_weight_lo = 750.0;
-        private const double slc_weight_hi = 2200.0;
-        private const double slc_coord_dom_lo = 0.230;
-        private const double slc_coord_dom_hi = 0.247;
+        private const double short_map_nerf = 0.295;
+        private const double short_map_cap_seconds = 66.0;
+        private const double short_map_ln_lo = 0.55;
+        private const double short_map_ln_hi = 0.72;
 
         private const double high_end_compression_knee = 11.5;
         private const double high_end_compression_strength = 0.5;
@@ -111,10 +108,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double coordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult;
             double releaseDifficulty = skillStarRating(release, noteWeight) * odMult;
 
-            double shortLnCoordMult = shortLnCoordNerf(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty, lnRatio, noteWeight);
+            double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap), lnRatio);
 
-            double aggregatedDifficulty = aggregateDifficulty(combineObjectStrains(speed, technical, jack, coordination, release), noteWeight);
-            double starRating = computeStarRating(aggregatedDifficulty, odMult, lnDamper, shortLnCoordMult, coordinationDifficulty);
+            double[] combinedStrains = combineObjectStrains(speed, technical, jack, coordination, release).ToArray();
+            double aggregatedDifficulty = aggregateDifficulty(combinedStrains, noteWeight);
+            double starRating = computeStarRating(aggregatedDifficulty, odMult, lnDamper, shortMapMult, coordinationDifficulty);
 
             return new ManiaDifficultyAttributes
             {
@@ -182,27 +180,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
         }
 
-        private static double shortLnCoordNerf(double speed, double technical, double jack, double coordination, double release, double lnRatio, double noteWeight)
+        private static double shortMapNerf(double lengthSeconds, double lnRatio)
         {
-            double total = speed + technical + jack + coordination + release;
+            double shortness = 1.0 - Math.Clamp(lengthSeconds / short_map_cap_seconds, 0.0, 1.0);
+            double lnGate = DifficultyCalculationUtils.Smoothstep(lnRatio, short_map_ln_lo, short_map_ln_hi);
 
-            if (total <= 0.0)
-                return 1.0;
-
-            double coordDom = coordination / total;
-            double lnGate = DifficultyCalculationUtils.Smoothstep(lnRatio, slc_ln_lo, slc_ln_hi);
-            double shortGate = DifficultyCalculationUtils.Smoothstep(slc_weight_hi - noteWeight, 0.0, slc_weight_hi - slc_weight_lo);
-            double coordGate = DifficultyCalculationUtils.Smoothstep(coordDom, slc_coord_dom_lo, slc_coord_dom_hi);
-
-            return 1.0 - short_ln_coord_nerf * lnGate * shortGate * coordGate;
+            return 1.0 - short_map_nerf * shortness * lnGate;
         }
 
-        private static double computeStarRating(double aggregatedDifficulty, double overallDifficultyMultiplier, double longNoteDamper, double shortLnCoordinationMultiplier, double coordinationDifficulty)
+        private static double computeStarRating(double aggregatedDifficulty, double overallDifficultyMultiplier, double longNoteDamper, double shortMapMultiplier, double coordinationDifficulty)
         {
             double starRating = scaleToStarRating(aggregatedDifficulty)
                                 * overallDifficultyMultiplier
                                 * longNoteDamper
-                                * shortLnCoordinationMultiplier;
+                                * shortMapMultiplier;
 
             if (starRating > high_end_compression_knee)
             {
@@ -277,6 +268,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             }
 
             return total > 0 ? (double)ln / total : 0.0;
+        }
+
+        private static double mapLengthSeconds(IBeatmap beatmap)
+        {
+            var hitObjects = beatmap.HitObjects;
+
+            if (hitObjects.Count < 2)
+                return 0.0;
+
+            double first = double.PositiveInfinity;
+            double last = double.NegativeInfinity;
+
+            foreach (var hitObject in hitObjects)
+            {
+                first = Math.Min(first, hitObject.StartTime);
+                last = Math.Max(last, hitObject.StartTime);
+            }
+
+            return (last - first) / 1000.0;
         }
 
         private double totalNoteWeight(IBeatmap beatmap)
