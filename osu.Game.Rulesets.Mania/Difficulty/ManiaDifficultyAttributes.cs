@@ -28,6 +28,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("variety")]
         public double Variety { get; set; }
 
+        [JsonProperty("ln_ratio")]
+        public double LnRatio { get; set; }
+
+        [JsonProperty("mean_manipulation")]
+        public double MeanManipulation { get; set; } = 1.0;
+
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {
             foreach (var v in base.ToDatabaseAttributes())

@@ -9,6 +9,7 @@ using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
 {
@@ -19,9 +20,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private const double acc_floor = 0.80;
         private const double acc_exp_low_sr = 1.53;
-        private const double acc_exp_high_sr = 0.62;
+        private const double acc_exp_high_sr = 0.50;
         private const double acc_sr_lo = 2.0;
-        private const double acc_sr_hi = 11.0;
+        private const double acc_sr_hi = 10.0;
 
         private const double acc_jack_boost = 0.25;
         private const double acc_balance_low = 0.27;
@@ -39,6 +40,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double dense_release_hi = 3.0;
         private const double dense_sr_taper_lo = 9.5;
         private const double dense_sr_taper_hi = 13.0;
+
+        private const double rice_compression_base = 0.115;
+        private const double rice_compression_rate_extra = 0.0;
+        private const double rice_share_lo = 0.05;
+        private const double rice_share_hi = 0.108;
+        private const double rice_sr_lo = 7.0;
+        private const double rice_sr_hi = 9.5;
+
+        private const double rice_ln_lo = 0.25;
+        private const double rice_ln_hi = 0.70;
+
+        private const double ln_nerf_strength = 0.40;
+        private const double ln_nerf_lo = 0.30;
+        private const double ln_nerf_hi = 0.60;
+        private const double ln_nerf_sr_lo = 8.5;
+        private const double ln_nerf_sr_hi = 10.0;
+
+        private double clockRate = 1.0;
 
         private int countPerfect;
         private int countGreat;
@@ -62,6 +81,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countOk = score.Statistics.GetValueOrDefault(HitResult.Ok);
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
+
+            clockRate = ModUtils.CalculateRateWithMods(score.Mods);
 
             double multiplier = 1.0;
 
@@ -99,7 +120,30 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
             double baseValue = 7.5 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
-            return baseValue * denseFastMultiplier(attributes) * accuracyFactor(attributes);
+            return baseValue * denseFastMultiplier(attributes) * riceCompressionMultiplier(attributes) * lnNerfMultiplier(attributes) * accuracyFactor(attributes);
+        }
+
+        private static double lnNerfMultiplier(ManiaDifficultyAttributes attributes)
+        {
+            double lnGate = DifficultyCalculationUtils.Smoothstep(attributes.LnRatio, ln_nerf_lo, ln_nerf_hi);
+            double srFade = 1.0 - DifficultyCalculationUtils.Smoothstep(attributes.StarRating, ln_nerf_sr_lo, ln_nerf_sr_hi);
+
+            return 1.0 - ln_nerf_strength * lnGate * srFade;
+        }
+
+        private double riceCompressionMultiplier(ManiaDifficultyAttributes attributes)
+        {
+            double skillSum = attributes.SpeedDifficulty + attributes.TechnicalDifficulty + attributes.JackDifficulty
+                              + attributes.CoordinationDifficulty + attributes.ReleaseDifficulty;
+            double releaseShare = skillSum > 0 ? attributes.ReleaseDifficulty / skillSum : 0.0;
+
+            double riceGate = 1.0 - DifficultyCalculationUtils.Smoothstep(releaseShare, rice_share_lo, rice_share_hi);
+            double lnGate = 1.0 - DifficultyCalculationUtils.Smoothstep(attributes.LnRatio, rice_ln_lo, rice_ln_hi);
+            double srGate = DifficultyCalculationUtils.Smoothstep(attributes.StarRating, rice_sr_lo, rice_sr_hi);
+
+            double strength = rice_compression_base + rice_compression_rate_extra * Math.Max(0.0, clockRate - 1.0);
+
+            return 1.0 - strength * riceGate * lnGate * srGate;
         }
 
         private double accuracyFactor(ManiaDifficultyAttributes attributes)

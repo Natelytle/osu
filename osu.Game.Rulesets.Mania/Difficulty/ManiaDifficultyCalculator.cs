@@ -125,6 +125,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 CoordinationDifficulty = coordinationDifficulty,
                 ReleaseDifficulty = releaseDifficulty,
                 Variety = participationRatio(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty),
+                LnRatio = lnRatio,
+                MeanManipulation = meanManipulation,
             };
         }
 
@@ -339,8 +341,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             ManiaManipulationDifficultyPreprocessor.ProcessAndAssign(objects.Cast<ManiaDifficultyHitObject>().ToList());
 
+            meanManipulation = objects.Count > 0
+                ? objects.Cast<ManiaDifficultyHitObject>().Average(o => o.ManipulationFactor)
+                : 1.0;
+
             return objects;
         }
+
+        private double meanManipulation = 1.0;
 
         protected override IEnumerable<DifficultyHitObject> SortObjects(IEnumerable<DifficultyHitObject> input) => input;
 
