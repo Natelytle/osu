@@ -22,6 +22,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double overlapping_release_slope = 0.1;
         private const double overlapping_release_offset_ms = 30.0;
 
+        // Holding a long note while other columns release/are clicked around it (dense LN-chord release,
+        // e.g. Reimei) is easier than the near-simultaneous overlap load implies - you can park the hold
+        // and focus on the surrounding notes. This weight scales that overlap contribution down.
+        private const double overlapping_release_weight = 0.2;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
         {
             double load = 0.0;
@@ -50,7 +55,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 }
 
                 if (!double.IsPositiveInfinity(closestRelease))
-                    load += DifficultyCalculationUtils.Logistic(overlapping_release_slope * (closestRelease - overlapping_release_offset_ms), longNoteGate);
+                    load += overlapping_release_weight * DifficultyCalculationUtils.Logistic(overlapping_release_slope * (closestRelease - overlapping_release_offset_ms), longNoteGate);
             }
 
             return load;

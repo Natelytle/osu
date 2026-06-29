@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double ln_hybrid_fade_lo = 0.50;
         private const double ln_hybrid_fade_hi = 0.75;
 
-        private const double short_map_nerf = 0.295;
+        private const double short_map_nerf = 0.195;
         private const double short_map_cap_seconds = 66.0;
         private const double short_map_ln_lo = 0.55;
         private const double short_map_ln_hi = 0.72;
