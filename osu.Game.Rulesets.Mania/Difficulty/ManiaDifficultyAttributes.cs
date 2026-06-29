@@ -31,8 +31,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("ln_ratio")]
         public double LnRatio { get; set; }
 
-        [JsonProperty("mean_manipulation")]
-        public double MeanManipulation { get; set; } = 1.0;
+        /*[JsonProperty("mean_manipulation")]
+        public double MeanManipulation { get; set; } = 1.0;*/
 
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {

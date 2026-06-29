@@ -98,7 +98,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double noteWeight = totalNoteWeight(beatmap);
             double odMult = odMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
-            double lnRatio = computeLnRatio(beatmap);
+
+            int totalNotes = beatmap.HitObjects.Count(h => h is ManiaHitObject);
+            int longNotes = beatmap.HitObjects.Count(h => h is HoldNote);
+
+            double lnRatio = totalNotes > 0 ? (double)longNotes / totalNotes : 0.0;
             double hybridLn = DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
@@ -108,7 +112,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double coordinationDifficulty = skillStarRating(coordination, noteWeight) * odMult;
             double releaseDifficulty = skillStarRating(release, noteWeight) * odMult;
 
-            double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap), lnRatio);
+            double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap.HitObjects, mods), lnRatio);
 
             double[] combinedStrains = combineObjectStrains(speed, technical, jack, coordination, release).ToArray();
             double aggregatedDifficulty = aggregateDifficulty(combinedStrains, noteWeight);
@@ -125,8 +129,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 CoordinationDifficulty = coordinationDifficulty,
                 ReleaseDifficulty = releaseDifficulty,
                 Variety = participationRatio(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty),
-                LnRatio = lnRatio,
-                MeanManipulation = meanManipulation,
+                LnRatio = lnRatio
+                //MeanManipulation = meanManipulation,
             };
         }
 
@@ -258,37 +262,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return Math.Pow(sum / values.Length, 1.0 / exponent);
         }
 
-        private static double computeLnRatio(IBeatmap beatmap)
+        private static double mapLengthSeconds(IReadOnlyList<HitObject> hitObjects, Mod[] mods)
         {
-            int total = 0, ln = 0;
+            double clockRate = ModUtils.CalculateRateWithMods(mods);
 
-            foreach (var hitObject in beatmap.HitObjects)
-            {
-                total++;
-                if (hitObject is HoldNote)
-                    ln++;
-            }
-
-            return total > 0 ? (double)ln / total : 0.0;
-        }
-
-        private static double mapLengthSeconds(IBeatmap beatmap)
-        {
-            var hitObjects = beatmap.HitObjects;
-
-            if (hitObjects.Count < 2)
-                return 0.0;
-
-            double first = double.PositiveInfinity;
-            double last = double.NegativeInfinity;
-
-            foreach (var hitObject in hitObjects)
-            {
-                first = Math.Min(first, hitObject.StartTime);
-                last = Math.Max(last, hitObject.StartTime);
-            }
-
-            return (last - first) / 1000.0;
+            return ((hitObjects.LastOrDefault()?.GetEndTime() ?? 0) - (hitObjects.FirstOrDefault()?.StartTime ?? 0)) / 1000.0 / clockRate;
         }
 
         private double totalNoteWeight(IBeatmap beatmap)
@@ -341,14 +319,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             ManiaManipulationDifficultyPreprocessor.ProcessAndAssign(objects.Cast<ManiaDifficultyHitObject>().ToList());
 
-            meanManipulation = objects.Count > 0
+            /*meanManipulation = objects.Count > 0
                 ? objects.Cast<ManiaDifficultyHitObject>().Average(o => o.ManipulationFactor)
-                : 1.0;
+                : 1.0;*/
 
             return objects;
         }
 
-        private double meanManipulation = 1.0;
+        //private double meanManipulation = 1.0;
 
         protected override IEnumerable<DifficultyHitObject> SortObjects(IEnumerable<DifficultyHitObject> input) => input;
 
