@@ -130,7 +130,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 ReleaseDifficulty = releaseDifficulty,
                 Variety = participationRatio(speedDifficulty, technicalDifficulty, jackDifficulty, coordinationDifficulty, releaseDifficulty),
                 LnRatio = lnRatio
-                //MeanManipulation = meanManipulation,
             };
         }
 
