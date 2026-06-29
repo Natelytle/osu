@@ -25,19 +25,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double pattern_buff = 0.69740;
         private const double technical_scale = 1.49964;
 
-        // Rhythmically irregular passages (genuine "tech") are much harder than the same column
-        // pattern played to a steady stream rhythm. Reversal/jump complexity alone cannot tell the
-        // two apart (fast streams reverse just as often), so amplify the strain by how irregular the
-        // local rhythm is - this lifts the under-rated tech maps without touching steady streams.
-        // The irregularity is measured over a window (not per-note) so that a sustained tech passage
-        // is rewarded while an isolated rhythm change inside an otherwise steady stream / dan course
-        // is not (per-note irregularity is too noisy and would leak into steady maps).
-        //
-        // The amplifier is a BAND, not a ramp: the under-rated tech maps sit at *moderate* sustained
-        // irregularity (~0.11-0.22), whereas steady streams/dan courses sit far below (~0.02-0.08) and
-        // already-recognised heavy-tech maps (e.g. Poetic Edda, NEURO-CLOUD-9) sit far above (~0.30+)
-        // where the calc already rates them correctly. So the buff peaks in the middle band and fades
-        // to nothing at both extremes.
         private const double rhythm_tech_buff = 0.9;
         private const double rhythm_tech_center = 0.15;
         private const double rhythm_tech_width = 0.085;
