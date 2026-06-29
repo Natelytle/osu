@@ -5,15 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Mods;
 
-namespace osu.Game.Rulesets.Mania.Difficulty.Skills
+namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
-    public class Technical : StrainDecaySkill
+    public class TechnicalProcessor
     {
         private const double strain_decay_base = 0.06696;
 
@@ -43,17 +41,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private readonly Queue<(int rhythmClass, int direction)> recentShapes = new Queue<(int, int)>();
 
-        public Technical(Mod[] mods)
-            : base(mods)
+        private double currentStrain;
+
+        public double ProcessStrainFor(DifficultyHitObject current)
         {
-        }
+            currentStrain *= Math.Pow(strain_decay_base, current.DeltaTime / 1000);
 
-        protected override double SkillMultiplier => 1.0;
-
-        protected override double StrainDecayBase => strain_decay_base;
-
-        protected override double StrainValueOf(DifficultyHitObject current)
-        {
             var hitObject = (ManiaDifficultyHitObject)current;
 
             if (hitObject.DeltaTime < ChordEvaluator.CHORD_TOLERANCE_MS)
@@ -94,7 +87,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double complexity = Math.Max(rhythmIrregularity + columnComplexity, variety_floor * patternVariety(hitObject));
             double rhythmAmp = rhythmAmplifier(windowedIrregularity(rhythmIrregularity));
 
-            return pattern_buff * complexity * speedFactor * technical_scale * rhythmAmp * hitObject.ManipulationFactor * hitObject.StaminaFactor;
+            currentStrain += pattern_buff * complexity * speedFactor * technical_scale * rhythmAmp * hitObject.ManipulationFactor * hitObject.StaminaFactor;
+
+            return currentStrain;
         }
 
         private double windowedIrregularity(double rhythmIrregularity)
