@@ -45,7 +45,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
         public double ProcessStrainFor(DifficultyHitObject current)
         {
-            currentStrain *= Math.Pow(strain_decay_base, current.DeltaTime / 1000);
+            currentStrain *= DiffUtils.Pow(strain_decay_base, current.DeltaTime / 1000);
 
             var hitObject = (ManiaDifficultyHitObject)current;
 
@@ -104,7 +104,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
         }
 
         private static double rhythmAmplifier(double windowedIrregularity)
-            => 1.0 + rhythm_tech_buff * DifficultyCalculationUtils.BellCurve(windowedIrregularity, rhythm_tech_center, rhythm_tech_width);
+            => 1.0 + rhythm_tech_buff * DiffUtils.BellCurve(windowedIrregularity, rhythm_tech_center, rhythm_tech_width);
 
         private double patternVariety(ManiaDifficultyHitObject hitObject)
         {
@@ -118,7 +118,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
             int distinctShapes = recentShapes.Distinct().Count();
 
-            return DifficultyCalculationUtils.Smoothstep(distinctShapes, variety_lo, variety_hi);
+            return DiffUtils.Smoothstep(distinctShapes, variety_lo, variety_hi);
         }
     }
 }

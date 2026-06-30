@@ -85,7 +85,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private double varietyMultiplier(double variety)
         {
             const double range = variety_cap - variety_floor;
-            return variety_floor + DifficultyCalculationUtils.Logistic(variety, variety_midpoint, variety_steepness, range);
+            return variety_floor + DiffUtils.Logistic(variety, variety_midpoint, variety_steepness, range);
         }
 
         private double lengthMultiplier(double totalNotes, double starRating)
@@ -98,28 +98,28 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double baseValue = 7.5 * Math.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
+            double baseValue = 7.5 * DiffUtils.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
             return baseValue * denseFastMultiplier(attributes) * accuracyFactor(attributes);
         }
 
         private double accuracyFactor(ManiaDifficultyAttributes attributes)
         {
-            double srHardness = DifficultyCalculationUtils.Smoothstep(attributes.StarRating, acc_sr_lo, acc_sr_hi);
+            double srHardness = DiffUtils.Smoothstep(attributes.StarRating, acc_sr_lo, acc_sr_hi);
             double exponent = acc_exp_low_sr + (acc_exp_high_sr - acc_exp_low_sr) * srHardness;
 
             double balance = accDifficultyBalance(attributes);
-            double jackiness = 1.0 - DifficultyCalculationUtils.Smoothstep(balance, acc_balance_low, acc_balance_high);
+            double jackiness = 1.0 - DiffUtils.Smoothstep(balance, acc_balance_low, acc_balance_high);
             exponent *= 1.0 + acc_jack_boost * jackiness;
 
-            return Math.Pow(DifficultyCalculationUtils.ReverseLerp(calculateCustomAccuracy(), acc_floor, 1.0), exponent);
+            return DiffUtils.Pow(DiffUtils.ReverseLerp(calculateCustomAccuracy(), acc_floor, 1.0), exponent);
         }
 
         private static double denseFastMultiplier(ManiaDifficultyAttributes attributes)
         {
             double coActivation = Math.Min(attributes.SpeedDifficulty, attributes.JackDifficulty);
-            double coGate = DifficultyCalculationUtils.Smoothstep(coActivation, dense_coact_lo, dense_coact_hi);
-            double releaseGate = 1.0 - DifficultyCalculationUtils.Smoothstep(attributes.ReleaseDifficulty, dense_release_lo, dense_release_hi);
-            double srTaper = 1.0 - DifficultyCalculationUtils.Smoothstep(attributes.StarRating, dense_sr_taper_lo, dense_sr_taper_hi);
+            double coGate = DiffUtils.Smoothstep(coActivation, dense_coact_lo, dense_coact_hi);
+            double releaseGate = 1.0 - DiffUtils.Smoothstep(attributes.ReleaseDifficulty, dense_release_lo, dense_release_hi);
+            double srTaper = 1.0 - DiffUtils.Smoothstep(attributes.StarRating, dense_sr_taper_lo, dense_sr_taper_hi);
 
             return 1.0 + dense_buff * coGate * releaseGate * srTaper;
         }

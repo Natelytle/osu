@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
@@ -45,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (sortedStrains.Length == 0)
                 return 0.0;
 
-            const double power_mean_exponent = 5.0;
+            const int power_mean_exponent = 5;
 
             double[] highPercentiles = { 0.945, 0.935, 0.925, 0.915 };
             double[] midPercentiles = { 0.845, 0.835, 0.825, 0.815 };
@@ -91,10 +92,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             return sum / percentiles.Length;
         }
 
-        private double calculatePowerMean(double[] values, double exponent)
+        private double calculatePowerMean(double[] values, int exponent)
         {
-            double sum = values.Sum(value => Math.Pow(value, exponent));
-            return Math.Pow(sum / values.Length, 1.0 / exponent);
+            double sum = values.Sum(value => DiffUtils.Pow(value, exponent));
+            return DiffUtils.Pow(sum / values.Length, 1.0 / exponent);
         }
     }
 }

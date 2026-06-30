@@ -79,7 +79,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             int longNotes = beatmap.HitObjects.Count(h => h is HoldNote);
 
             double lnRatio = totalNotes > 0 ? (double)longNotes / totalNotes : 0.0;
-            double hybridLn = DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DifficultyCalculationUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
+            double hybridLn = DiffUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DiffUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
             double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap.HitObjects, mods), lnRatio);
@@ -107,7 +107,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private static double shortMapNerf(double lengthSeconds, double lnRatio)
         {
             double shortness = 1.0 - Math.Clamp(lengthSeconds / short_map_cap_seconds, 0.0, 1.0);
-            double lnGate = DifficultyCalculationUtils.Smoothstep(lnRatio, short_map_ln_lo, short_map_ln_hi);
+            double lnGate = DiffUtils.Smoothstep(lnRatio, short_map_ln_lo, short_map_ln_hi);
 
             return 1.0 - short_map_nerf * shortness * lnGate;
         }
@@ -121,7 +121,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             if (starRating > high_end_compression_knee)
             {
-                double coordinationGate = DifficultyCalculationUtils.Smoothstep(coordinationDifficulty, high_end_coordination_gate_lo, high_end_coordination_gate_hi);
+                double coordinationGate = DiffUtils.Smoothstep(coordinationDifficulty, high_end_coordination_gate_lo, high_end_coordination_gate_hi);
                 double excessAboveKnee = starRating - high_end_compression_knee;
                 starRating = high_end_compression_knee + excessAboveKnee * (1.0 - high_end_compression_strength * coordinationGate);
             }
@@ -134,7 +134,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (aggregatedDifficulty <= 0)
                 return 0.0;
 
-            return overall_multiplier * Math.Pow(aggregatedDifficulty, power_exponent);
+            return overall_multiplier * DiffUtils.Pow(aggregatedDifficulty, power_exponent);
         }
 
         private static double hitLeniency(double overallDifficulty)

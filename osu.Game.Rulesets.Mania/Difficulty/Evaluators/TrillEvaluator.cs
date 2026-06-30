@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 current = previousNote;
             }
 
-            double t = DifficultyCalculationUtils.ReverseLerp(run - 1, 0.0, ramp);
+            double t = DiffUtils.ReverseLerp(run - 1, 0.0, ramp);
             return 1.0 - (1.0 - trill_nerf) * t;
         }
     }

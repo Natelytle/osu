@@ -67,20 +67,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 (1.0 + chordjack_buff * chordSpeedFactor * (chordSize - 1))
                 * ChordEvaluator.FullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta)
                 * ChordEvaluator.NearFullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta));
-            double speedBuff = 1.0 + jack_speed_buff * DifficultyCalculationUtils.Logistic(tapRate, jack_speed_buff_midpoint, jack_speed_buff_slope);
+            double speedBuff = 1.0 + jack_speed_buff * DiffUtils.Logistic(tapRate, jack_speed_buff_midpoint, jack_speed_buff_slope);
 
             double rawStrain = tapRate * chordjackMultiplier * speedBuff;
-            double strain = jack_scale * Math.Pow(rawStrain, jack_convex);
+            double strain = jack_scale * DiffUtils.Pow(rawStrain, jack_convex);
 
             if (chordSize >= 2)
             {
                 strain *= chordjack_nerf;
 
-                double bpmScale = DifficultyCalculationUtils.Smoothstep(chord_speed_slow_ms - columnDelta, 0.0, chord_speed_slow_ms - chord_speed_fast_ms);
+                double bpmScale = DiffUtils.Smoothstep(chord_speed_slow_ms - columnDelta, 0.0, chord_speed_slow_ms - chord_speed_fast_ms);
                 double chordSpeedMult = chord_speed_slow_mult + (chord_speed_fast_mult - chord_speed_slow_mult) * bpmScale;
 
                 // Roll the buff back down for very fast chord jacks so the scaling slows past ~160bpm.
-                double fastRolloff = DifficultyCalculationUtils.Smoothstep(chord_speed_fast_ms - columnDelta, 0.0, chord_speed_fast_ms - chord_speed_veryfast_ms);
+                double fastRolloff = DiffUtils.Smoothstep(chord_speed_fast_ms - columnDelta, 0.0, chord_speed_fast_ms - chord_speed_veryfast_ms);
                 chordSpeedMult += (chord_speed_veryfast_mult - chord_speed_fast_mult) * fastRolloff;
 
                 strain *= chordSpeedMult;
@@ -101,8 +101,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             if (previous != null && ChordEvaluator.Size(previous) >= fullChord)
             {
-                double speedGate = DifficultyCalculationUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
-                double manipGate = DifficultyCalculationUtils.ReverseLerp(hitObject.ManipulationFactor, quad_minijack_manip_lo, quad_minijack_manip_hi);
+                double speedGate = DiffUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
+                double manipGate = DiffUtils.ReverseLerp(hitObject.ManipulationFactor, quad_minijack_manip_lo, quad_minijack_manip_hi);
 
                 int runLength = 1;
                 ManiaDifficultyHitObject cur = hitObject;
@@ -131,9 +131,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     cur = nextInColumn;
                 }
 
-                double runGate = 1.0 - DifficultyCalculationUtils.Smoothstep(runLength - quad_minijack_run_start, 0.0, quad_minijack_run_end - quad_minijack_run_start);
+                double runGate = 1.0 - DiffUtils.Smoothstep(runLength - quad_minijack_run_start, 0.0, quad_minijack_run_end - quad_minijack_run_start);
 
-                double vFastGate = 1.0 - DifficultyCalculationUtils.Smoothstep(quad_minijack_vfast_hi_ms - columnDelta, 0.0, quad_minijack_vfast_hi_ms - quad_minijack_vfast_lo_ms);
+                double vFastGate = 1.0 - DiffUtils.Smoothstep(quad_minijack_vfast_hi_ms - columnDelta, 0.0, quad_minijack_vfast_hi_ms - quad_minijack_vfast_lo_ms);
 
                 strain *= 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * vFastGate;
             }

@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (hitObject.BaseObject is HoldNote)
             {
                 double duration = Math.Min(hitObject.EndTime - hitObject.StartTime, max_long_note_duration_ms);
-                double longNoteGate = DifficultyCalculationUtils.Logistic(duration, long_note_gate_midpoint_ms, long_note_gate_slope);
+                double longNoteGate = DiffUtils.Logistic(duration, long_note_gate_midpoint_ms, long_note_gate_slope);
 
                 load += (long_note_base_load + long_note_duration_load * (duration / 1000.0)) * longNoteGate;
 
@@ -55,7 +55,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 }
 
                 if (!double.IsPositiveInfinity(closestRelease))
-                    load += overlapping_release_weight * DifficultyCalculationUtils.Logistic(overlapping_release_slope * (closestRelease - overlapping_release_offset_ms), longNoteGate);
+                    load += overlapping_release_weight * DiffUtils.Logistic(overlapping_release_slope * (closestRelease - overlapping_release_offset_ms), longNoteGate);
             }
 
             return load;

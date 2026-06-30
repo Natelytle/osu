@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
         public static double FullChordDampen(DifficultyHitObject current, int totalColumns, double columnDelta)
         {
-            double speedScale = DifficultyCalculationUtils.ReverseLerp(columnDelta, 0.0, chord_speed_threshold_ms);
+            double speedScale = DiffUtils.ReverseLerp(columnDelta, 0.0, chord_speed_threshold_ms);
             double ceiling = full_chord_nerf * speedScale;
 
             if (ceiling <= 0)
@@ -45,7 +45,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double ramp = Math.Max(1.0, full_chord_run_ramp);
             int cap = (int)Math.Ceiling(ramp) + 1;
-            double t = DifficultyCalculationUtils.ReverseLerp(chordRunAtLeast(current, totalColumns, cap) - 1, 0.0, ramp);
+            double t = DiffUtils.ReverseLerp(chordRunAtLeast(current, totalColumns, cap) - 1, 0.0, ramp);
             return 1.0 - ceiling * t;
         }
 
@@ -54,7 +54,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (totalColumns < 2)
                 return 1.0;
 
-            double speedScale = DifficultyCalculationUtils.ReverseLerp(columnDelta, 0.0, chord_speed_threshold_ms);
+            double speedScale = DiffUtils.ReverseLerp(columnDelta, 0.0, chord_speed_threshold_ms);
             double ceiling = near_full_chord_nerf * speedScale;
 
             if (ceiling <= 0)
@@ -62,7 +62,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double ramp = Math.Max(1.0, near_full_chord_run_ramp);
             int cap = (int)Math.Ceiling(ramp) + 1;
-            double t = DifficultyCalculationUtils.ReverseLerp(chordRunAtLeast(current, totalColumns - 1, cap) - 1, 0.0, ramp);
+            double t = DiffUtils.ReverseLerp(chordRunAtLeast(current, totalColumns - 1, cap) - 1, 0.0, ramp);
             return 1.0 - ceiling * t;
         }
 

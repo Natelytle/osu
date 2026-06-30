@@ -111,15 +111,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             for (int period = 2; period <= max_period; period++)
                 run = Math.Max(run, periodRun(rowColumns, row, period));
 
-            double runWeight = DifficultyCalculationUtils.ReverseLerp(run, 0.0, period_ramp);
+            double runWeight = DiffUtils.ReverseLerp(run, 0.0, period_ramp);
             int moveRun = movementRun(rowColumns, rowTimes, row, out double directionConsistency);
 
             if (moveRun >= 2)
             {
-                double staminaRelief = movement_stamina_relief * DifficultyCalculationUtils.Smoothstep(moveRun, movement_taper_lo, movement_taper_hi);
-                double rollGate = DifficultyCalculationUtils.Smoothstep(directionConsistency, movement_dir_lo, movement_dir_hi);
-                double chordGate = 1.0 - DifficultyCalculationUtils.Smoothstep(localChordDensity(rowColumns, row), movement_chord_lo, movement_chord_hi);
-                double moveWeight = DifficultyCalculationUtils.ReverseLerp(moveRun, 0.0, period_ramp) * (1.0 - staminaRelief) * rollGate * chordGate;
+                double staminaRelief = movement_stamina_relief * DiffUtils.Smoothstep(moveRun, movement_taper_lo, movement_taper_hi);
+                double rollGate = DiffUtils.Smoothstep(directionConsistency, movement_dir_lo, movement_dir_hi);
+                double chordGate = 1.0 - DiffUtils.Smoothstep(localChordDensity(rowColumns, row), movement_chord_lo, movement_chord_hi);
+                double moveWeight = DiffUtils.ReverseLerp(moveRun, 0.0, period_ramp) * (1.0 - staminaRelief) * rollGate * chordGate;
                 runWeight = Math.Max(runWeight, moveWeight);
             }
 
@@ -134,7 +134,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             if (rowColumns[row].Length != 2)
                 return 1.0;
 
-            double speedScale = DifficultyCalculationUtils.Smoothstep(jumptrill_speed_hi_ms - rowDelta, 0.0, jumptrill_speed_hi_ms - jumptrill_speed_lo_ms);
+            double speedScale = DiffUtils.Smoothstep(jumptrill_speed_hi_ms - rowDelta, 0.0, jumptrill_speed_hi_ms - jumptrill_speed_lo_ms);
 
             if (speedScale <= 0.0)
                 return 1.0;
@@ -154,13 +154,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             if (run == 0)
                 return 1.0;
 
-            double runWeight = DifficultyCalculationUtils.ReverseLerp(run, 0.0, jumptrill_ramp);
+            double runWeight = DiffUtils.ReverseLerp(run, 0.0, jumptrill_ramp);
             return 1.0 - jumptrill_nerf * runWeight * speedScale;
         }
 
         private static double speedScaleFor(double rowDelta)
         {
-            return DifficultyCalculationUtils.Smoothstep(speed_hi_ms - rowDelta, 0.0, speed_hi_ms - speed_lo_ms);
+            return DiffUtils.Smoothstep(speed_hi_ms - rowDelta, 0.0, speed_hi_ms - speed_lo_ms);
         }
 
         private static double staminaFactor(List<int[]> rowColumns, List<double> rowTimes, int row, double rowDelta)
@@ -168,8 +168,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             if (rowColumns[row].Length != 2)
                 return 1.0;
 
-            double speedScale = DifficultyCalculationUtils.Smoothstep(stamina_speed_hi_ms - rowDelta, 0.0, stamina_speed_hi_ms - stamina_speed_lo_ms)
-                                * (1.0 - stamina_vfast_taper * DifficultyCalculationUtils.Smoothstep(stamina_speed_vfast_hi_ms - rowDelta, 0.0, stamina_speed_vfast_hi_ms - stamina_speed_vfast_lo_ms));
+            double speedScale = DiffUtils.Smoothstep(stamina_speed_hi_ms - rowDelta, 0.0, stamina_speed_hi_ms - stamina_speed_lo_ms)
+                                * (1.0 - stamina_vfast_taper * DiffUtils.Smoothstep(stamina_speed_vfast_hi_ms - rowDelta, 0.0, stamina_speed_vfast_hi_ms - stamina_speed_vfast_lo_ms));
 
             if (speedScale <= 0.0)
                 return 1.0;
@@ -184,7 +184,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 run++;
             }
 
-            double runWeight = DifficultyCalculationUtils.Smoothstep(run, stamina_run_lo, stamina_run_hi);
+            double runWeight = DiffUtils.Smoothstep(run, stamina_run_lo, stamina_run_hi);
             return 1.0 + stamina_buff * speedScale * runWeight;
         }
 
