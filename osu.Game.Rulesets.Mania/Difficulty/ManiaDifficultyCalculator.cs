@@ -80,7 +80,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             // Hard rock and ez don't apply directly to od, so we manually scale the hit window
             if (mods.Any(m => m is ManiaModHardRock))
             {
-                greatHitWindow /= ManiaModEasy.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
+                greatHitWindow /= ManiaModHardRock.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
             }
             else if (mods.Any(m => m is ManiaModEasy))
             {
