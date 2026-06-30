@@ -16,8 +16,10 @@ using osu.Game.Rulesets.Mania.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.MathUtils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
+using osu.Game.Rulesets.Mania.Scoring;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Scoring;
 using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty
@@ -47,7 +49,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double high_end_coordination_gate_hi = 6.6;
 
         private const double od_weight = 0.188;
-        private static readonly double leniency_at_od8 = hitLeniency(8.0);
 
         private readonly bool isForCurrentRuleset;
 
@@ -71,7 +72,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             var coordinationSkill = skills.OfType<Coordination>().Single();
             var releaseSkill = skills.OfType<Release>().Single();
 
-            double odMult = odMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
+            HitWindows hitWindows = new ManiaHitWindows();
+            hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
+
+            double greatHitWindow = hitWindows.WindowFor(HitResult.Great);
+
+            // Hard rock and ez don't apply directly to od, so we manually scale the hit window
+            if (mods.Any(m => m is ManiaModHardRock))
+            {
+                greatHitWindow /= ManiaModEasy.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
+            }
+            else if (mods.Any(m => m is ManiaModEasy))
+            {
+                greatHitWindow /= ManiaModEasy.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
+            }
+
+            double odMult = hitWindowMultiplier(greatHitWindow);
 
             int totalNotes = beatmap.HitObjects.Count(h => h is ManiaHitObject);
             int longNotes = beatmap.HitObjects.Count(h => h is HoldNote);
@@ -154,18 +170,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return overall_multiplier * DiffUtils.Pow(aggregatedDifficulty, power_exponent);
         }
 
-        private static double hitLeniency(double overallDifficulty)
-        {
-            double hitWindow300Ms = 34.0 + 3.0 * Math.Min(10.0, Math.Max(0.0, 10.0 - overallDifficulty));
-            double q = hitWindow300Ms / 1000.0;
-            double baseValue = 0.3 * Math.Sqrt(q);
-            double alt = 0.6 * (baseValue - 0.09) + 0.09;
-            return Math.Max(1e-9, Math.Min(baseValue, alt));
-        }
+        private static double hitLeniency(double greatHitWindow) => 0.6 * (greatHitWindow - 90) + 90;
 
-        private double odMultiplier(double overallDifficulty)
+        private double hitWindowMultiplier(double greatHitWindow)
         {
-            double raw = leniency_at_od8 / hitLeniency(overallDifficulty);
+            const double od8_great_window = 40.0;
+
+            // Our hit window multiplier is scaled around a base value of od8 (40ms)
+            double raw = hitLeniency(od8_great_window) / hitLeniency(greatHitWindow);
             return 1.0 + od_weight * (raw - 1.0);
         }
 
