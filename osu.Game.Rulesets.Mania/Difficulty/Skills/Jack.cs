@@ -7,7 +7,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Jack : ManiaSkill
+    public class Jack : ManiaAccuracySkill
     {
         private readonly JackProcessor jackProcessor;
 

@@ -7,7 +7,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Release : ManiaSkill
+    public class Release : ManiaAccuracySkill
     {
         private readonly ReleaseProcessor releaseProcessor;
 

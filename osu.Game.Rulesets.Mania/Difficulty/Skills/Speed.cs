@@ -7,7 +7,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Speed : ManiaSkill
+    public class Speed : ManiaAccuracySkill
     {
         private readonly SpeedProcessor speedProcessor;
 

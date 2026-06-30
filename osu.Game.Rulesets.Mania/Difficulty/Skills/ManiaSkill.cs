@@ -18,10 +18,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private readonly List<double> sortedDifficulties;
 
+        protected readonly List<double> TailDifficulties;
+
         protected ManiaSkill(Mod[] mods)
             : base(mods)
         {
             sortedDifficulties = new List<double>();
+            TailDifficulties = new List<double>();
         }
 
         protected override double ProcessInternal(DifficultyHitObject current)
@@ -31,14 +34,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             totalNoteWeight++;
 
+            double difficulty = DifficultyAt(current);
+
             // Add additional weight for hold notes, depending on their length.
             if (current.BaseObject is HoldNote holdNote)
             {
                 double duration = Math.Min(holdNote.EndTime - holdNote.StartTime, max_long_note_weight_duration_ms);
                 totalNoteWeight += long_note_weight_per_200_ms * duration / 200.0;
-            }
 
-            double difficulty = DifficultyAt(current);
+                TailDifficulties.Add(difficulty);
+            }
 
             if (difficulty > 0)
                 sortedDifficulties.Add(difficulty);

@@ -7,7 +7,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Technical : ManiaSkill
+    public class Technical : ManiaAccuracySkill
     {
         private readonly TechnicalProcessor technicalProcessor;
 

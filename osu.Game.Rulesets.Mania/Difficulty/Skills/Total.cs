@@ -8,7 +8,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Total : ManiaSkill
+    public class Total : ManiaAccuracySkill
     {
         private readonly CoordinationProcessor coordinationProcessor;
         private readonly JackProcessor jackProcessor;

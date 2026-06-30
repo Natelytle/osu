@@ -7,7 +7,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
-    public class Coordination : ManiaSkill
+    public class Coordination : ManiaAccuracySkill
     {
         private readonly CoordinationProcessor coordinationProcessor;
 
