@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
@@ -15,9 +16,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
     {
         private double totalNoteWeight;
 
+        // For performance reasons, we sort the difficulties as they're added.
+        // Without doing this, we would be sorting the array up to 50k times! Yikes!
+        private readonly List<double> sortedDifficulties;
+
         protected ManiaSkill(Mod[] mods)
             : base(mods)
         {
+            sortedDifficulties = new List<double>();
         }
 
         protected override double ProcessInternal(DifficultyHitObject current)
@@ -34,16 +40,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 totalNoteWeight += long_note_weight_per_200_ms * duration / 200.0;
             }
 
-            return DifficultyAt(current);
+            double difficulty = DifficultyAt(current);
+
+            if (difficulty > 0)
+                insertSorted(difficulty);
+
+            return difficulty;
         }
 
         protected abstract double DifficultyAt(DifficultyHitObject current);
 
+        private void insertSorted(double strain)
+        {
+            int index = sortedDifficulties.BinarySearch(strain);
+            if (index < 0) index = ~index;
+
+            sortedDifficulties.Insert(index, strain);
+        }
+
         public override double DifficultyValue()
         {
-            double[] sortedStrains = ObjectDifficulties.Where(strain => strain > 0).OrderBy(strain => strain).ToArray();
-
-            if (sortedStrains.Length == 0)
+            if (sortedDifficulties.Count == 0)
                 return 0.0;
 
             const int power_mean_exponent = 5;
@@ -51,9 +68,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double[] highPercentiles = { 0.945, 0.935, 0.925, 0.915 };
             double[] midPercentiles = { 0.845, 0.835, 0.825, 0.815 };
 
-            double highMean = calculatePercentileMean(sortedStrains, highPercentiles);
-            double midMean = calculatePercentileMean(sortedStrains, midPercentiles);
-            double powerMean = calculatePowerMean(sortedStrains, power_mean_exponent);
+            double highMean = calculatePercentileMean(sortedDifficulties, highPercentiles);
+            double midMean = calculatePercentileMean(sortedDifficulties, midPercentiles);
+            double powerMean = calculatePowerMean(sortedDifficulties, power_mean_exponent);
 
             const double high_percentile_weight = 0.25;
             const double high_percentile_scale = 0.88;
@@ -78,9 +95,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         /// </summary>
         /// <param name="sortedValues">Array of difficulty values, sorted ascending.</param>
         /// <param name="percentiles">Array of percentile positions (0.0 to 1.0).</param>
-        private double calculatePercentileMean(double[] sortedValues, double[] percentiles)
+        private double calculatePercentileMean(List<double> sortedValues, double[] percentiles)
         {
-            int maxIndex = sortedValues.Length - 1;
+            int maxIndex = sortedValues.Count - 1;
             double sum = 0.0;
 
             foreach (double percentile in percentiles)
@@ -92,10 +109,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             return sum / percentiles.Length;
         }
 
-        private double calculatePowerMean(double[] values, int exponent)
+        private double calculatePowerMean(List<double> values, int exponent)
         {
             double sum = values.Sum(value => DiffUtils.Pow(value, exponent));
-            return DiffUtils.Pow(sum / values.Length, 1.0 / exponent);
+            return DiffUtils.Pow(sum / values.Count, 1.0 / exponent);
         }
     }
 }
