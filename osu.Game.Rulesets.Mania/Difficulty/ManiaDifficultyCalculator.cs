@@ -89,10 +89,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double odMult = hitWindowMultiplier(greatHitWindow);
 
-            int totalNotes = beatmap.HitObjects.Count(h => h is ManiaHitObject);
-            int longNotes = beatmap.HitObjects.Count(h => h is HoldNote);
+            int totalNotes = beatmap.HitObjects.Count;
+            int holdNotes = beatmap.HitObjects.Count(h => h is HoldNote);
 
-            double lnRatio = totalNotes > 0 ? (double)longNotes / totalNotes : 0.0;
+            double lnRatio = totalNotes > 0 ? (double)holdNotes / totalNotes : 0.0;
             double hybridLn = DiffUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DiffUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
