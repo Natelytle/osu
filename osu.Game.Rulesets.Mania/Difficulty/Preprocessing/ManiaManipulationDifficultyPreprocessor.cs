@@ -151,8 +151,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        // -------------------- Rolls / jacks --------------------
-
         /// <summary>
         /// Detects "manipulation" patterns: fast rolls or jacks (rows repeating with a fixed period, or shifting
         /// by a constant column offset), and fast lateral movement runs. Returns a multiplier &lt;= 1.0 that nerfs
@@ -216,8 +214,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        // -------------------- Jumptrills --------------------
-
         /// <summary>
         /// Detects a "jumptrill": an alternating pattern of two different jumps (e.g. AB AB AB), as opposed to a
         /// jump simply repeating in place. Returns a multiplier &lt;= 1.0 that nerfs difficulty.
@@ -252,8 +248,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             double runWeight = DiffUtils.ReverseLerp(run, 0.0, jumptrill_ramp);
             return 1.0 - jumptrill_nerf * runWeight * speedScale;
         }
-
-        // -------------------- Movement --------------------
 
         /// <summary>
         /// Extends outward from <paramref name="row"/> in both directions while consecutive rows are fast,
@@ -325,8 +319,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return (double)chordCount / (hi - lo + 1);
         }
 
-        // -------------------- Stamina --------------------
-
         /// <summary>
         /// Detects sustained runs of fast jumps (not necessarily alternating - just back-to-back 2-note rows
         /// hit quickly). Returns a multiplier &gt;= 1.0 that buffs difficulty for stamina heavy patterns.
@@ -348,8 +340,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             double runWeight = DiffUtils.Smoothstep(run, stamina_run_lo, stamina_run_hi);
             return 1.0 + stamina_buff * speedScale * runWeight;
         }
-
-        // -------------------- Column-pattern helpers --------------------
 
         private static bool sameColumns(int[] a, int[] b)
         {
