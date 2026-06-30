@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 
@@ -46,79 +47,135 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         private const double stamina_run_hi = 30.0;
         private const int stamina_run_cap = 256;
 
+        /// <summary>
+        /// A "row" is a set of hit objects whose start times fall within chord tolerance of each other -
+        /// i.e. notes that are effectively hit at the same time.
+        /// </summary>
+        private readonly struct Row
+        {
+            /// <summary>Sorted column indices of every note in this row.</summary>
+            public readonly int[] Columns;
+
+            public readonly double StartTime;
+
+            public readonly List<ManiaDifficultyHitObject> ChordMembers;
+
+            public Row(int[] columns, double startTime, List<ManiaDifficultyHitObject> chordMembers)
+            {
+                Columns = columns;
+                StartTime = startTime;
+                ChordMembers = chordMembers;
+            }
+
+            public bool IsChord => Columns.Length > 1;
+
+            public bool IsSingleNote => Columns.Length == 1;
+
+            public bool IsJump => Columns.Length == 2;
+        }
+
+        /// <summary>
+        /// Groups objects into rows, assigning a manipulation factor to the notes in each row based on how much manipulation affects the difficulty of the note.
+        /// </summary>
+        /// <param name="objects">The objects to calculate the manipulation factor for.</param>
         public static void ProcessAndAssign(IReadOnlyList<ManiaDifficultyHitObject> objects)
         {
             if (objects.Count == 0)
                 return;
 
-            // Group consecutive objects that start within the chord tolerance into rows.
-            var rowColumns = new List<int[]>();
-            var rowTimes = new List<double>();
-            var rowMembers = new List<List<ManiaDifficultyHitObject>>();
+            var rows = groupIntoRows(objects);
 
-            for (int i = 0; i < objects.Count;)
+            for (int i = 0; i < rows.Count; i++)
             {
-                double rowStart = objects[i].StartTime;
-                var columns = new List<int>();
-                var members = new List<ManiaDifficultyHitObject>();
+                double timeSincePreviousRow = i > 0 ? rows[i].StartTime - rows[i - 1].StartTime : double.PositiveInfinity;
 
-                int j = i;
+                double manipulationFactor = Math.Min(
+                    rollAndPatternFactor(rows, i, timeSincePreviousRow),
+                    jumptrillFactor(rows, i, timeSincePreviousRow));
 
-                while (j < objects.Count && Math.Abs(objects[j].StartTime - rowStart) <= ChordEvaluator.CHORD_TOLERANCE_MS)
+                double staminaFactor = staminaFactorFor(rows, i, timeSincePreviousRow);
+
+                foreach (var member in rows[i].ChordMembers)
                 {
-                    columns.Add(objects[j].Column);
-                    members.Add(objects[j]);
-                    j++;
-                }
+                    if (manipulationFactor < 1.0)
+                        member.ManipulationFactor = manipulationFactor;
 
-                columns.Sort();
-                rowColumns.Add(columns.ToArray());
-                rowTimes.Add(rowStart);
-                rowMembers.Add(members);
-                i = j;
-            }
-
-            for (int row = 0; row < rowColumns.Count; row++)
-            {
-                double rowDelta = row > 0 ? rowTimes[row] - rowTimes[row - 1] : double.PositiveInfinity;
-
-                double factor = Math.Min(
-                    manipulationFactor(rowColumns, rowTimes, row, rowDelta),
-                    jumptrillFactor(rowColumns, row, rowDelta));
-
-                double stamina = staminaFactor(rowColumns, rowTimes, row, rowDelta);
-
-                foreach (var member in rowMembers[row])
-                {
-                    if (factor < 1.0)
-                        member.ManipulationFactor = factor;
-
-                    if (stamina > 1.0)
-                        member.StaminaFactor = stamina;
+                    if (staminaFactor > 1.0)
+                        member.StaminaFactor = staminaFactor;
                 }
             }
         }
 
-        private static double manipulationFactor(List<int[]> rowColumns, List<double> rowTimes, int row, double rowDelta)
+        /// <summary>
+        /// Groups consecutive hit objects that start within chord tolerance of each other into <see cref="Row"/>s.
+        /// </summary>
+        private static List<Row> groupIntoRows(IReadOnlyList<ManiaDifficultyHitObject> objects)
         {
-            double speedScale = speedScaleFor(rowDelta);
+            var rows = new List<Row>();
+
+            int i = 0;
+
+            while (i < objects.Count)
+            {
+                double rowStart = objects[i].StartTime;
+                var members = new List<ManiaDifficultyHitObject>();
+
+                while (i < objects.Count && Math.Abs(objects[i].StartTime - rowStart) <= ChordEvaluator.CHORD_TOLERANCE_MS)
+                {
+                    members.Add(objects[i]);
+                    i++;
+                }
+
+                int[] columns = members.Select(m => m.Column).OrderBy(c => c).ToArray();
+                rows.Add(new Row(columns, rowStart, members));
+            }
+
+            return rows;
+        }
+
+        /// <summary>
+        /// Counts how many consecutive rows immediately before <paramref name="row"/> satisfy <paramref name="condition"/>,
+        /// stopping early at <paramref name="cap"/>. <paramref name="condition"/> receives the index of the earlier of the
+        /// two rows being compared on each step (i.e. it is called once per adjacent row pair, walking backward).
+        /// </summary>
+        private static int countRunBackward(int row, int cap, Func<int, bool> condition)
+        {
+            int run = 0;
+
+            while (run < cap && row - 1 >= 0 && condition(row - 1))
+            {
+                run++;
+                row--;
+            }
+
+            return run;
+        }
+
+        // -------------------- Rolls / jacks --------------------
+
+        /// <summary>
+        /// Detects "manipulation" patterns: fast rolls or jacks (rows repeating with a fixed period, or shifting
+        /// by a constant column offset), and fast lateral movement runs. Returns a multiplier &lt;= 1.0 that nerfs
+        /// difficulty for these easily-abusable patterns; 1.0 means no nerf applies.
+        /// </summary>
+        private static double rollAndPatternFactor(List<Row> rows, int row, double timeSincePreviousRow)
+        {
+            double speedScale = DiffUtils.Smoothstep(speed_hi_ms - timeSincePreviousRow, 0.0, speed_hi_ms - speed_lo_ms);
 
             if (speedScale <= 0.0)
                 return 1.0;
 
-            int run = rollRun(rowColumns, row);
+            int patternRun = longestRollOrPeriodicRun(rows, row);
+            double runWeight = DiffUtils.ReverseLerp(patternRun, 0.0, period_ramp);
 
-            for (int period = 2; period <= max_period; period++)
-                run = Math.Max(run, periodRun(rowColumns, row, period));
-
-            double runWeight = DiffUtils.ReverseLerp(run, 0.0, period_ramp);
-            int moveRun = movementRun(rowColumns, rowTimes, row, out double directionConsistency);
+            int moveRun = movementRun(rows, row, out double directionConsistency);
 
             if (moveRun >= 2)
             {
                 double staminaRelief = movement_stamina_relief * DiffUtils.Smoothstep(moveRun, movement_taper_lo, movement_taper_hi);
                 double rollGate = DiffUtils.Smoothstep(directionConsistency, movement_dir_lo, movement_dir_hi);
-                double chordGate = 1.0 - DiffUtils.Smoothstep(localChordDensity(rowColumns, row), movement_chord_lo, movement_chord_hi);
+                double chordGate = 1.0 - DiffUtils.Smoothstep(localChordDensity(rows, row), movement_chord_lo, movement_chord_hi);
+
                 double moveWeight = DiffUtils.ReverseLerp(moveRun, 0.0, period_ramp) * (1.0 - staminaRelief) * rollGate * chordGate;
                 runWeight = Math.Max(runWeight, moveWeight);
             }
@@ -129,23 +186,61 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return 1.0 - high_speed_nerf * runWeight * speedScale;
         }
 
-        private static double jumptrillFactor(List<int[]> rowColumns, int row, double rowDelta)
+        /// <summary>
+        /// Longest of: a "roll" (each row shifted by a constant column offset from the previous one), or a
+        /// periodic jack/pattern repeating with period 2..<see cref="max_period"/>.
+        /// </summary>
+        private static int longestRollOrPeriodicRun(List<Row> rows, int row)
         {
-            if (rowColumns[row].Length != 2)
+            // "Roll": each row shifted by the same constant column offset from the previous row (e.g. 1,2,3,4 repeating with a +1 shift).
+            int run = countRunBackward(row, run_cap, earlier => columnShift(rows[earlier].Columns, rows[earlier + 1].Columns) != 0);
+
+            // Periodic jacks/patterns: row N repeats row N-period, for small periods.
+            for (int period = 2; period <= max_period; period++)
+                run = Math.Max(run, periodRunLength(rows, row, period));
+
+            return run;
+        }
+
+        /// <summary>How many rows back from <paramref name="row"/> repeat with the given <paramref name="period"/>.</summary>
+        private static int periodRunLength(List<Row> rows, int row, int period)
+        {
+            int run = 0;
+
+            while (run < run_cap && row - period >= 0 && sameColumns(rows[row].Columns, rows[row - period].Columns))
+            {
+                run++;
+                row -= period;
+            }
+
+            return run;
+        }
+
+        // -------------------- Jumptrills --------------------
+
+        /// <summary>
+        /// Detects a "jumptrill": an alternating pattern of two different jumps (e.g. AB AB AB), as opposed to a
+        /// jump simply repeating in place. Returns a multiplier &lt;= 1.0 that nerfs difficulty.
+        /// </summary>
+        private static double jumptrillFactor(List<Row> rows, int row, double timeSincePreviousRow)
+        {
+            if (!rows[row].IsJump)
                 return 1.0;
 
-            double speedScale = DiffUtils.Smoothstep(jumptrill_speed_hi_ms - rowDelta, 0.0, jumptrill_speed_hi_ms - jumptrill_speed_lo_ms);
+            double speedScale = DiffUtils.Smoothstep(jumptrill_speed_hi_ms - timeSincePreviousRow, 0.0, jumptrill_speed_hi_ms - jumptrill_speed_lo_ms);
 
             if (speedScale <= 0.0)
                 return 1.0;
 
+            // Count back through alternating jump pairs: row k must match row k-2 (same jump recurring)
+            // but differ from row k-1 (the in-between jump is different), i.e. a genuine A-B-A-B alternation.
             int run = 0;
 
             for (int k = row;
                  k - 2 >= 0
-                 && rowColumns[k].Length == 2
-                 && sameColumns(rowColumns[k], rowColumns[k - 2])
-                 && !sameColumns(rowColumns[k], rowColumns[k - 1]);
+                 && rows[k].IsJump
+                 && sameColumns(rows[k].Columns, rows[k - 2].Columns)
+                 && !sameColumns(rows[k].Columns, rows[k - 1].Columns);
                  k--)
             {
                 run++;
@@ -158,122 +253,103 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return 1.0 - jumptrill_nerf * runWeight * speedScale;
         }
 
-        private static double speedScaleFor(double rowDelta)
+        // -------------------- Movement --------------------
+
+        /// <summary>
+        /// Extends outward from <paramref name="row"/> in both directions while consecutive rows are fast,
+        /// single-note, column-changing hits ("movement"). Also reports how consistently the movement
+        /// goes in the same direction each step (1.0 = always the same direction, i.e. a pure roll).
+        /// </summary>
+        private static int movementRun(List<Row> rows, int row, out double directionConsistency)
         {
-            return DiffUtils.Smoothstep(speed_hi_ms - rowDelta, 0.0, speed_hi_ms - speed_lo_ms);
+            directionConsistency = 0.0;
+
+            if (!rows[row].IsSingleNote)
+                return 0;
+
+            int lo = row;
+            while (row - lo < movement_cap && isFastLateralMove(rows, lo))
+                lo--;
+
+            int hi = row;
+            while (hi - row < movement_cap && isFastLateralMove(rows, hi + 1))
+                hi++;
+
+            int dirPairs = 0;
+            int sameDirCount = 0;
+            int previousDirection = 0;
+
+            for (int k = lo + 1; k <= hi; k++)
+            {
+                int direction = Math.Sign(rows[k].Columns[0] - rows[k - 1].Columns[0]);
+
+                if (previousDirection != 0)
+                {
+                    dirPairs++;
+                    if (direction == previousDirection)
+                        sameDirCount++;
+                }
+
+                previousDirection = direction;
+            }
+
+            if (dirPairs > 0)
+                directionConsistency = (double)sameDirCount / dirPairs;
+
+            return hi - lo + 1;
         }
 
-        private static double staminaFactor(List<int[]> rowColumns, List<double> rowTimes, int row, double rowDelta)
+        /// <summary>True if row <paramref name="k"/> is a fast single-note hit on a different column from row k-1.</summary>
+        private static bool isFastLateralMove(List<Row> rows, int k)
         {
-            if (rowColumns[row].Length != 2)
+            return k - 1 >= 0 && k < rows.Count
+                              && rows[k].IsSingleNote && rows[k - 1].IsSingleNote
+                              && rows[k].Columns[0] != rows[k - 1].Columns[0]
+                              && rows[k].StartTime - rows[k - 1].StartTime < movement_fast_ms;
+        }
+
+        /// <summary>Fraction of rows within a window around <paramref name="row"/> that are chords (2+ notes).</summary>
+        private static double localChordDensity(List<Row> rows, int row)
+        {
+            int lo = Math.Max(0, row - movement_chord_window);
+            int hi = Math.Min(rows.Count - 1, row + movement_chord_window);
+
+            int chordCount = 0;
+
+            for (int r = lo; r <= hi; r++)
+            {
+                if (rows[r].IsChord)
+                    chordCount++;
+            }
+
+            return (double)chordCount / (hi - lo + 1);
+        }
+
+        // -------------------- Stamina --------------------
+
+        /// <summary>
+        /// Detects sustained runs of fast jumps (not necessarily alternating - just back-to-back 2-note rows
+        /// hit quickly). Returns a multiplier &gt;= 1.0 that buffs difficulty for stamina heavy patterns.
+        /// </summary>
+        private static double staminaFactorFor(List<Row> rows, int row, double timeSincePreviousRow)
+        {
+            if (!rows[row].IsJump)
                 return 1.0;
 
-            double speedScale = DiffUtils.Smoothstep(stamina_speed_hi_ms - rowDelta, 0.0, stamina_speed_hi_ms - stamina_speed_lo_ms)
-                                * (1.0 - stamina_vfast_taper * DiffUtils.Smoothstep(stamina_speed_vfast_hi_ms - rowDelta, 0.0, stamina_speed_vfast_hi_ms - stamina_speed_vfast_lo_ms));
+            double speedScale = DiffUtils.Smoothstep(stamina_speed_hi_ms - timeSincePreviousRow, 0.0, stamina_speed_hi_ms - stamina_speed_lo_ms)
+                                * (1.0 - stamina_vfast_taper * DiffUtils.Smoothstep(stamina_speed_vfast_hi_ms - timeSincePreviousRow, 0.0, stamina_speed_vfast_hi_ms - stamina_speed_vfast_lo_ms));
 
             if (speedScale <= 0.0)
                 return 1.0;
 
-            int run = 1;
-
-            for (int k = row; run < stamina_run_cap && k - 1 >= 0; k--)
-            {
-                if (rowColumns[k - 1].Length != 2 || rowTimes[k] - rowTimes[k - 1] > stamina_speed_hi_ms)
-                    break;
-
-                run++;
-            }
+            int run = 1 + countRunBackward(row, stamina_run_cap - 1, earlier =>
+                rows[earlier].IsJump && rows[earlier + 1].StartTime - rows[earlier].StartTime <= stamina_speed_hi_ms);
 
             double runWeight = DiffUtils.Smoothstep(run, stamina_run_lo, stamina_run_hi);
             return 1.0 + stamina_buff * speedScale * runWeight;
         }
 
-        private static int movementRun(List<int[]> rows, List<double> rowTimes, int row, out double directionConsistency)
-        {
-            directionConsistency = 0.0;
-
-            if (rows[row].Length != 1)
-                return 0;
-
-            int lo = row;
-            while (row - lo < movement_cap && isFastMove(rows, rowTimes, lo))
-                lo--;
-
-            int hi = row;
-            while (hi - row < movement_cap && isFastMove(rows, rowTimes, hi + 1))
-                hi++;
-
-            int dirPairs = 0;
-            int sameDir = 0;
-            int prevDir = 0;
-
-            for (int k = lo + 1; k <= hi; k++)
-            {
-                int dir = Math.Sign(rows[k][0] - rows[k - 1][0]);
-
-                if (prevDir != 0)
-                {
-                    dirPairs++;
-                    if (dir == prevDir)
-                        sameDir++;
-                }
-
-                prevDir = dir;
-            }
-
-            if (dirPairs > 0)
-                directionConsistency = (double)sameDir / dirPairs;
-
-            return hi - lo + 1;
-        }
-
-        private static double localChordDensity(List<int[]> rows, int row)
-        {
-            int lo = Math.Max(0, row - movement_chord_window);
-            int hi = Math.Min(rows.Count - 1, row + movement_chord_window);
-            int chords = 0;
-
-            for (int r = lo; r <= hi; r++)
-            {
-                if (rows[r].Length > 1)
-                    chords++;
-            }
-
-            return (double)chords / (hi - lo + 1);
-        }
-
-        private static bool isFastMove(List<int[]> rows, List<double> rowTimes, int k)
-        {
-            return k - 1 >= 0 && k < rows.Count && rows[k].Length == 1 && rows[k - 1].Length == 1
-                   && rows[k][0] != rows[k - 1][0]
-                   && rowTimes[k] - rowTimes[k - 1] < movement_fast_ms;
-        }
-
-        private static int periodRun(List<int[]> rows, int row, int period)
-        {
-            int run = 0;
-
-            while (run < run_cap && row - period >= 0 && sameColumns(rows[row], rows[row - period]))
-            {
-                run++;
-                row--;
-            }
-
-            return run;
-        }
-
-        private static int rollRun(List<int[]> rows, int row)
-        {
-            int run = 0;
-
-            while (run < run_cap && row - 1 >= 0 && shiftOf(rows[row - 1], rows[row]) != 0)
-            {
-                run++;
-                row--;
-            }
-
-            return run;
-        }
+        // -------------------- Column-pattern helpers --------------------
 
         private static bool sameColumns(int[] a, int[] b)
         {
@@ -293,7 +369,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// If <paramref name="b"/> is <paramref name="a"/> with every column shifted by the same constant
         /// k (with 0 &lt; |k| &lt;= <see cref="max_shift"/>), returns k; otherwise returns 0.
         /// </summary>
-        private static int shiftOf(int[] a, int[] b)
+        private static int columnShift(int[] a, int[] b)
         {
             if (a.Length != b.Length || a.Length == 0)
                 return 0;
