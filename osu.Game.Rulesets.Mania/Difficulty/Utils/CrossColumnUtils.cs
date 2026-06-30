@@ -3,17 +3,17 @@
 
 using System;
 
-namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
+namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     /// <summary>
     /// Evaluates the cross-hand coefficients that determine how much cross-column difficulty
     /// each column boundary contributes based on the total key count.
     /// These values are tuned based on typical finger layouts and hand coordination.
     /// </summary>
-    public static class CrossColumnEvaluator
+    public static class CrossColumnUtils
     {
-        // Pre-calculated coefficient matrices for different key counts (1K to 10K).
-        private static readonly double[][] cross_matrix =
+        // Pre-calculated multipliers for the boundaries between columns for different key counts (1K to 10K).
+        private static readonly double[][] boundary_multipliers_per_column =
         {
             new[] { 0.075, 0.075 }, // 1K
             new[] { 0.125, 0.05, 0.125 }, // 2K
@@ -27,13 +27,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             new[] { 0.325, 0.55, 0.45, 0.35, 0.25, 0.05, 0.25, 0.35, 0.45, 0.55, 0.325 } // 10K
         };
 
-        private static readonly double[][] coefficientsByKeyCount = buildCoefficientsByKeyCount();
-
-        public static double CoefficientSum(int columnA, int columnB, int totalColumns)
+        public static double SumBoundaryMultipliersBetween(int columnA, int columnB, int totalColumns)
         {
-            double[] coefficients = totalColumns >= 1 && totalColumns <= cross_matrix.Length
-                ? coefficientsByKeyCount[totalColumns - 1]
-                : buildFallback(totalColumns);
+            double[] coefficients = totalColumns >= 1 && totalColumns <= boundary_multipliers_per_column.Length
+                ? boundary_multipliers_per_column[totalColumns - 1]
+                : fallbackBoundaryMultipliers(totalColumns);
 
             int lowColumn = Math.Min(columnA, columnB);
             int highColumn = Math.Max(columnA, columnB);
@@ -45,41 +43,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return sum;
         }
 
-        public static double Coefficient(int boundaryIndex, int totalColumns)
+        public static double ColumnBoundaryMultiplier(int boundaryIndex, int totalColumns)
         {
-            double[] coefficients = totalColumns >= 1 && totalColumns <= cross_matrix.Length
-                ? coefficientsByKeyCount[totalColumns - 1]
-                : buildFallback(totalColumns);
+            double[] coefficients = totalColumns >= 1 && totalColumns <= boundary_multipliers_per_column.Length
+                ? boundary_multipliers_per_column[totalColumns - 1]
+                : fallbackBoundaryMultipliers(totalColumns);
 
             return boundaryIndex >= 0 && boundaryIndex < coefficients.Length ? coefficients[boundaryIndex] : 0.0;
         }
 
-        public static double CoefficientAverage(int columnA, int columnB, int totalColumns)
+        public static double AverageBoundaryMultipliersBetween(int columnA, int columnB, int totalColumns)
         {
             int span = Math.Abs(columnA - columnB);
 
             if (span <= 0)
                 return 0.0;
 
-            return CoefficientSum(columnA, columnB, totalColumns) / span * Math.Sqrt(span);
+            return SumBoundaryMultipliersBetween(columnA, columnB, totalColumns) / span * Math.Sqrt(span);
         }
 
-        private static double[][] buildCoefficientsByKeyCount()
-        {
-            var result = new double[cross_matrix.Length][];
-
-            for (int keyCount = 1; keyCount <= cross_matrix.Length; keyCount++)
-            {
-                double[] sourceRow = cross_matrix[keyCount - 1];
-                double[] padded = new double[keyCount + 1];
-                Array.Copy(sourceRow, padded, Math.Min(sourceRow.Length, padded.Length));
-                result[keyCount - 1] = padded;
-            }
-
-            return result;
-        }
-
-        private static double[] buildFallback(int keyCount)
+        private static double[] fallbackBoundaryMultipliers(int keyCount)
         {
             double[] fallback = new double[keyCount + 1];
 
