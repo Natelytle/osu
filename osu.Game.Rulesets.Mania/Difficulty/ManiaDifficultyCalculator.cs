@@ -24,12 +24,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double high_percentile_weight = 0.25;
-        private const double high_percentile_scale = 0.88;
-
-        private const double mid_percentile_weight = 0.20;
-        private const double mid_percentile_scale = 0.94;
-
         private const double overall_multiplier = 0.360643;
         private const double power_exponent = 0.52899;
 
@@ -70,8 +64,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new ManiaDifficultyAttributes { Mods = mods };
 
-            var totalSkill = (Total)skills[0];
-            var coordinationSkill = (Coordination)skills[1];
+            var totalSkill = skills.OfType<Total>().Single();
+            var speedSkill = skills.OfType<Speed>().Single();
+            var technicalSkill = skills.OfType<Technical>().Single();
+            var jackSkill = skills.OfType<Jack>().Single();
+            var coordinationSkill = skills.OfType<Coordination>().Single();
+            var releaseSkill = skills.OfType<Release>().Single();
 
             double odMult = odMultiplier(Beatmap.BeatmapInfo.Difficulty.OverallDifficulty);
 
@@ -85,23 +83,42 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap.HitObjects, mods), lnRatio);
 
             double totalDifficulty = totalSkill.DifficultyValue();
-            double coordinationDifficulty = scaleToStarRating(coordinationSkill.DifficultyValue()); // TODO: Rebalance this without scaleToStarRating
 
-            double starRating = computeStarRating(totalDifficulty, odMult, lnDamper, shortMapMult, coordinationDifficulty);
+            double speedStarRating = scaleToStarRating(speedSkill.DifficultyValue()) * odMult;
+            double technicalStarRating = scaleToStarRating(technicalSkill.DifficultyValue()) * odMult;
+            double jackStarRating = scaleToStarRating(jackSkill.DifficultyValue()) * odMult;
+            double coordinationStarRating = scaleToStarRating(coordinationSkill.DifficultyValue()) * odMult;
+            double releaseStarRating = scaleToStarRating(releaseSkill.DifficultyValue()) * odMult;
+
+            double starRating = computeStarRating(totalDifficulty, odMult, lnDamper, shortMapMult, coordinationStarRating);
 
             return new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
-                SpeedDifficulty = 0,
-                TechnicalDifficulty = 0,
-                JackDifficulty = 0,
-                CoordinationDifficulty = coordinationDifficulty,
-                ReleaseDifficulty = 0,
-                Variety = 3.2, // TODO: Make a per-note calculation in Total.cs
+                SpeedDifficulty = speedStarRating,
+                TechnicalDifficulty = technicalStarRating,
+                JackDifficulty = jackStarRating,
+                CoordinationDifficulty = coordinationStarRating,
+                ReleaseDifficulty = releaseStarRating,
+                Variety = participationRatio(speedStarRating, technicalStarRating, jackStarRating, coordinationStarRating, releaseStarRating),
                 LnRatio = lnRatio
             };
+        }
+
+        private static double participationRatio(params double[] difficulties)
+        {
+            double sum = 0;
+            double sumSquares = 0;
+
+            foreach (double d in difficulties)
+            {
+                sum += d;
+                sumSquares += d * d;
+            }
+
+            return sumSquares > 0 ? sum * sum / sumSquares : 1.0;
         }
 
         private static double shortMapNerf(double lengthSeconds, double lnRatio)
@@ -207,7 +224,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return new Skill[]
             {
                 new Total(mods),
-                new Coordination(mods)
+                new Speed(mods),
+                new Technical(mods),
+                new Jack(mods),
+                new Coordination(mods),
+                new Release(mods)
             };
         }
 

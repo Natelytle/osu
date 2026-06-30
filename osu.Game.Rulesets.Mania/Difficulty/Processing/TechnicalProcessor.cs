@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
             var hitObject = (ManiaDifficultyHitObject)current;
 
             if (hitObject.DeltaTime < ChordEvaluator.CHORD_TOLERANCE_MS)
-                return 0.0;
+                return currentStrain;
 
             double rhythmIrregularity = 0.0;
 
