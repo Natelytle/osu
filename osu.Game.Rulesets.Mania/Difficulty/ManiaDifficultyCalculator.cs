@@ -43,6 +43,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double short_map_ln_lo = 0.55;
         private const double short_map_ln_hi = 0.72;
 
+        private const double spike_damper_strength = 0.118;
+        private const double spike_sustain_ratio_lo = 0.24;
+        private const double spike_sustain_ratio_hi = 0.50;
+
         private const double high_end_compression_knee = 11.5;
         private const double high_end_compression_strength = 0.5;
         private const double high_end_coordination_gate_lo = 5.9;
@@ -97,6 +101,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
             double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap.HitObjects, mods), lnRatio);
+            double spikeMult = spikeNerf(totalSkill.SustainRatio());
 
             double totalDifficulty = totalSkill.DifficultyValue();
 
@@ -106,7 +111,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double coordinationStarRating = scaleToStarRating(coordinationSkill.DifficultyValue()) * odMult;
             double releaseStarRating = scaleToStarRating(releaseSkill.DifficultyValue()) * odMult;
 
-            double starRating = computeStarRating(totalDifficulty, odMult, lnDamper, shortMapMult, coordinationStarRating);
+            double starRating = computeStarRating(totalDifficulty, odMult, lnDamper, shortMapMult * spikeMult, coordinationStarRating);
 
             return new ManiaDifficultyAttributes
             {
@@ -143,6 +148,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double lnGate = DiffUtils.Smoothstep(lnRatio, short_map_ln_lo, short_map_ln_hi);
 
             return 1.0 - short_map_nerf * shortness * lnGate;
+        }
+
+        /// <summary>
+        /// Nerfs "spike" maps whose star rating is carried by a small fraction of very hard content, using
+        /// the median-to-peak <paramref name="sustainRatio"/>. Evenly-sustained maps (high ratio) are
+        /// untouched; maps whose bulk is far easier than their hardest bursts (low ratio) are damped.
+        /// </summary>
+        private static double spikeNerf(double sustainRatio)
+        {
+            double sustain = DiffUtils.Smoothstep(sustainRatio, spike_sustain_ratio_lo, spike_sustain_ratio_hi);
+            return 1.0 - spike_damper_strength * (1.0 - sustain);
         }
 
         private static double computeStarRating(double totalDifficulty, double overallDifficultyMultiplier, double longNoteDamper, double shortMapMultiplier, double coordinationDifficulty)

@@ -48,6 +48,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected abstract double DifficultyAt(DifficultyHitObject current);
 
+        public double SustainRatio()
+        {
+            if (sortedDifficulties.Count == 0)
+                return 1.0;
+
+            sortedDifficulties.Sort();
+
+            double median = strainAtPercentile(0.50);
+            double high = strainAtPercentile(0.90);
+
+            return high > 0 ? median / high : 1.0;
+        }
+
+        private double strainAtPercentile(double percentile)
+        {
+            int maxIndex = sortedDifficulties.Count - 1;
+            int index = Math.Clamp((int)Math.Round(maxIndex * percentile), 0, maxIndex);
+            return sortedDifficulties[index];
+        }
+
         public override double DifficultyValue()
         {
             sortedDifficulties.Sort();
