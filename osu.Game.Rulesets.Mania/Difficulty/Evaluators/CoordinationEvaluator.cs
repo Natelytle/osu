@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double held_long_note_weight = 0.01003;
         private const double held_speed_factor_offset = 0.08;
 
-        private const double boundary_scale = 1.30;
+        private const double boundary_scale_ms = 1300.0;
         private const double boundary_min_delta_ms = 35.0;
         private const double boundary_activity_window_ms = 450.0;
 
@@ -37,38 +37,48 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return coordinationDifficulty;
         }
 
-        private static double calculateBoundaryPressure(ManiaDifficultyHitObject hitObject)
+        /// <summary>
+        /// Calculates the difficulty of both column boundaries for this column, with a boundary being the hypothetical "middle" of two columns.
+        /// In simple words, calculates how hard it is to tap with two adjacent fingers.
+        /// </summary>
+        /// <param name="current">The note to calculate for.</param>
+        /// <returns>A base difficulty value.</returns>
+        private static double calculateBoundaryPressure(ManiaDifficultyHitObject current)
         {
-            int column = hitObject.Column;
-            int totalColumns = hitObject.PreviousHitObjects.Length;
-            double now = hitObject.StartTime;
+            int column = current.Column;
+            int totalColumns = current.PreviousHitObjects.Length;
             double total = 0.0;
 
+            // If we have a left column
             if (column > 0)
-                total += oneBoundaryPressure(hitObject, column, column - 1, totalColumns, now);
+                total += columnBoundaryPressure(current, column, "left", totalColumns);
 
+            // If we have a right column
             if (column < totalColumns - 1)
-                total += oneBoundaryPressure(hitObject, column + 1, column + 1, totalColumns, now);
+                total += columnBoundaryPressure(current, column, "right", totalColumns);
 
-            return total * TrillUtils.TrillFactor(hitObject) * boundary_pressure_weight;
+            return total * TrillUtils.TrillFactor(current) * boundary_pressure_weight;
         }
 
-        private static double oneBoundaryPressure(ManiaDifficultyHitObject hitObject, int boundaryIndex, int otherColumn, int totalColumns, double now)
+        private static double columnBoundaryPressure(ManiaDifficultyHitObject current, int column, string side, int totalColumns)
         {
-            double otherLast = hitObject.LastStartTimeInColumn(otherColumn);
+            int adjacentColumn = side == "left" ? column - 1 : column + 1;
+            double adjacentStartTime = current.LastStartTimeInColumn(adjacentColumn);
 
-            if (double.IsNegativeInfinity(otherLast))
+            if (double.IsNegativeInfinity(adjacentStartTime))
                 return 0.0;
 
-            double rawDeltaMs = now - otherLast;
+            double adjacentDelta = current.StartTime - adjacentStartTime;
 
-            if (rawDeltaMs < ChordUtils.CHORD_TOLERANCE_MS)
+            if (adjacentDelta < ChordUtils.CHORD_TOLERANCE_MS)
                 return 0.0;
 
-            double deltaSeconds = rawDeltaMs / 1000.0;
-            double intensity = boundary_scale / (deltaSeconds + boundary_min_delta_ms / 1000.0);
+            // Since boundaries are between the columns, the left side boundary is also at index column.
+            int boundaryIndex = side == "left" ? column : column + 1;
+
+            double intensity = boundary_scale_ms / (adjacentDelta + boundary_min_delta_ms);
             double coefficient = CrossColumnUtils.ColumnBoundaryMultiplier(boundaryIndex, totalColumns);
-            bool otherActive = rawDeltaMs <= boundary_activity_window_ms;
+            bool otherActive = adjacentDelta <= boundary_activity_window_ms;
 
             return intensity * coefficient * (otherActive ? 1.0 : (1.0 - coefficient));
         }
