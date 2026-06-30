@@ -18,6 +18,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double long_note_base_load = 0.42;
         private const double long_note_duration_load = 0.90;
 
+        private const double long_hold_buff = 1.6;
+        private const double long_hold_gate_lo_ms = 500.0;
+        private const double long_hold_gate_hi_ms = 680.0;
+
         // Releases very close together are harder to time apart.
         private const double overlapping_release_slope = 0.1;
         private const double overlapping_release_offset_ms = 30.0;
@@ -32,7 +36,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 double duration = Math.Min(hitObject.EndTime - hitObject.StartTime, max_long_note_duration_ms);
                 double longNoteGate = DiffUtils.Logistic(duration, long_note_gate_midpoint_ms, long_note_gate_slope);
 
-                load += (long_note_base_load + long_note_duration_load * (duration / 1000.0)) * longNoteGate;
+                double longHoldBoost = long_hold_buff * DiffUtils.Smoothstep(duration, long_hold_gate_lo_ms, long_hold_gate_hi_ms) * (duration / 1000.0);
+
+                load += (long_note_base_load + long_note_duration_load * (duration / 1000.0) + longHoldBoost) * longNoteGate;
 
                 double closestRelease = double.PositiveInfinity;
 

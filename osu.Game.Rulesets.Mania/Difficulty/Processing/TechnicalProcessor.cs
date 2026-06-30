@@ -20,6 +20,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
         private const double reversal_base_complexity = 0.6;
         private const double reversal_coefficient_multiplier = 2.0;
 
+        private const double wide_jump_nerf = 0.60;
+        private const double wide_jump_span_lo = 3.0;
+        private const double wide_jump_span_hi = 5.5;
+
         private const double pattern_buff = 0.69740;
         private const double technical_scale = 1.49964;
 
@@ -66,7 +70,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
             double columnComplexity = 0.0;
 
-            if (hitObject.Previous(0) is ManiaDifficultyHitObject previous && hitObject.Previous(1) is ManiaDifficultyHitObject previous2)
+            if (hitObject.Previous() is ManiaDifficultyHitObject previous && hitObject.Previous(1) is ManiaDifficultyHitObject previous2)
             {
                 int previousDirection = previous.Column - previous2.Column;
                 int currentDirection = hitObject.Column - previous.Column;
@@ -79,6 +83,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
                 if (Math.Abs(currentDirection) >= 2)
                     columnComplexity += CrossColumnEvaluator.CoefficientAverage(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length); // wide jump, averaged path scaled by sqrt(span)
+
+                double spanDamper = 1.0 - wide_jump_nerf * DiffUtils.Smoothstep(Math.Abs(currentDirection), wide_jump_span_lo, wide_jump_span_hi);
+                columnComplexity *= spanDamper;
             }
 
             double speedFactor = 1.0 / (hitObject.DeltaTime / 1000.0 + speed_factor_offset);
@@ -109,7 +116,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
         private double patternVariety(ManiaDifficultyHitObject hitObject)
         {
             int rhythmClass = (int)Math.Round(Math.Log(hitObject.DeltaTime) / Math.Log(variety_gap_log_base));
-            int direction = hitObject.Previous(0) is ManiaDifficultyHitObject previous ? Math.Sign(hitObject.Column - previous.Column) : 0;
+            int direction = hitObject.Previous() is ManiaDifficultyHitObject previous ? Math.Sign(hitObject.Column - previous.Column) : 0;
 
             recentShapes.Enqueue((rhythmClass, direction));
 
