@@ -4,27 +4,28 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public static class JackEvaluator
     {
+        private const double jack_multiplier = 0.62159;
+
         public const double JACK_WINDOW_MS = 350.0;
 
-        private const double jack_rate_offset = 0.060;
+        private const double jack_rate_offset_ms = 60;
 
         private const double chordjack_buff = 0.17460;
         private const double chordjack_multiplier_minimum = 0.1;
         private const double chordjack_nerf = 0.45397;
         private const double chord_speed_threshold_ms = 140.625;
 
-        private const double jack_speed_buff = 0.70000;
-        private const double jack_speed_buff_midpoint = 5.0;
-        private const double jack_speed_buff_slope = 0.5;
+        private const double jack_speed_bonus_multiplier = 0.70000;
+        private const double jack_speed_bonus_midpoint = 5.0;
+        private const double jack_speed_bonus_slope = 0.5;
 
         private const double jack_convex = 1.29407;
-
-        private const double jack_scale = 0.62159;
 
         private const double held_ln_jack_buff = 0.6;
 
@@ -50,31 +51,59 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double quad_minijack_vfast_hi_ms = 74.0;
         private const double quad_minijack_vfast_lo_ms = 66.0;
 
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
-            double lastStartTime = hitObject.LastStartTimeInColumn(hitObject.Column);
-            double columnDelta = double.IsNegativeInfinity(lastStartTime) ? double.PositiveInfinity : hitObject.StartTime - lastStartTime;
-            int chordSize = ChordEvaluator.Size(hitObject);
+            var previous = (ManiaDifficultyHitObject?)current.Previous();
+
+            double columnDelta = current.ColumnDelta;
 
             if (columnDelta > JACK_WINDOW_MS)
                 return 0.0;
 
-            double tapRate = 1.0 / (Math.Max(columnDelta, 1.0) / 1000.0 + jack_rate_offset);
+            double tapRate = 1000.0 / (Math.Max(columnDelta, 1.0) + jack_rate_offset_ms);
 
+            double jackDifficulty = tapRate; // Start difficulty with the tap rate.
+
+            int rowSize = ChordUtils.Size(current);
+            int totalColumns = current.PreviousHitObjects.Length;
+
+            jackDifficulty *= calculateChordJackBonus(current, rowSize, columnDelta);
+            jackDifficulty *= calculateSpeedBonus(tapRate);
+
+            // Rescale difficulty
+            jackDifficulty = DiffUtils.Pow(jackDifficulty, jack_convex);
+
+            jackDifficulty *= calculateRowSizeMultiplier(current, rowSize, columnDelta);
+
+            jackDifficulty *= calculateConcurrentHoldBonus(current, totalColumns);
+            jackDifficulty *= calculateFullRowBonus(current, previous, totalColumns, columnDelta);
+
+            jackDifficulty *= current.ManipulationFactor * current.StaminaFactor;
+
+            return jackDifficulty * jack_multiplier;
+        }
+
+        private static double calculateChordJackBonus(ManiaDifficultyHitObject current, int rowSize, double columnDelta)
+        {
             double chordSpeedFactor = Math.Clamp(chord_speed_threshold_ms / columnDelta, 0.1, 2.0);
 
-            double chordjackMultiplier = Math.Max(chordjack_multiplier_minimum,
-                (1.0 + chordjack_buff * chordSpeedFactor * (chordSize - 1))
-                * ChordEvaluator.FullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta)
-                * ChordEvaluator.NearFullChordDampen(hitObject, hitObject.PreviousHitObjects.Length, columnDelta));
-            double speedBuff = 1.0 + jack_speed_buff * DiffUtils.Logistic(tapRate, jack_speed_buff_midpoint, jack_speed_buff_slope);
+            double chordJackBonus = Math.Max(chordjack_multiplier_minimum,
+                (1.0 + chordjack_buff * chordSpeedFactor * (rowSize - 1))
+                * ChordUtils.FullChordDampen(current, current.PreviousHitObjects.Length, columnDelta)
+                * ChordUtils.NearFullChordDampen(current, current.PreviousHitObjects.Length, columnDelta));
 
-            double rawStrain = tapRate * chordjackMultiplier * speedBuff;
-            double strain = jack_scale * DiffUtils.Pow(rawStrain, jack_convex);
+            return chordJackBonus;
+        }
 
-            if (chordSize >= 2)
+        private static double calculateSpeedBonus(double tapRate) => 1.0 + jack_speed_bonus_multiplier * DiffUtils.Logistic(tapRate, jack_speed_bonus_midpoint, jack_speed_bonus_slope);
+
+        private static double calculateRowSizeMultiplier(ManiaDifficultyHitObject current, int rowSize, double columnDelta)
+        {
+            double rowSizeMultiplier = 1.0;
+
+            if (rowSize >= 2)
             {
-                strain *= chordjack_nerf;
+                rowSizeMultiplier *= chordjack_nerf;
 
                 double bpmScale = DiffUtils.Smoothstep(chord_speed_slow_ms - columnDelta, 0.0, chord_speed_slow_ms - chord_speed_fast_ms);
                 double chordSpeedMult = chord_speed_slow_mult + (chord_speed_fast_mult - chord_speed_slow_mult) * bpmScale;
@@ -83,62 +112,68 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 double fastRolloff = DiffUtils.Smoothstep(chord_speed_fast_ms - columnDelta, 0.0, chord_speed_fast_ms - chord_speed_veryfast_ms);
                 chordSpeedMult += (chord_speed_veryfast_mult - chord_speed_fast_mult) * fastRolloff;
 
-                strain *= chordSpeedMult;
+                rowSizeMultiplier *= chordSpeedMult;
             }
             else
-                strain *= TrillEvaluator.TrillFactor(hitObject);
+                rowSizeMultiplier *= TrillUtils.TrillFactor(current);
 
-            int totalColumns = hitObject.PreviousHitObjects.Length;
+            return rowSizeMultiplier;
+        }
 
-            if (totalColumns > 1)
-            {
-                double heldFraction = hitObject.ConcurrentlyHeldColumns(ChordEvaluator.CHORD_TOLERANCE_MS) / (double)(totalColumns - 1);
-                strain *= 1.0 + held_ln_jack_buff * heldFraction;
-            }
+        private static double calculateConcurrentHoldBonus(ManiaDifficultyHitObject current, int totalColumns)
+        {
+            if (totalColumns == 1) return 1.0;
 
-            var previous = hitObject.Previous(0);
+            double heldFraction = current.ConcurrentlyHeldColumns(ChordUtils.CHORD_TOLERANCE_MS) / (double)(totalColumns - 1);
+            double concurrentHoldBonus = 1.0 + held_ln_jack_buff * heldFraction;
+
+            return concurrentHoldBonus;
+        }
+
+        private static double calculateFullRowBonus(ManiaDifficultyHitObject current, ManiaDifficultyHitObject? previous, int totalColumns, double columnDelta)
+        {
             int fullChord = Math.Max(quad_minijack_min_chord, totalColumns);
 
-            if (previous != null && ChordEvaluator.Size(previous) >= fullChord)
+            if (previous == null || ChordUtils.Size(previous) < fullChord)
+                return 1.0;
+
+            double speedGate = DiffUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
+            double manipGate = DiffUtils.ReverseLerp(current.ManipulationFactor, quad_minijack_manip_lo, quad_minijack_manip_hi);
+
+            int runLength = 1;
+            ManiaDifficultyHitObject note = current;
+
+            for (int back = 0; back < quad_minijack_run_cap; back++)
             {
-                double speedGate = DiffUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
-                double manipGate = DiffUtils.ReverseLerp(hitObject.ManipulationFactor, quad_minijack_manip_lo, quad_minijack_manip_hi);
+                var prevInColumn = current.PrevInColumn(back);
 
-                int runLength = 1;
-                ManiaDifficultyHitObject cur = hitObject;
+                if (prevInColumn == null || note.StartTime - prevInColumn.StartTime > quad_minijack_run_ms)
+                    break;
 
-                for (int back = 0; back < quad_minijack_run_cap; back++)
-                {
-                    var prevInColumn = hitObject.PrevInColumn(back);
-
-                    if (prevInColumn == null || cur.StartTime - prevInColumn.StartTime > quad_minijack_run_ms)
-                        break;
-
-                    runLength++;
-                    cur = prevInColumn;
-                }
-
-                cur = hitObject;
-
-                for (int forward = 0; forward < quad_minijack_run_cap; forward++)
-                {
-                    var nextInColumn = hitObject.NextInColumn(forward);
-
-                    if (nextInColumn == null || nextInColumn.StartTime - cur.StartTime > quad_minijack_run_ms)
-                        break;
-
-                    runLength++;
-                    cur = nextInColumn;
-                }
-
-                double runGate = 1.0 - DiffUtils.Smoothstep(runLength - quad_minijack_run_start, 0.0, quad_minijack_run_end - quad_minijack_run_start);
-
-                double vFastGate = 1.0 - DiffUtils.Smoothstep(quad_minijack_vfast_hi_ms - columnDelta, 0.0, quad_minijack_vfast_hi_ms - quad_minijack_vfast_lo_ms);
-
-                strain *= 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * vFastGate;
+                runLength++;
+                note = prevInColumn;
             }
 
-            return strain * hitObject.ManipulationFactor * hitObject.StaminaFactor;
+            note = current;
+
+            for (int forward = 0; forward < quad_minijack_run_cap; forward++)
+            {
+                var nextInColumn = current.NextInColumn(forward);
+
+                if (nextInColumn == null || nextInColumn.StartTime - note.StartTime > quad_minijack_run_ms)
+                    break;
+
+                runLength++;
+                note = nextInColumn;
+            }
+
+            double runGate = 1.0 - DiffUtils.Smoothstep(runLength, quad_minijack_run_start, quad_minijack_run_end);
+
+            double vFastGate = 1.0 - DiffUtils.Smoothstep(columnDelta, quad_minijack_vfast_lo_ms, quad_minijack_vfast_hi_ms);
+
+            double fullRowBonus = 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * vFastGate;
+
+            return fullRowBonus;
         }
     }
 }

@@ -5,9 +5,9 @@ using System;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
-namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
+namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
-    public static class TrillEvaluator
+    public static class TrillUtils
     {
         private const double trill_nerf = 0.62864;
         private const double trill_run_ramp = 4.99947;

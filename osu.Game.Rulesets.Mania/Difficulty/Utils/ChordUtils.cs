@@ -5,9 +5,9 @@ using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 
-namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
+namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
-    public static class ChordEvaluator
+    public static class ChordUtils
     {
         public const double CHORD_TOLERANCE_MS = 8.0;
 

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
@@ -120,7 +120,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                 double rowStart = objects[i].StartTime;
                 var members = new List<ManiaDifficultyHitObject>();
 
-                while (i < objects.Count && Math.Abs(objects[i].StartTime - rowStart) <= ChordEvaluator.CHORD_TOLERANCE_MS)
+                while (i < objects.Count && Math.Abs(objects[i].StartTime - rowStart) <= ChordUtils.CHORD_TOLERANCE_MS)
                 {
                     members.Add(objects[i]);
                     i++;

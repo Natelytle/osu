@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         // The hit object earlier in time than this note in each column
         public readonly ManiaDifficultyHitObject?[] PreviousHitObjects;
 
-        public readonly double ColumnStrainTime;
+        public readonly double ColumnDelta;
 
         /// <summary>
         /// Multiplier in (0, 1] that dampens manipulable patterns (fast, sustained rolls / stairs /
@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             Column = BaseObject.Column;
             columnIndex = perColumnObjects[Column].Count;
             PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
-            ColumnStrainTime = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
+            ColumnDelta = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
 
             if (index > 0)
             {

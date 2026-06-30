@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
@@ -53,12 +53,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
             var hitObject = (ManiaDifficultyHitObject)current;
 
-            if (hitObject.DeltaTime < ChordEvaluator.CHORD_TOLERANCE_MS)
+            if (hitObject.DeltaTime < ChordUtils.CHORD_TOLERANCE_MS)
                 return currentStrain;
 
             double rhythmIrregularity = 0.0;
 
-            if (previousDeltaTime > ChordEvaluator.CHORD_TOLERANCE_MS)
+            if (previousDeltaTime > ChordUtils.CHORD_TOLERANCE_MS)
             {
                 double ratio = hitObject.DeltaTime / previousDeltaTime;
 
@@ -77,12 +77,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
                 if (previousDirection != 0 && currentDirection != 0 && Math.Sign(previousDirection) != Math.Sign(currentDirection))
                 {
-                    double coefficient = CrossColumnEvaluator.CoefficientSum(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length);
+                    double coefficient = CrossColumnUtils.SumBoundaryMultipliersBetween(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length);
                     columnComplexity += reversal_base_complexity + reversal_coefficient_multiplier * coefficient;
                 }
 
                 if (Math.Abs(currentDirection) >= 2)
-                    columnComplexity += CrossColumnEvaluator.CoefficientAverage(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length); // wide jump, averaged path scaled by sqrt(span)
+                    columnComplexity += CrossColumnUtils.AverageBoundaryMultipliersBetween(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length); // wide jump, averaged path scaled by sqrt(span)
 
                 double spanDamper = 1.0 - wide_jump_nerf * DiffUtils.Smoothstep(Math.Abs(currentDirection), wide_jump_span_lo, wide_jump_span_hi);
                 columnComplexity *= spanDamper;
