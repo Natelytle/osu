@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double jackDifficulty = tapRate; // Start difficulty with the tap rate.
 
-            int rowSize = ChordUtils.Size(current);
+            int rowSize = ChordUtils.DepthInChord(current);
             int totalColumns = current.PreviousHitObjects.Length;
 
             jackDifficulty *= calculateChordJackBonus(current, rowSize, columnDelta);
@@ -134,7 +134,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             int fullChord = Math.Max(quad_minijack_min_chord, totalColumns);
 
-            if (previous == null || ChordUtils.Size(previous) < fullChord)
+            if (previous == null)
+                return 1.0;
+
+            bool sharesChordWithPrevious = current.StartTime - previous.StartTime <= ChordUtils.CHORD_TOLERANCE_MS;
+
+            if (sharesChordWithPrevious || ChordUtils.Size(previous) < fullChord)
                 return 1.0;
 
             double speedGate = DiffUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
@@ -169,7 +174,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double runGate = 1.0 - DiffUtils.Smoothstep(runLength, quad_minijack_run_start, quad_minijack_run_end);
 
-            double vFastGate = 1.0 - DiffUtils.Smoothstep(columnDelta, quad_minijack_vfast_lo_ms, quad_minijack_vfast_hi_ms);
+            double vFastGate = DiffUtils.Smoothstep(columnDelta, quad_minijack_vfast_lo_ms, quad_minijack_vfast_hi_ms);
 
             double fullRowBonus = 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * vFastGate;
 

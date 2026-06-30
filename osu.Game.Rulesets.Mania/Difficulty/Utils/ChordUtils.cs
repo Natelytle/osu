@@ -25,15 +25,37 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// </summary>
         private const double chord_speed_threshold_ms = 140.625;
 
+        /// <summary>
+        /// The total number of notes in the chord <paramref name="current"/> belongs to. Independent of
+        /// which note of the chord is queried: it anchors on the chord's last note then counts the group.
+        /// </summary>
         public static int Size(DifficultyHitObject current)
         {
-            int chordSize = 1;
+            DifficultyHitObject last = current;
 
-            for (int i = 0; current.Previous(i) is { } previous && Math.Abs(previous.StartTime - current.StartTime) <= CHORD_TOLERANCE_MS; i++)
-                chordSize++;
+            while (last.Next() is { } next && isSameChord(last, next))
+                last = next;
 
-            return chordSize;
+            return DepthInChord(last);
         }
+
+        /// <summary>
+        /// How many notes of the chord have been reached at <paramref name="current"/> inclusive, i.e.
+        /// <paramref name="current"/>'s 1-based position within its chord. Strain accumulates per note, so
+        /// each chord note is scaled by how far into the chord it sits rather than by the full chord size.
+        /// </summary>
+        public static int DepthInChord(DifficultyHitObject current)
+        {
+            int depth = 1;
+
+            while (current.Previous(depth - 1) is { } previous && isSameChord(current, previous))
+                depth++;
+
+            return depth;
+        }
+
+        private static bool isSameChord(DifficultyHitObject anchor, DifficultyHitObject other)
+            => Math.Abs(other.StartTime - anchor.StartTime) <= CHORD_TOLERANCE_MS;
 
         public static double FullChordDampen(DifficultyHitObject current, int totalColumns, double columnDelta)
         {
@@ -90,7 +112,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             DifficultyHitObject start = last;
             size = 1;
 
-            for (int i = 0; last.Previous(i) is { } previous && Math.Abs(previous.StartTime - last.StartTime) <= CHORD_TOLERANCE_MS; i++)
+            for (int i = 0; last.Previous(i) is { } previous && isSameChord(last, previous); i++)
             {
                 start = previous;
                 size++;

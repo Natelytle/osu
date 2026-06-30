@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double coordinationDifficulty = calculateBoundaryPressure(current);
 
             double columnDelta = current.ColumnDelta;
-            int chordSize = ChordUtils.Size(current);
+            int chordSize = ChordUtils.DepthInChord(current);
 
             coordinationDifficulty += calculateChordDifficulty(current, chordSize, columnDelta);
             coordinationDifficulty += calculateHoldDifficulty(current);
