@@ -16,8 +16,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
     {
         private double totalNoteWeight;
 
-        // For performance reasons, we sort the difficulties as they're added.
-        // Without doing this, we would be sorting the array up to 50k times! Yikes!
         private readonly List<double> sortedDifficulties;
 
         protected ManiaSkill(Mod[] mods)
@@ -43,23 +41,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double difficulty = DifficultyAt(current);
 
             if (difficulty > 0)
-                insertSorted(difficulty);
+                sortedDifficulties.Add(difficulty);
 
             return difficulty;
         }
 
         protected abstract double DifficultyAt(DifficultyHitObject current);
 
-        private void insertSorted(double strain)
-        {
-            int index = sortedDifficulties.BinarySearch(strain);
-            if (index < 0) index = ~index;
-
-            sortedDifficulties.Insert(index, strain);
-        }
-
         public override double DifficultyValue()
         {
+            sortedDifficulties.Sort();
+
             if (sortedDifficulties.Count == 0)
                 return 0.0;
 
