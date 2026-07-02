@@ -79,18 +79,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             HitWindows hitWindows = new ManiaHitWindows();
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
-            double greatHitWindow = hitWindows.WindowFor(HitResult.Great);
-
-            // Hard rock and ez don't apply directly to od, so we manually scale the hit window
+            // Hard rock and ez don't apply directly to od, so we manually scale the hit windows.
+            double windowScale = 1.0;
             if (mods.Any(m => m is ManiaModHardRock))
-            {
-                greatHitWindow /= ManiaModHardRock.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
-            }
+                windowScale = 1.0 / ManiaModHardRock.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
             else if (mods.Any(m => m is ManiaModEasy))
-            {
-                greatHitWindow /= ManiaModEasy.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
-            }
+                windowScale = 1.0 / ManiaModEasy.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
 
+            double[] hitWindowValues =
+            {
+                hitWindows.WindowFor(HitResult.Perfect) * windowScale,
+                hitWindows.WindowFor(HitResult.Great) * windowScale,
+                hitWindows.WindowFor(HitResult.Good) * windowScale,
+                hitWindows.WindowFor(HitResult.Ok) * windowScale,
+                hitWindows.WindowFor(HitResult.Meh) * windowScale,
+            };
+
+            double greatHitWindow = hitWindowValues[1];
             double odMult = hitWindowMultiplier(greatHitWindow);
 
             int totalNotes = beatmap.HitObjects.Count;
@@ -124,7 +129,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 CoordinationDifficulty = coordinationStarRating,
                 ReleaseDifficulty = releaseStarRating,
                 Variety = participationRatio(speedStarRating, technicalStarRating, jackStarRating, coordinationStarRating, releaseStarRating),
-                LnRatio = lnRatio
+                LnRatio = lnRatio,
+                GreatHitWindow = greatHitWindow,
+                HitWindows = hitWindowValues,
+                MeanManipulation = meanManipulation
             };
         }
 
@@ -150,11 +158,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return 1.0 - short_map_nerf * shortness * lnGate;
         }
 
-        /// <summary>
-        /// Nerfs "spike" maps whose star rating is carried by a small fraction of very hard content, using
-        /// the median-to-peak <paramref name="sustainRatio"/>. Evenly-sustained maps (high ratio) are
-        /// untouched; maps whose bulk is far easier than their hardest bursts (low ratio) are damped.
-        /// </summary>
         private static double spikeNerf(double sustainRatio)
         {
             double sustain = DiffUtils.Smoothstep(sustainRatio, spike_sustain_ratio_lo, spike_sustain_ratio_hi);
@@ -234,16 +237,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }
 
-            ManiaManipulationDifficultyPreprocessor.ProcessAndAssign(objects.Cast<ManiaDifficultyHitObject>().ToList());
+            ManiaManipulationDifficultyPreprocessor.ProcessAndAssign(objects.Cast<ManiaDifficultyHitObject>().ToList(), totalColumns);
 
-            /*meanManipulation = objects.Count > 0
+            meanManipulation = objects.Count > 0
                 ? objects.Cast<ManiaDifficultyHitObject>().Average(o => o.ManipulationFactor)
-                : 1.0;*/
+                : 1.0;
 
             return objects;
         }
 
-        //private double meanManipulation = 1.0;
+        private double meanManipulation = 1.0;
 
         protected override IEnumerable<DifficultyHitObject> SortObjects(IEnumerable<DifficultyHitObject> input) => input;
 

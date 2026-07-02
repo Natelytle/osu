@@ -32,6 +32,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         private const double movement_chord_lo = 0.14;
         private const double movement_chord_hi = 0.34;
 
+        private const double mash_nerf = 1.0;
+        private const double mash_speed_hi_ms = 50.0;
+        private const double mash_speed_lo_ms = 33.0;
+        private const double mash_ramp_lo = 3.0;
+        private const double mash_ramp_hi = 9.0;
+        private const int mash_run_cap = 64;
+        private const double mash_chord_lo = 0.06;
+        private const double mash_chord_hi = 0.18;
+        private const double mash_cross_lo = 0.10;
+        private const double mash_cross_hi = 0.22;
+
         private const double jumptrill_nerf = 0.88;
         private const double jumptrill_ramp = 2.5;
         private const double jumptrill_speed_hi_ms = 140.0;
@@ -78,20 +89,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// Groups objects into rows, assigning a manipulation factor to the notes in each row based on how much manipulation affects the difficulty of the note.
         /// </summary>
         /// <param name="objects">The objects to calculate the manipulation factor for.</param>
-        public static void ProcessAndAssign(IReadOnlyList<ManiaDifficultyHitObject> objects)
+        /// <param name="totalColumns">The number of columns of the beatmap, used to split rows into left/right hands.</param>
+        public static void ProcessAndAssign(IReadOnlyList<ManiaDifficultyHitObject> objects, int totalColumns)
         {
             if (objects.Count == 0)
                 return;
 
             var rows = groupIntoRows(objects);
 
+            bool[] handLocal = new bool[rows.Count];
+            for (int i = 0; i < rows.Count; i++)
+                handLocal[i] = isHandLocal(rows[i].Columns, totalColumns);
+
             for (int i = 0; i < rows.Count; i++)
             {
                 double timeSincePreviousRow = i > 0 ? rows[i].StartTime - rows[i - 1].StartTime : double.PositiveInfinity;
 
                 double manipulationFactor = Math.Min(
-                    rollAndPatternFactor(rows, i, timeSincePreviousRow),
-                    jumptrillFactor(rows, i, timeSincePreviousRow));
+                    Math.Min(
+                        rollAndPatternFactor(rows, i, timeSincePreviousRow),
+                        jumptrillFactor(rows, i, timeSincePreviousRow)),
+                    mashFactor(rows, handLocal, i, timeSincePreviousRow));
 
                 double staminaFactor = staminaFactorFor(rows, i, timeSincePreviousRow);
 
@@ -151,11 +169,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        /// <summary>
-        /// Detects "manipulation" patterns: fast rolls or jacks (rows repeating with a fixed period, or shifting
-        /// by a constant column offset), and fast lateral movement runs. Returns a multiplier &lt;= 1.0 that nerfs
-        /// difficulty for these easily-abusable patterns; 1.0 means no nerf applies.
-        /// </summary>
         private static double rollAndPatternFactor(List<Row> rows, int row, double timeSincePreviousRow)
         {
             double speedScale = DiffUtils.Smoothstep(speed_hi_ms - timeSincePreviousRow, 0.0, speed_hi_ms - speed_lo_ms);
@@ -184,10 +197,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return 1.0 - high_speed_nerf * runWeight * speedScale;
         }
 
-        /// <summary>
-        /// Longest of: a "roll" (each row shifted by a constant column offset from the previous one), or a
-        /// periodic jack/pattern repeating with period 2..<see cref="max_period"/>.
-        /// </summary>
         private static int longestRollOrPeriodicRun(List<Row> rows, int row)
         {
             // "Roll": each row shifted by the same constant column offset from the previous row (e.g. 1,2,3,4 repeating with a +1 shift).
@@ -200,7 +209,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        /// <summary>How many rows back from <paramref name="row"/> repeat with the given <paramref name="period"/>.</summary>
         private static int periodRunLength(List<Row> rows, int row, int period)
         {
             int run = 0;
@@ -214,10 +222,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        /// <summary>
-        /// Detects a "jumptrill": an alternating pattern of two different jumps (e.g. AB AB AB), as opposed to a
-        /// jump simply repeating in place. Returns a multiplier &lt;= 1.0 that nerfs difficulty.
-        /// </summary>
         private static double jumptrillFactor(List<Row> rows, int row, double timeSincePreviousRow)
         {
             if (!rows[row].IsJump)
@@ -228,8 +232,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             if (speedScale <= 0.0)
                 return 1.0;
 
-            // Count back through alternating jump pairs: row k must match row k-2 (same jump recurring)
-            // but differ from row k-1 (the in-between jump is different), i.e. a genuine A-B-A-B alternation.
             int run = 0;
 
             for (int k = row;
@@ -249,11 +251,64 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return 1.0 - jumptrill_nerf * runWeight * speedScale;
         }
 
-        /// <summary>
-        /// Extends outward from <paramref name="row"/> in both directions while consecutive rows are fast,
-        /// single-note, column-changing hits ("movement"). Also reports how consistently the movement
-        /// goes in the same direction each step (1.0 = always the same direction, i.e. a pure roll).
-        /// </summary>
+        private static double mashFactor(List<Row> rows, bool[] handLocal, int row, double timeSincePreviousRow)
+        {
+            if (!handLocal[row])
+                return 1.0;
+
+            double speedScale = DiffUtils.Smoothstep(mash_speed_hi_ms - timeSincePreviousRow, 0.0, mash_speed_hi_ms - mash_speed_lo_ms);
+
+            if (speedScale <= 0.0)
+                return 1.0;
+
+            int run = 0;
+
+            for (int k = row; run < mash_run_cap && k - 1 >= 0 && handLocal[k - 1] && rows[k].StartTime - rows[k - 1].StartTime <= mash_speed_hi_ms; k--)
+                run++;
+
+            double runWeight = DiffUtils.Smoothstep(run, mash_ramp_lo, mash_ramp_hi);
+
+            if (runWeight <= 0.0)
+                return 1.0;
+
+            double chordGate = DiffUtils.Smoothstep(localChordDensity(rows, row), mash_chord_lo, mash_chord_hi);
+            double crossGate = 1.0 - DiffUtils.Smoothstep(localCrossHandDensity(handLocal, row), mash_cross_lo, mash_cross_hi);
+
+            return 1.0 - mash_nerf * runWeight * speedScale * chordGate * crossGate;
+        }
+
+        private static bool isHandLocal(int[] columns, int totalColumns)
+        {
+            bool hasLeft = false;
+            bool hasRight = false;
+
+            foreach (int c in columns)
+            {
+                if (c < totalColumns / 2)
+                    hasLeft = true;
+                if (c >= (totalColumns + 1) / 2)
+                    hasRight = true;
+            }
+
+            return !(hasLeft && hasRight);
+        }
+
+        private static double localCrossHandDensity(bool[] handLocal, int row)
+        {
+            int lo = Math.Max(0, row - movement_chord_window);
+            int hi = Math.Min(handLocal.Length - 1, row + movement_chord_window);
+
+            int crossCount = 0;
+
+            for (int r = lo; r <= hi; r++)
+            {
+                if (!handLocal[r])
+                    crossCount++;
+            }
+
+            return (double)crossCount / (hi - lo + 1);
+        }
+
         private static int movementRun(List<Row> rows, int row, out double directionConsistency)
         {
             directionConsistency = 0.0;
@@ -293,7 +348,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return hi - lo + 1;
         }
 
-        /// <summary>True if row <paramref name="k"/> is a fast single-note hit on a different column from row k-1.</summary>
         private static bool isFastLateralMove(List<Row> rows, int k)
         {
             return k - 1 >= 0 && k < rows.Count
@@ -302,7 +356,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                               && rows[k].StartTime - rows[k - 1].StartTime < movement_fast_ms;
         }
 
-        /// <summary>Fraction of rows within a window around <paramref name="row"/> that are chords (2+ notes).</summary>
         private static double localChordDensity(List<Row> rows, int row)
         {
             int lo = Math.Max(0, row - movement_chord_window);
@@ -319,10 +372,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return (double)chordCount / (hi - lo + 1);
         }
 
-        /// <summary>
-        /// Detects sustained runs of fast jumps (not necessarily alternating - just back-to-back 2-note rows
-        /// hit quickly). Returns a multiplier &gt;= 1.0 that buffs difficulty for stamina heavy patterns.
-        /// </summary>
         private static double staminaFactorFor(List<Row> rows, int row, double timeSincePreviousRow)
         {
             if (!rows[row].IsJump)

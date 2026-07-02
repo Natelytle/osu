@@ -14,18 +14,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaPerformanceCalculator : PerformanceCalculator
     {
-        private const double release_acc_weight = 1;
-        private const double jack_ease = 3.0;
-
-        private const double acc_floor = 0.80;
-        private const double acc_exp_low_sr = 1.53;
-        private const double acc_exp_high_sr = 0.62;
-        private const double acc_sr_lo = 2.0;
-        private const double acc_sr_hi = 11.0;
-
-        private const double acc_jack_boost = 0.25;
-        private const double acc_balance_low = 0.27;
-        private const double acc_balance_high = 0.50;
+        private const double ur_sr_lo = 6.0;
+        private const double ur_sr_hi = 11.0;
+        private const double ur_shift_easy = 155.0;
+        private const double ur_shift_hard = 155.0;
+        private const double ur_exp_easy = 2.8;
+        private const double ur_exp_hard = 1.15;
+        private const double ur_acc_min = 0.55;
+        private const double ur_acc_max = 1.06;
+        private const double ur_acc_max_hard = 1.20;
+        private const double ur_ceiling_sr_lo = 10.0;
+        private const double ur_ceiling_sr_hi = 11.5;
 
         private const double variety_floor = 0.88;
         private const double variety_cap = 1.10;
@@ -98,20 +97,78 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double baseValue = 7.5 * DiffUtils.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2); // Star rating to pp curve
-            return baseValue * denseFastMultiplier(attributes) * accuracyFactor(attributes);
+            // Star rating to pp curve, plus the dense-fast bonus, forms the mechanical strain base.
+            double strainBase = 7.5 * DiffUtils.Pow(Math.Max(attributes.StarRating - 0.15, 0.05), 2.2) * denseFastMultiplier(attributes);
+
+            return strainBase * accuracyMultiplier(attributes);
         }
 
-        private double accuracyFactor(ManiaDifficultyAttributes attributes)
+        /// <summary>
+        /// Scales the strain by how accurately the map was played, driven by the estimated unstable rate.
+        /// </summary>
+        private double accuracyMultiplier(ManiaDifficultyAttributes attributes)
         {
-            double srHardness = DiffUtils.Smoothstep(attributes.StarRating, acc_sr_lo, acc_sr_hi);
-            double exponent = acc_exp_low_sr + (acc_exp_high_sr - acc_exp_low_sr) * srHardness;
+            double[] windows = attributes.HitWindows;
 
-            double balance = accDifficultyBalance(attributes);
-            double jackiness = 1.0 - DiffUtils.Smoothstep(balance, acc_balance_low, acc_balance_high);
-            exponent *= 1.0 + acc_jack_boost * jackiness;
+            if (windows == null || windows.Length < 5 || windows[4] <= 0)
+                return 1.0;
 
-            return DiffUtils.Pow(DiffUtils.ReverseLerp(calculateCustomAccuracy(), acc_floor, 1.0), exponent);
+            return accuracyScaling(estimateUnstableRate(windows), attributes.StarRating);
+        }
+
+        private static double accuracyScaling(double unstableRate, double starRating)
+        {
+            double hardness = DiffUtils.Smoothstep(starRating, ur_sr_lo, ur_sr_hi);
+            double shift = ur_shift_easy + (ur_shift_hard - ur_shift_easy) * hardness;
+            double exponent = ur_exp_easy + (ur_exp_hard - ur_exp_easy) * hardness;
+
+            double precision = DiffUtils.Pow(DiffUtils.Erf(shift / (DiffUtils.SQRT2 * Math.Max(unstableRate, 1e-6))), exponent);
+
+            double ceiling = ur_acc_max + (ur_acc_max_hard - ur_acc_max) * DiffUtils.Smoothstep(starRating, ur_ceiling_sr_lo, ur_ceiling_sr_hi);
+
+            return ur_acc_min + (ceiling - ur_acc_min) * precision;
+        }
+
+        private double estimateUnstableRate(double[] windows)
+        {
+            double targetAccuracy = calculateCustomAccuracy();
+
+            double low = 0.5, high = 400.0;
+
+            for (int i = 0; i < 80; i++)
+            {
+                double mid = 0.5 * (low + high);
+
+                if (expectedCustomAccuracy(mid, windows) > targetAccuracy)
+                    low = mid;
+                else
+                    high = mid;
+            }
+
+            return 10.0 * 0.5 * (low + high);
+        }
+
+        /// <summary>
+        /// The custom accuracy a player with the given timing deviation (ms) is expected to score, from the
+        /// probability of each judgement under a centred normal error model and the map's hit windows.
+        /// </summary>
+        private static double expectedCustomAccuracy(double deviation, double[] windows)
+        {
+            double within(double window) => DiffUtils.Erf(window / (deviation * DiffUtils.SQRT2));
+
+            double belowPerfect = within(windows[0]);
+            double belowGreat = within(windows[1]);
+            double belowGood = within(windows[2]);
+            double belowOk = within(windows[3]);
+            double belowMeh = within(windows[4]);
+
+            double pPerfect = belowPerfect;
+            double pGreat = belowGreat - belowPerfect;
+            double pGood = belowGood - belowGreat;
+            double pOk = belowOk - belowGood;
+            double pMeh = belowMeh - belowOk;
+
+            return (320 * pPerfect + 300 * pGreat + 200 * pGood + 100 * pOk + 50 * pMeh) / 320.0;
         }
 
         private static double denseFastMultiplier(ManiaDifficultyAttributes attributes)
@@ -122,14 +179,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double srTaper = 1.0 - DiffUtils.Smoothstep(attributes.StarRating, dense_sr_taper_lo, dense_sr_taper_hi);
 
             return 1.0 + dense_buff * coGate * releaseGate * srTaper;
-        }
-
-        private static double accDifficultyBalance(ManiaDifficultyAttributes attributes)
-        {
-            double skillsDifficultySum = attributes.SpeedDifficulty + attributes.TechnicalDifficulty + attributes.CoordinationDifficulty
-                                         + release_acc_weight * attributes.ReleaseDifficulty;
-            double jackDifficulty = attributes.JackDifficulty;
-            return skillsDifficultySum / (skillsDifficultySum + jack_ease * jackDifficulty + 1e-9);
         }
 
         private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;

@@ -31,6 +31,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("ln_ratio")]
         public double LnRatio { get; set; }
 
+        [JsonProperty("great_hit_window")]
+        public double GreatHitWindow { get; set; }
+
+        [JsonProperty("mean_manip")]
+        public double MeanManipulation { get; set; }
+
+        public double[] HitWindows { get; set; } = System.Array.Empty<double>();
+
         /*[JsonProperty("mean_manipulation")]
         public double MeanManipulation { get; set; } = 1.0;*/
 
