@@ -32,12 +32,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         /// SR *= (1 - full_ln_damper * lnRatio^2).
         private const double full_ln_damper = 0.06263;
 
-        /// Slack on the measured long-note contribution when self-limiting the LN damper. The tap-only
-        /// estimate is taken on the original object order, but Hold Off reorders notes (heads appended
-        /// after surviving notes) which can shift onset-based strains by a hair; this keeps the rating
-        /// above the reordered Hold Off form despite that.
-        private const double ln_added_fraction_slack = 0.001;
-
         private const double ln_hybrid_damper = 0.028;
         private const double ln_hybrid_ramp_lo = 0.15;
         private const double ln_hybrid_ramp_hi = 0.35;
@@ -55,8 +49,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private const double high_end_compression_knee = 11.5;
         private const double high_end_compression_strength = 0.5;
-        private const double high_end_coordination_gate_lo = 5.9;
-        private const double high_end_coordination_gate_hi = 6.6;
+
+        private const double high_end_coordination_gate_lo = 5.4;
+        private const double high_end_coordination_gate_hi = 8.5;
 
         private const double od_weight = 0.188;
 
@@ -75,7 +70,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new ManiaDifficultyAttributes { Mods = mods };
 
-            var totalSkill = skills.OfType<Total>().Single();
+            var totalSkill = skills.OfType<Total>().First();
+            var totalSkillNoReleases = skills.OfType<Total>().Last();
             var speedSkill = skills.OfType<Speed>().Single();
             var technicalSkill = skills.OfType<Technical>().Single();
             var jackSkill = skills.OfType<Jack>().Single();
@@ -115,6 +111,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double spikeMult = spikeNerf(totalSkill.SustainRatio());
 
             double totalDifficulty = totalSkill.DifficultyValue();
+            double totalDifficultyNoReleases = totalSkillNoReleases.DifficultyValue();
+            double lnKeyedMult = monotonicLnMultiplier(lnDamper * shortMapMult, totalDifficulty, totalDifficultyNoReleases);
 
             double speedStarRating = scaleToStarRating(speedSkill.DifficultyValue()) * odMult;
             double technicalStarRating = scaleToStarRating(technicalSkill.DifficultyValue()) * odMult;
@@ -122,7 +120,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double coordinationStarRating = scaleToStarRating(coordinationSkill.DifficultyValue()) * odMult;
             double releaseStarRating = scaleToStarRating(releaseSkill.DifficultyValue()) * odMult;
 
-            double lnKeyedMult = monotonicLnMultiplier(lnDamper * shortMapMult, totalDifficulty, totalSkill.TappingDifficultyValue());
             double starRating = computeStarRating(totalDifficulty, odMult, lnKeyedMult, spikeMult, coordinationStarRating);
 
             return new ManiaDifficultyAttributes
@@ -200,7 +197,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (fullStarRating <= 0.0)
                 return lnKeyedMultiplier;
 
-            double lnAddedFraction = Math.Max(0.0, 1.0 - scaleToStarRating(tapOnlyDifficulty) / fullStarRating - ln_added_fraction_slack);
+            double lnAddedFraction = Math.Max(0.0, 1.0 - scaleToStarRating(tapOnlyDifficulty) / fullStarRating);
             return 1.0 - Math.Min(lnKeyedNerf, lnAddedFraction);
         }
 
@@ -277,7 +274,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             return new Skill[]
             {
-                new Total(mods),
+                new Total(mods, true),
+                new Total(mods, false),
                 new Speed(mods),
                 new Technical(mods),
                 new Jack(mods),

@@ -43,13 +43,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double quad_minijack_manip_lo = 0.95;
         private const double quad_minijack_manip_hi = 0.99;
 
-        private const double quad_minijack_run_ms = 110.0;
+        private const double quad_minijack_run_rel = 1.5;
         private const int quad_minijack_run_cap = 32;
         private const double quad_minijack_run_start = 3.0;
         private const double quad_minijack_run_end = 4.0;
-
-        private const double quad_minijack_vfast_hi_ms = 74.0;
-        private const double quad_minijack_vfast_lo_ms = 66.0;
 
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
@@ -145,6 +142,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double speedGate = DiffUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
             double manipGate = DiffUtils.ReverseLerp(current.ManipulationFactor, quad_minijack_manip_lo, quad_minijack_manip_hi);
 
+            double runWindow = quad_minijack_run_rel * columnDelta;
+
             int runLength = 1;
             ManiaDifficultyHitObject note = current;
 
@@ -152,7 +151,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             {
                 var prevInColumn = current.PrevInColumn(back);
 
-                if (prevInColumn == null || note.StartTime - prevInColumn.StartTime > quad_minijack_run_ms)
+                if (prevInColumn == null || note.StartTime - prevInColumn.StartTime > runWindow)
                     break;
 
                 runLength++;
@@ -165,7 +164,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             {
                 var nextInColumn = current.NextInColumn(forward);
 
-                if (nextInColumn == null || nextInColumn.StartTime - note.StartTime > quad_minijack_run_ms)
+                if (nextInColumn == null || nextInColumn.StartTime - note.StartTime > runWindow)
                     break;
 
                 runLength++;
@@ -173,10 +172,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             double runGate = 1.0 - DiffUtils.Smoothstep(runLength, quad_minijack_run_start, quad_minijack_run_end);
-
-            double vFastGate = DiffUtils.Smoothstep(columnDelta, quad_minijack_vfast_lo_ms, quad_minijack_vfast_hi_ms);
-
-            double fullRowBonus = 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * vFastGate;
+            double fullRowBonus = 1.0 + quad_minijack_buff * speedGate * manipGate * runGate;
 
             return fullRowBonus;
         }

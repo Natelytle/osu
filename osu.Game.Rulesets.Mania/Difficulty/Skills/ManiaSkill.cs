@@ -28,18 +28,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double ProcessInternal(DifficultyHitObject current)
         {
-            const double max_long_note_weight_duration_ms = 1000.0;
-            const double long_note_weight_per_200_ms = 0.6;
-
-            totalNoteWeight++;
             BaseNoteCount++;
-
-            // Add additional weight for hold notes, depending on their length.
-            if (current.BaseObject is HoldNote holdNote)
-            {
-                double duration = Math.Min(holdNote.EndTime - holdNote.StartTime, max_long_note_weight_duration_ms);
-                totalNoteWeight += long_note_weight_per_200_ms * duration / 200.0;
-            }
+            totalNoteWeight += GetNoteWeight(current);
 
             double difficulty = DifficultyAt(current);
 
@@ -47,6 +37,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 sortedDifficulties.Add(difficulty);
 
             return difficulty;
+        }
+
+        protected virtual double GetNoteWeight(DifficultyHitObject current)
+        {
+            const double max_long_note_weight_duration_ms = 1000.0;
+            const double long_note_weight_per_200_ms = 0.6;
+
+            double noteWeight = 1;
+
+            // Add additional weight for hold notes, depending on their length.
+            if (current.BaseObject is HoldNote holdNote)
+            {
+                double duration = Math.Min(holdNote.EndTime - holdNote.StartTime, max_long_note_weight_duration_ms);
+                noteWeight += long_note_weight_per_200_ms * duration / 200.0;
+            }
+
+            return noteWeight;
         }
 
         protected abstract double DifficultyAt(DifficultyHitObject current);
@@ -73,14 +80,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         public override double DifficultyValue()
         {
-            sortedDifficulties.Sort();
-            return AggregateDifficulty(sortedDifficulties, totalNoteWeight);
-        }
-
-        protected static double AggregateDifficulty(List<double> sortedDifficulties, double noteWeight)
-        {
             if (sortedDifficulties.Count == 0)
                 return 0.0;
+
+            sortedDifficulties.Sort();
 
             const int power_mean_exponent = 5;
 
@@ -106,7 +109,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             const double note_count_offset = 34.64147;
             const double final_scaling = 0.90741;
 
-            return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
+            return rawDifficulty * (totalNoteWeight / (totalNoteWeight + note_count_offset)) * final_scaling;
         }
 
         /// <summary>
