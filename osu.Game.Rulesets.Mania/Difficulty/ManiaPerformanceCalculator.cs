@@ -18,13 +18,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double ur_sr_hi = 11.0;
         private const double ur_shift_easy = 155.0;
         private const double ur_shift_hard = 155.0;
-        private const double ur_exp_easy = 2.8;
+        private const double ur_exp_easy = 3.4;
         private const double ur_exp_hard = 1.15;
         private const double ur_acc_min = 0.55;
-        private const double ur_acc_max = 1.06;
+        private const double ur_acc_max = 1.13;
         private const double ur_acc_max_hard = 1.20;
         private const double ur_ceiling_sr_lo = 10.0;
         private const double ur_ceiling_sr_hi = 11.5;
+
+        private const double low_acc_fade_lo = 0.80;
+        private const double low_acc_fade_hi = 0.90;
 
         private const double variety_floor = 0.88;
         private const double variety_cap = 1.10;
@@ -113,7 +116,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (windows == null || windows.Length < 5 || windows[4] <= 0)
                 return 1.0;
 
-            return accuracyScaling(estimateUnstableRate(windows), attributes.StarRating);
+            double lowAccFade = DiffUtils.Smoothstep(calculateCustomAccuracy(), low_acc_fade_lo, low_acc_fade_hi);
+
+            return lowAccFade * accuracyScaling(estimateUnstableRate(windows), attributes.StarRating);
         }
 
         private static double accuracyScaling(double unstableRate, double starRating)

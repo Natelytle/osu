@@ -32,6 +32,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         /// SR *= (1 - full_ln_damper * lnRatio^2).
         private const double full_ln_damper = 0.06263;
 
+        /// Slack on the measured long-note contribution when self-limiting the LN damper. The tap-only
+        /// estimate is taken on the original object order, but Hold Off reorders notes (heads appended
+        /// after surviving notes) which can shift onset-based strains by a hair; this keeps the rating
+        /// above the reordered Hold Off form despite that.
+        private const double ln_added_fraction_slack = 0.001;
+
         private const double ln_hybrid_damper = 0.028;
         private const double ln_hybrid_ramp_lo = 0.15;
         private const double ln_hybrid_ramp_hi = 0.35;
@@ -116,7 +122,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double coordinationStarRating = scaleToStarRating(coordinationSkill.DifficultyValue()) * odMult;
             double releaseStarRating = scaleToStarRating(releaseSkill.DifficultyValue()) * odMult;
 
-            double starRating = computeStarRating(totalDifficulty, odMult, lnDamper, shortMapMult * spikeMult, coordinationStarRating);
+            double lnKeyedMult = monotonicLnMultiplier(lnDamper * shortMapMult, totalDifficulty, totalSkill.TappingDifficultyValue());
+            double starRating = computeStarRating(totalDifficulty, odMult, lnKeyedMult, spikeMult, coordinationStarRating);
 
             return new ManiaDifficultyAttributes
             {
@@ -179,6 +186,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             }
 
             return starRating;
+        }
+
+        private static double monotonicLnMultiplier(double lnKeyedMultiplier, double totalDifficulty, double tapOnlyDifficulty)
+        {
+            double lnKeyedNerf = 1.0 - lnKeyedMultiplier;
+
+            if (lnKeyedNerf <= 0.0)
+                return lnKeyedMultiplier;
+
+            double fullStarRating = scaleToStarRating(totalDifficulty);
+
+            if (fullStarRating <= 0.0)
+                return lnKeyedMultiplier;
+
+            double lnAddedFraction = Math.Max(0.0, 1.0 - scaleToStarRating(tapOnlyDifficulty) / fullStarRating - ln_added_fraction_slack);
+            return 1.0 - Math.Min(lnKeyedNerf, lnAddedFraction);
         }
 
         private static double scaleToStarRating(double aggregatedDifficulty)

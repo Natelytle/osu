@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Processing;
@@ -15,6 +16,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private readonly ReleaseProcessor releaseProcessor;
         private readonly SpeedProcessor speedProcessor;
         private readonly TechnicalProcessor technicalProcessor;
+
+        private readonly List<double> tappingDifficulties = new List<double>();
 
         public Total(Mod[] mods)
             : base(mods)
@@ -34,7 +37,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double jackDifficulty = jackProcessor.ProcessStrainFor(current);
             double technicalDifficulty = technicalProcessor.ProcessStrainFor(current);
 
+            double tapOnly = combinedDifficulty(coordinationDifficulty, 0.0, speedDifficulty, jackDifficulty, technicalDifficulty);
+            if (tapOnly > 0)
+                tappingDifficulties.Add(tapOnly);
+
             return combinedDifficulty(coordinationDifficulty, releaseDifficulty, speedDifficulty, jackDifficulty, technicalDifficulty);
+        }
+
+        public double TappingDifficultyValue()
+        {
+            tappingDifficulties.Sort();
+            return AggregateDifficulty(tappingDifficulties, BaseNoteCount);
         }
 
         private double combinedDifficulty(double coordinationDifficulty, double releaseDifficulty, double speedDifficulty, double jackDifficulty, double technicalDifficulty)

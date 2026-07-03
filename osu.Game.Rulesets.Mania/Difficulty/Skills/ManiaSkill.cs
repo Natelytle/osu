@@ -18,6 +18,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private readonly List<double> sortedDifficulties;
 
+        protected int BaseNoteCount { get; private set; }
+
         protected ManiaSkill(Mod[] mods)
             : base(mods)
         {
@@ -30,6 +32,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             const double long_note_weight_per_200_ms = 0.6;
 
             totalNoteWeight++;
+            BaseNoteCount++;
 
             // Add additional weight for hold notes, depending on their length.
             if (current.BaseObject is HoldNote holdNote)
@@ -71,7 +74,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         public override double DifficultyValue()
         {
             sortedDifficulties.Sort();
+            return AggregateDifficulty(sortedDifficulties, totalNoteWeight);
+        }
 
+        protected static double AggregateDifficulty(List<double> sortedDifficulties, double noteWeight)
+        {
             if (sortedDifficulties.Count == 0)
                 return 0.0;
 
@@ -99,7 +106,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             const double note_count_offset = 34.64147;
             const double final_scaling = 0.90741;
 
-            return rawDifficulty * (totalNoteWeight / (totalNoteWeight + note_count_offset)) * final_scaling;
+            return rawDifficulty * (noteWeight / (noteWeight + note_count_offset)) * final_scaling;
         }
 
         /// <summary>
@@ -107,7 +114,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         /// </summary>
         /// <param name="sortedValues">Array of difficulty values, sorted ascending.</param>
         /// <param name="percentiles">Array of percentile positions (0.0 to 1.0).</param>
-        private double calculatePercentileMean(List<double> sortedValues, double[] percentiles)
+        private static double calculatePercentileMean(List<double> sortedValues, double[] percentiles)
         {
             int maxIndex = sortedValues.Count - 1;
             double sum = 0.0;
@@ -121,7 +128,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             return sum / percentiles.Length;
         }
 
-        private double calculatePowerMean(List<double> values, int exponent)
+        private static double calculatePowerMean(List<double> values, int exponent)
         {
             double sum = values.Sum(value => DiffUtils.Pow(value, exponent));
             return DiffUtils.Pow(sum / values.Count, 1.0 / exponent);
