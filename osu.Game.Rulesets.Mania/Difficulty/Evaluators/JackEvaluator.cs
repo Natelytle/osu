@@ -48,6 +48,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double quad_minijack_run_start = 3.0;
         private const double quad_minijack_run_end = 4.0;
 
+        private const double quad_minijack_recur_window_rel = 4.0;
+        private const double quad_minijack_recur_lo = 1.0;
+        private const double quad_minijack_recur_hi = 2.0;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
             var previous = (ManiaDifficultyHitObject?)current.Previous();
@@ -172,9 +176,29 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             double runGate = 1.0 - DiffUtils.Smoothstep(runLength, quad_minijack_run_start, quad_minijack_run_end);
-            double fullRowBonus = 1.0 + quad_minijack_buff * speedGate * manipGate * runGate;
+            double recurGate = calculateFullChordRecurGate(current, fullChord, columnDelta);
+            double fullRowBonus = 1.0 + quad_minijack_buff * speedGate * manipGate * runGate * recurGate;
 
             return fullRowBonus;
+        }
+
+        private static double calculateFullChordRecurGate(ManiaDifficultyHitObject current, int fullChord, double columnDelta)
+        {
+            double window = quad_minijack_recur_window_rel * columnDelta;
+            int fullChords = 0;
+
+            for (int i = 0; i < quad_minijack_run_cap; i++)
+            {
+                var p = (ManiaDifficultyHitObject?)current.Previous(i);
+
+                if (p == null || current.StartTime - p.StartTime > window)
+                    break;
+
+                if (ChordUtils.DepthInChord(p) == 1 && ChordUtils.Size(p) >= fullChord)
+                    fullChords++;
+            }
+
+            return 1.0 - DiffUtils.Smoothstep(fullChords, quad_minijack_recur_lo, quad_minijack_recur_hi);
         }
     }
 }

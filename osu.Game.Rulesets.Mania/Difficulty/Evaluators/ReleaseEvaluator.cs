@@ -47,9 +47,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double calculateLongHoldBonus(double duration, double longNoteGate)
         {
             double holdLengthFactor = long_hold_buff * DiffUtils.Smoothstep(duration, long_hold_gate_lo_ms, long_hold_gate_hi_ms) * (duration / 1000.0);
-
             double longHoldBonus = (long_note_base_load + long_note_duration_load * (duration / 1000.0) + holdLengthFactor) * longNoteGate;
-
             return longHoldBonus;
         }
 
