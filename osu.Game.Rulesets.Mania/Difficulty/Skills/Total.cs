@@ -51,7 +51,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             const int combine_lambda = 2;
             const double speed_weight = 1.02237;
             const double jack_weight = 1.42793;
-            const double coordination_weight = 2.49980;
+            const double coordination_weight = 3.30000;
             const double technical_weight = 2.49916;
             const double release_weight = 2.83449;
 

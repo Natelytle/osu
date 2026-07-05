@@ -37,10 +37,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("mean_manip")]
         public double MeanManipulation { get; set; }
 
-        public double[] HitWindows { get; set; } = System.Array.Empty<double>();
+        [JsonProperty("note_count")]
+        public int NoteCount { get; set; }
 
-        /*[JsonProperty("mean_manipulation")]
-        public double MeanManipulation { get; set; } = 1.0;*/
+        [JsonProperty("hold_note_count")]
+        public int HoldNoteCount { get; set; }
+
+        [JsonProperty("overall_difficulty")]
+        public double OverallDifficulty { get; set; }
 
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {

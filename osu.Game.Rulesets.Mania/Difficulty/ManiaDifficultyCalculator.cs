@@ -88,16 +88,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             else if (mods.Any(m => m is ManiaModEasy))
                 windowScale = 1.0 / ManiaModEasy.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
 
-            double[] hitWindowValues =
-            {
-                hitWindows.WindowFor(HitResult.Perfect) * windowScale,
-                hitWindows.WindowFor(HitResult.Great) * windowScale,
-                hitWindows.WindowFor(HitResult.Good) * windowScale,
-                hitWindows.WindowFor(HitResult.Ok) * windowScale,
-                hitWindows.WindowFor(HitResult.Meh) * windowScale,
-            };
-
-            double greatHitWindow = hitWindowValues[1];
+            // OD only feeds the star rating (via odMult). Accuracy/UR scaling in the performance
+            // calculator uses a fixed reference OD, so we no longer expose per-map hit windows.
+            double greatHitWindow = hitWindows.WindowFor(HitResult.Great) * windowScale;
             double odMult = hitWindowMultiplier(greatHitWindow);
 
             int totalNotes = beatmap.HitObjects.Count;
@@ -135,8 +128,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 Variety = participationRatio(speedStarRating, technicalStarRating, jackStarRating, coordinationStarRating, releaseStarRating),
                 LnRatio = lnRatio,
                 GreatHitWindow = greatHitWindow,
-                HitWindows = hitWindowValues,
-                MeanManipulation = meanManipulation
+                MeanManipulation = meanManipulation,
+                NoteCount = totalNotes,
+                HoldNoteCount = holdNotes,
+                OverallDifficulty = beatmap.Difficulty.OverallDifficulty
             };
         }
 
