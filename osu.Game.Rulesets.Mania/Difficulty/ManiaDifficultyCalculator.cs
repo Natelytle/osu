@@ -133,10 +133,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 CoordinationDifficulty = coordinationStarRating,
                 ReleaseDifficulty = releaseStarRating,
                 Variety = participationRatio(speedStarRating, technicalStarRating, jackStarRating, coordinationStarRating, releaseStarRating),
-                LnRatio = lnRatio,
-                GreatHitWindow = greatHitWindow,
-                HitWindows = hitWindowValues,
-                MeanManipulation = meanManipulation
+                OverallDifficulty = beatmap.Difficulty.OverallDifficulty,
+                MeanManipulation = meanManipulation,
+                NoteCount = totalNotes,
+                HoldNoteCount = holdNotes
             };
         }
 

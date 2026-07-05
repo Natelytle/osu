@@ -28,16 +28,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("variety")]
         public double Variety { get; set; }
 
-        [JsonProperty("ln_ratio")]
-        public double LnRatio { get; set; }
-
-        [JsonProperty("great_hit_window")]
-        public double GreatHitWindow { get; set; }
+        [JsonProperty("overall_difficulty")]
+        public double OverallDifficulty { get; set; }
 
         [JsonProperty("mean_manip")]
         public double MeanManipulation { get; set; }
 
-        public double[] HitWindows { get; set; } = System.Array.Empty<double>();
+        [JsonProperty("note_count")]
+        public int NoteCount { get; set; }
+
+        [JsonProperty("hold_note_count")]
+        public int HoldNoteCount { get; set; }
 
         /*[JsonProperty("mean_manipulation")]
         public double MeanManipulation { get; set; } = 1.0;*/
