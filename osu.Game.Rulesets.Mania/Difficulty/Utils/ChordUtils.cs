@@ -2,8 +2,9 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
@@ -26,38 +27,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         private const double chord_speed_threshold_ms = 140.625;
 
         /// <summary>
-        /// The total number of notes in the chord <paramref name="current"/> belongs to. Independent of
-        /// which note of the chord is queried: it anchors on the chord's last note then counts the group.
-        /// </summary>
-        public static int Size(DifficultyHitObject current)
-        {
-            DifficultyHitObject last = current;
-
-            while (last.Next() is { } next && isSameChord(last, next))
-                last = next;
-
-            return DepthInChord(last);
-        }
-
-        /// <summary>
         /// How many notes of the chord have been reached at <paramref name="current"/> inclusive, i.e.
         /// <paramref name="current"/>'s 1-based position within its chord. Strain accumulates per note, so
         /// each chord note is scaled by how far into the chord it sits rather than by the full chord size.
         /// </summary>
-        public static int DepthInChord(DifficultyHitObject current)
-        {
-            int depth = 1;
+        public static int DepthInChord(ManiaDifficultyHitObject current) => current.Index - current.Row.Objects[0].Index + 1;
 
-            while (current.Previous(depth - 1) is { } previous && isSameChord(current, previous))
-                depth++;
-
-            return depth;
-        }
-
-        private static bool isSameChord(DifficultyHitObject anchor, DifficultyHitObject other)
-            => Math.Abs(other.StartTime - anchor.StartTime) <= CHORD_TOLERANCE_MS;
-
-        public static double FullChordDampen(DifficultyHitObject current, int totalColumns, double columnDelta)
+        public static double FullChordDampen(ManiaDifficultyHitObject current, int totalColumns, double columnDelta)
         {
             double speedScale = DiffUtils.ReverseLerp(columnDelta, 0.0, chord_speed_threshold_ms);
             double ceiling = full_chord_nerf * speedScale;
@@ -67,11 +43,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
             double ramp = Math.Max(1.0, full_chord_run_ramp);
             int cap = (int)Math.Ceiling(ramp) + 1;
-            double t = DiffUtils.ReverseLerp(chordRunAtLeast(current, totalColumns, cap) - 1, 0.0, ramp);
+            double t = DiffUtils.ReverseLerp(chordRunLengthOfAtLeastSize(totalColumns, current, cap) - 1, 0.0, ramp);
             return 1.0 - ceiling * t;
         }
 
-        public static double NearFullChordDampen(DifficultyHitObject current, int totalColumns, double columnDelta)
+        public static double NearFullChordDampen(ManiaDifficultyHitObject current, int totalColumns, double columnDelta)
         {
             if (totalColumns < 2)
                 return 1.0;
@@ -84,41 +60,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
             double ramp = Math.Max(1.0, near_full_chord_run_ramp);
             int cap = (int)Math.Ceiling(ramp) + 1;
-            double t = DiffUtils.ReverseLerp(chordRunAtLeast(current, totalColumns - 1, cap) - 1, 0.0, ramp);
+            double t = DiffUtils.ReverseLerp(chordRunLengthOfAtLeastSize(totalColumns - 1, current, cap) - 1, 0.0, ramp);
             return 1.0 - ceiling * t;
         }
 
-        private static int chordRunAtLeast(DifficultyHitObject current, int minSize, int cap)
+        private static int chordRunLengthOfAtLeastSize(int minSize, ManiaDifficultyHitObject current, int cap)
         {
-            DifficultyHitObject groupStart = findGroupStart(current, out _);
+            ManiaRow? currentRow = current.Row.Previous();
 
             int run = 1;
 
-            while (run < cap && groupStart.Previous(0) is { } previousGroupLast)
+            while (currentRow?.Size >= minSize && run < cap)
             {
-                groupStart = findGroupStart(previousGroupLast, out int size);
-
-                if (size < minSize)
-                    break;
-
+                currentRow = currentRow.Previous();
                 run++;
             }
 
             return run;
-        }
-
-        private static DifficultyHitObject findGroupStart(DifficultyHitObject last, out int size)
-        {
-            DifficultyHitObject start = last;
-            size = 1;
-
-            for (int i = 0; last.Previous(i) is { } previous && isSameChord(last, previous); i++)
-            {
-                start = previous;
-                size++;
-            }
-
-            return start;
         }
     }
 }

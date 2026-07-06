@@ -9,17 +9,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Release : ManiaSkill
     {
-        private readonly ReleaseProcessor releaseProcessor;
+        private readonly IDifficultyProcessor releaseProcessor;
 
-        public Release(Mod[] mods)
+        public Release(Mod[] mods, IDifficultyProcessor releaseProcessor)
             : base(mods)
         {
-            releaseProcessor = new ReleaseProcessor();
+            this.releaseProcessor = releaseProcessor;
         }
 
         protected override double DifficultyAt(DifficultyHitObject current)
         {
-            return releaseProcessor.ProcessStrainFor(current);
+            releaseProcessor.ProcessStrainFor(current);
+
+            return releaseProcessor.CurrentStrain;
         }
     }
 }

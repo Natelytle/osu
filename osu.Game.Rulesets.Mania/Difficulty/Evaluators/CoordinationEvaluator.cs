@@ -27,9 +27,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double coordinationDifficulty = calculateBoundaryPressure(current);
 
             double columnDelta = current.ColumnDelta;
-            int chordSize = ChordUtils.DepthInChord(current);
+            int depthInChord = ChordUtils.DepthInChord(current);
 
-            coordinationDifficulty += calculateChordDifficulty(current, chordSize, columnDelta);
+            coordinationDifficulty += calculateChordDifficulty(current, depthInChord, columnDelta);
             coordinationDifficulty += calculateHoldDifficulty(current);
 
             coordinationDifficulty *= current.ManipulationFactor * current.StaminaFactor;
@@ -83,17 +83,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return intensity * coefficient * (otherActive ? 1.0 : (1.0 - coefficient));
         }
 
-        private static double calculateChordDifficulty(ManiaDifficultyHitObject current, int chordSize, double columnDelta)
+        private static double calculateChordDifficulty(ManiaDifficultyHitObject current, int depthInChord, double columnDelta)
         {
-            bool isChordjack = chordSize >= 2 && columnDelta <= JackEvaluator.JACK_WINDOW_MS;
+            bool isChordjack = depthInChord >= 2 && columnDelta <= JackEvaluator.JACK_WINDOW_MS;
             double chordSpeedFactor = !double.IsPositiveInfinity(columnDelta)
                 ? Math.Clamp(chord_speed_threshold_ms / columnDelta, 0.1, 2.0)
                 : 1.0;
 
             // A chordjack repeats a chord on columns it just used (e.g. 4-2-2-4), already paid for by Jack,
             // so the dampening here only targets degenerate sustained full/near-full chord spam.
-            double chordLoad = chordSize >= 2
-                ? chord_load_per_extra_column * (chordSize - 1) * ChordUtils.FullChordDampen(current, current.PreviousHitObjects.Length, columnDelta)
+            double chordLoad = depthInChord >= 2
+                ? chord_load_per_extra_column * (depthInChord - 1) * ChordUtils.FullChordDampen(current, current.PreviousHitObjects.Length, columnDelta)
                   * ChordUtils.NearFullChordDampen(current, current.PreviousHitObjects.Length, columnDelta)
                   * (isChordjack ? chordjack_nerf : 1.0) * chordSpeedFactor
                 : 0.0;

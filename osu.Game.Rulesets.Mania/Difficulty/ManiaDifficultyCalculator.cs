@@ -12,8 +12,8 @@ using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Processing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
-using osu.Game.Rulesets.Mania.MathUtils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Scoring;
@@ -232,12 +232,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, Mod[] mods)
         {
-            var sortedObjects = beatmap.HitObjects.ToArray();
+            var sortedObjects = beatmap.HitObjects.ToList();
             int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
 
             double clockRate = ModUtils.CalculateRateWithMods(mods);
 
-            LegacySortHelper<HitObject>.Sort(sortedObjects, Comparer<HitObject>.Create((a, b) => (int)Math.Round(a.StartTime) - (int)Math.Round(b.StartTime)));
+            sortedObjects.Sort(Comparer<HitObject>.Create((a, b) => (int)Math.Round(a.StartTime) - (int)Math.Round(b.StartTime)));
 
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>(beatmap.HitObjects.Count);
             List<DifficultyHitObject>[] perColumnObjects = new List<DifficultyHitObject>[totalColumns];
@@ -245,14 +245,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             for (int column = 0; column < totalColumns; column++)
                 perColumnObjects[column] = new List<DifficultyHitObject>();
 
-            for (int i = 1; i < sortedObjects.Length; i++)
+            for (int i = 1; i < sortedObjects.Count; i++)
             {
                 var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count);
                 objects.Add(currentObject);
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }
 
-            ManiaManipulationDifficultyPreprocessor.ProcessAndAssign(objects.Cast<ManiaDifficultyHitObject>().ToList(), totalColumns);
+            ManiaMapData mapData = new ManiaMapData(objects.Cast<ManiaDifficultyHitObject>().ToList());
+            ManiaManipulationDifficultyPreprocessor.ProcessAndAssign(mapData, totalColumns);
 
             meanManipulation = objects.Count > 0
                 ? objects.Cast<ManiaDifficultyHitObject>().Average(o => o.ManipulationFactor)
@@ -267,15 +268,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods)
         {
+            SpeedProcessor speedProcessor = new SpeedProcessor();
+            TechnicalProcessor technicalProcessor = new TechnicalProcessor();
+            JackProcessor jackProcessor = new JackProcessor();
+            CoordinationProcessor coordinationProcessor = new CoordinationProcessor();
+            ReleaseProcessor releaseProcessor = new ReleaseProcessor();
+
             return new Skill[]
             {
-                new Total(mods, true),
-                new Total(mods, false),
-                new Speed(mods),
-                new Technical(mods),
-                new Jack(mods),
-                new Coordination(mods),
-                new Release(mods)
+                new Speed(mods, speedProcessor),
+                new Technical(mods, technicalProcessor),
+                new Jack(mods, jackProcessor),
+                new Coordination(mods, coordinationProcessor),
+                new Release(mods, releaseProcessor),
+                new Total(mods, true, coordinationProcessor, jackProcessor, releaseProcessor, speedProcessor, technicalProcessor),
+                new Total(mods, false, coordinationProcessor, jackProcessor, releaseProcessor, speedProcessor, technicalProcessor),
             };
         }
 

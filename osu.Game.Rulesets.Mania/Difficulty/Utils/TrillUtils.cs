@@ -17,7 +17,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// </summary>
         public static bool IsTrillStep(ManiaDifficultyHitObject hitObject)
         {
-            if (hitObject.Previous(0) is not ManiaDifficultyHitObject previous ||
+            if (hitObject.Previous() is not ManiaDifficultyHitObject previous ||
                 hitObject.Previous(1) is not ManiaDifficultyHitObject previous2)
                 return false;
 
@@ -27,23 +27,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// <summary>
         /// A multiplier that nerfs sustained trill runs, ramping down the longer the trill continues.
         /// </summary>
-        public static double TrillFactor(ManiaDifficultyHitObject hitObject)
+        public static double TrillFactor(ManiaDifficultyHitObject current)
         {
-            if (!IsTrillStep(hitObject))
+            if (!IsTrillStep(current))
                 return 1.0;
 
             double ramp = Math.Max(1.0, trill_run_ramp);
             int cap = (int)Math.Ceiling(ramp) + 1;
             int run = 1;
-            var current = hitObject;
+            var trillStep = current;
 
             while (run < cap)
             {
-                if (current.Previous(0) is not ManiaDifficultyHitObject previousNote || !IsTrillStep(previousNote))
+                if (trillStep.Previous() is not ManiaDifficultyHitObject previousNote || !IsTrillStep(previousNote))
                     break;
 
                 run++;
-                current = previousNote;
+                trillStep = previousNote;
             }
 
             double t = DiffUtils.ReverseLerp(run - 1, 0.0, ramp);

@@ -3,9 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Mania.Difficulty.Utils;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
@@ -59,43 +58,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         private const int stamina_run_cap = 256;
 
         /// <summary>
-        /// A "row" is a set of hit objects whose start times fall within chord tolerance of each other -
-        /// i.e. notes that are effectively hit at the same time.
-        /// </summary>
-        private readonly struct Row
-        {
-            /// <summary>Sorted column indices of every note in this row.</summary>
-            public readonly int[] Columns;
-
-            public readonly double StartTime;
-
-            public readonly List<ManiaDifficultyHitObject> ChordMembers;
-
-            public Row(int[] columns, double startTime, List<ManiaDifficultyHitObject> chordMembers)
-            {
-                Columns = columns;
-                StartTime = startTime;
-                ChordMembers = chordMembers;
-            }
-
-            public bool IsChord => Columns.Length > 1;
-
-            public bool IsSingleNote => Columns.Length == 1;
-
-            public bool IsJump => Columns.Length == 2;
-        }
-
-        /// <summary>
         /// Groups objects into rows, assigning a manipulation factor to the notes in each row based on how much manipulation affects the difficulty of the note.
         /// </summary>
-        /// <param name="objects">The objects to calculate the manipulation factor for.</param>
+        /// <param name="mapData">The structured data of the map used to calculate manipulation attributes for the notes.</param>
         /// <param name="totalColumns">The number of columns of the beatmap, used to split rows into left/right hands.</param>
-        public static void ProcessAndAssign(IReadOnlyList<ManiaDifficultyHitObject> objects, int totalColumns)
+        public static void ProcessAndAssign(ManiaMapData mapData, int totalColumns)
         {
-            if (objects.Count == 0)
+            if (mapData.Rows.Count == 0)
                 return;
 
-            var rows = groupIntoRows(objects);
+            var rows = mapData.Rows;
 
             bool[] handLocal = new bool[rows.Count];
             for (int i = 0; i < rows.Count; i++)
@@ -113,7 +85,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
                 double staminaFactor = staminaFactorFor(rows, i, timeSincePreviousRow);
 
-                foreach (var member in rows[i].ChordMembers)
+                foreach (var member in rows[i].Objects)
                 {
                     if (manipulationFactor < 1.0)
                         member.ManipulationFactor = manipulationFactor;
@@ -122,33 +94,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                         member.StaminaFactor = staminaFactor;
                 }
             }
-        }
-
-        /// <summary>
-        /// Groups consecutive hit objects that start within chord tolerance of each other into <see cref="Row"/>s.
-        /// </summary>
-        private static List<Row> groupIntoRows(IReadOnlyList<ManiaDifficultyHitObject> objects)
-        {
-            var rows = new List<Row>();
-
-            int i = 0;
-
-            while (i < objects.Count)
-            {
-                double rowStart = objects[i].StartTime;
-                var members = new List<ManiaDifficultyHitObject>();
-
-                while (i < objects.Count && Math.Abs(objects[i].StartTime - rowStart) <= ChordUtils.CHORD_TOLERANCE_MS)
-                {
-                    members.Add(objects[i]);
-                    i++;
-                }
-
-                int[] columns = members.Select(m => m.Column).OrderBy(c => c).ToArray();
-                rows.Add(new Row(columns, rowStart, members));
-            }
-
-            return rows;
         }
 
         /// <summary>
@@ -169,7 +114,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        private static double rollAndPatternFactor(List<Row> rows, int row, double timeSincePreviousRow)
+        private static double rollAndPatternFactor(IReadOnlyList<ManiaRow> rows, int row, double timeSincePreviousRow)
         {
             double speedScale = DiffUtils.Smoothstep(speed_hi_ms - timeSincePreviousRow, 0.0, speed_hi_ms - speed_lo_ms);
 
@@ -197,7 +142,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return 1.0 - high_speed_nerf * runWeight * speedScale;
         }
 
-        private static int longestRollOrPeriodicRun(List<Row> rows, int row)
+        private static int longestRollOrPeriodicRun(IReadOnlyList<ManiaRow> rows, int row)
         {
             // "Roll": each row shifted by the same constant column offset from the previous row (e.g. 1,2,3,4 repeating with a +1 shift).
             int run = countRunBackward(row, run_cap, earlier => columnShift(rows[earlier].Columns, rows[earlier + 1].Columns) != 0);
@@ -209,7 +154,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        private static int periodRunLength(List<Row> rows, int row, int period)
+        private static int periodRunLength(IReadOnlyList<ManiaRow> rows, int row, int period)
         {
             int run = 0;
 
@@ -222,7 +167,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return run;
         }
 
-        private static double jumptrillFactor(List<Row> rows, int row, double timeSincePreviousRow)
+        private static double jumptrillFactor(IReadOnlyList<ManiaRow> rows, int row, double timeSincePreviousRow)
         {
             if (!rows[row].IsJump)
                 return 1.0;
@@ -251,7 +196,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return 1.0 - jumptrill_nerf * runWeight * speedScale;
         }
 
-        private static double mashFactor(List<Row> rows, bool[] handLocal, int row, double timeSincePreviousRow)
+        private static double mashFactor(IReadOnlyList<ManiaRow> rows, bool[] handLocal, int row, double timeSincePreviousRow)
         {
             if (!handLocal[row])
                 return 1.0;
@@ -309,26 +254,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return (double)crossCount / (hi - lo + 1);
         }
 
-        private static int movementRun(List<Row> rows, int row, out double directionConsistency)
+        private static int movementRun(IReadOnlyList<ManiaRow> rows, int row, out double directionConsistency)
         {
             directionConsistency = 0.0;
 
             if (!rows[row].IsSingleNote)
                 return 0;
 
-            int lo = row;
-            while (row - lo < movement_cap && isFastLateralMove(rows, lo))
-                lo--;
+            int runStart = row;
+            while (row - runStart < movement_cap && isFastLateralMove(rows, runStart))
+                runStart--;
 
-            int hi = row;
-            while (hi - row < movement_cap && isFastLateralMove(rows, hi + 1))
-                hi++;
+            int runEnd = row;
+            while (runEnd - row < movement_cap && isFastLateralMove(rows, runEnd + 1))
+                runEnd++;
 
             int dirPairs = 0;
             int sameDirCount = 0;
             int previousDirection = 0;
 
-            for (int k = lo + 1; k <= hi; k++)
+            for (int k = runStart + 1; k <= runEnd; k++)
             {
                 int direction = Math.Sign(rows[k].Columns[0] - rows[k - 1].Columns[0]);
 
@@ -345,10 +290,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             if (dirPairs > 0)
                 directionConsistency = (double)sameDirCount / dirPairs;
 
-            return hi - lo + 1;
+            return runEnd - runStart + 1;
         }
 
-        private static bool isFastLateralMove(List<Row> rows, int k)
+        private static bool isFastLateralMove(IReadOnlyList<ManiaRow> rows, int k)
         {
             return k - 1 >= 0 && k < rows.Count
                               && rows[k].IsSingleNote && rows[k - 1].IsSingleNote
@@ -356,7 +301,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                               && rows[k].StartTime - rows[k - 1].StartTime < movement_fast_ms;
         }
 
-        private static double localChordDensity(List<Row> rows, int row)
+        private static double localChordDensity(IReadOnlyList<ManiaRow> rows, int row)
         {
             int lo = Math.Max(0, row - movement_chord_window);
             int hi = Math.Min(rows.Count - 1, row + movement_chord_window);
@@ -372,7 +317,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return (double)chordCount / (hi - lo + 1);
         }
 
-        private static double staminaFactorFor(List<Row> rows, int row, double timeSincePreviousRow)
+        private static double staminaFactorFor(IReadOnlyList<ManiaRow> rows, int row, double timeSincePreviousRow)
         {
             if (!rows[row].IsJump)
                 return 1.0;

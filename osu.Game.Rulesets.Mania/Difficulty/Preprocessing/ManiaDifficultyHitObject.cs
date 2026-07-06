@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
 
@@ -23,6 +24,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public readonly ManiaDifficultyHitObject?[] PreviousHitObjects;
 
         public readonly double ColumnDelta;
+
+        /// <summary>
+        /// The row of notes (often a chord) that contains this note.
+        /// Subject to a grace period, so notes can belong to the same row even if they are slightly offset in time.
+        /// </summary>
+        public ManiaRow Row = null!;
 
         /// <summary>
         /// Multiplier in (0, 1] that dampens manipulable patterns (fast, sustained rolls / stairs /

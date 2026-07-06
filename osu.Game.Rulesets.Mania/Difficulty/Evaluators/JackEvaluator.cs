@@ -138,9 +138,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (previous == null)
                 return 1.0;
 
-            bool sharesChordWithPrevious = current.StartTime - previous.StartTime <= ChordUtils.CHORD_TOLERANCE_MS;
+            bool sharesChordWithPrevious = current.Row.IsSameRow(previous.Row);
 
-            if (sharesChordWithPrevious || ChordUtils.Size(previous) < fullChord)
+            if (sharesChordWithPrevious || previous.Row.Size < fullChord)
                 return 1.0;
 
             double speedGate = DiffUtils.Smoothstep(quad_minijack_slow_ms - columnDelta, 0.0, quad_minijack_slow_ms - quad_minijack_fast_ms);
@@ -189,12 +189,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             for (int i = 0; i < quad_minijack_run_cap; i++)
             {
-                var p = (ManiaDifficultyHitObject?)current.Previous(i);
+                var previous = (ManiaDifficultyHitObject?)current.Previous(i);
 
-                if (p == null || current.StartTime - p.StartTime > window)
+                if (previous == null || current.StartTime - previous.StartTime > window)
                     break;
 
-                if (ChordUtils.DepthInChord(p) == 1 && ChordUtils.Size(p) >= fullChord)
+                if (ChordUtils.DepthInChord(previous) == 1 && previous.Row.Size >= fullChord)
                     fullChords++;
             }
 

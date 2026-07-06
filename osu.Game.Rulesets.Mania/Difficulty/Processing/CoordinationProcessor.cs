@@ -8,19 +8,17 @@ using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
-    public class CoordinationProcessor
+    public class CoordinationProcessor : IDifficultyProcessor
     {
         private const double strain_decay_base = 0.52909;
 
-        private double currentStrain;
+        public double CurrentStrain { get; private set; }
 
-        public double ProcessStrainFor(DifficultyHitObject current)
+        public void ProcessStrainFor(DifficultyHitObject current)
         {
-            currentStrain *= Math.Pow(strain_decay_base, current.DeltaTime / 1000);
+            CurrentStrain *= Math.Pow(strain_decay_base, current.DeltaTime / 1000);
 
-            currentStrain += CoordinationEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current);
-
-            return currentStrain;
+            CurrentStrain += CoordinationEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current);
         }
     }
 }

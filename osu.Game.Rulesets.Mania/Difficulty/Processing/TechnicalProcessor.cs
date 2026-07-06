@@ -11,8 +11,10 @@ using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
-    public class TechnicalProcessor
+    public class TechnicalProcessor : IDifficultyProcessor
     {
+        public double CurrentStrain { get; private set; }
+
         private const double strain_decay_base = 0.06696;
 
         private const double speed_factor_offset = 0.050;
@@ -45,16 +47,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
         private readonly Queue<(int rhythmClass, int direction)> recentShapes = new Queue<(int, int)>();
 
-        private double currentStrain;
-
-        public double ProcessStrainFor(DifficultyHitObject current)
+        public void ProcessStrainFor(DifficultyHitObject current)
         {
-            currentStrain *= DiffUtils.Pow(strain_decay_base, current.DeltaTime / 1000);
+            CurrentStrain *= DiffUtils.Pow(strain_decay_base, current.DeltaTime / 1000);
 
             var hitObject = (ManiaDifficultyHitObject)current;
 
             if (hitObject.DeltaTime < ChordUtils.CHORD_TOLERANCE_MS)
-                return currentStrain;
+                return;
 
             double rhythmIrregularity = 0.0;
 
@@ -94,9 +94,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
             double complexity = Math.Max(rhythmIrregularity + columnComplexity, variety_floor * patternVariety(hitObject));
             double rhythmAmp = rhythmAmplifier(windowedIrregularity(rhythmIrregularity));
 
-            currentStrain += pattern_buff * complexity * speedFactor * technical_scale * rhythmAmp * hitObject.ManipulationFactor * hitObject.StaminaFactor;
-
-            return currentStrain;
+            CurrentStrain += pattern_buff * complexity * speedFactor * technical_scale * rhythmAmp * hitObject.ManipulationFactor * hitObject.StaminaFactor;
         }
 
         private double windowedIrregularity(double rhythmIrregularity)

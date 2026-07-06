@@ -8,26 +8,33 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
+    /// <summary>
+    /// This skill is processed last, to ensure that the rest of the skills are able to process the current note in each <see cref="IReadonlyDifficultyProcessor"/>.
+    /// </summary>
     public class Total : ManiaSkill
     {
-        private readonly CoordinationProcessor coordinationProcessor;
-        private readonly JackProcessor jackProcessor;
-        private readonly ReleaseProcessor releaseProcessor;
-        private readonly SpeedProcessor speedProcessor;
-        private readonly TechnicalProcessor technicalProcessor;
+        private readonly IReadonlyDifficultyProcessor coordinationProcessor;
+        private readonly IReadonlyDifficultyProcessor jackProcessor;
+        private readonly IReadonlyDifficultyProcessor releaseProcessor;
+        private readonly IReadonlyDifficultyProcessor speedProcessor;
+        private readonly IReadonlyDifficultyProcessor technicalProcessor;
 
         private readonly bool includeReleases;
 
-        public Total(Mod[] mods, bool includeReleases)
+        public Total(Mod[] mods, bool includeReleases,
+                     IReadonlyDifficultyProcessor coordinationProcessor,
+                     IReadonlyDifficultyProcessor jackProcessor,
+                     IReadonlyDifficultyProcessor releaseProcessor,
+                     IReadonlyDifficultyProcessor speedProcessor,
+                     IReadonlyDifficultyProcessor technicalProcessor)
             : base(mods)
         {
-            coordinationProcessor = new CoordinationProcessor();
-            jackProcessor = new JackProcessor();
-            releaseProcessor = new ReleaseProcessor();
-            speedProcessor = new SpeedProcessor();
-            technicalProcessor = new TechnicalProcessor();
-
             this.includeReleases = includeReleases;
+            this.coordinationProcessor = coordinationProcessor;
+            this.jackProcessor = jackProcessor;
+            this.releaseProcessor = releaseProcessor;
+            this.speedProcessor = speedProcessor;
+            this.technicalProcessor = technicalProcessor;
         }
 
         protected override double GetNoteWeight(DifficultyHitObject current)
@@ -37,11 +44,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double DifficultyAt(DifficultyHitObject current)
         {
-            double coordinationDifficulty = coordinationProcessor.ProcessStrainFor(current);
-            double releaseDifficulty = includeReleases ? releaseProcessor.ProcessStrainFor(current) : 0;
-            double speedDifficulty = speedProcessor.ProcessStrainFor(current);
-            double jackDifficulty = jackProcessor.ProcessStrainFor(current);
-            double technicalDifficulty = technicalProcessor.ProcessStrainFor(current);
+            double coordinationDifficulty = coordinationProcessor.CurrentStrain;
+            double releaseDifficulty = includeReleases ? releaseProcessor.CurrentStrain : 0;
+            double speedDifficulty = speedProcessor.CurrentStrain;
+            double jackDifficulty = jackProcessor.CurrentStrain;
+            double technicalDifficulty = technicalProcessor.CurrentStrain;
 
             return combinedDifficulty(coordinationDifficulty, releaseDifficulty, speedDifficulty, jackDifficulty, technicalDifficulty);
         }
