@@ -31,6 +31,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double low_acc_fade_lo = 0.80;
         private const double low_acc_fade_hi = 0.90;
 
+        // Accuracy gates on the in-game (305-weighted) accuracy, applied on top of the base accuracy curve so the
+        // 93%-98% range is left untouched (preserving score order). Below 93% "push" scores are nerfed; above 98%
+        // near-SS plays are pushed toward max pp.
+        private const double push_gate_threshold = 0.93;
+        private const double push_gate_rate = 7.0;
+        private const double push_gate_max_nerf = 0.22;
+        private const double high_acc_bonus_lo = 0.98;
+        private const double high_acc_bonus_hi = 1.00;
+        private const double high_acc_bonus_strength = 0.18;
+
         // Long-note charts drag tap accuracy down through tail-release timing, which is not the tap "accuracy
         // skill" the UR scaling rewards. The estimate is discounted by how release-heavy the map is
         // (ReleaseDifficulty), so genuine LN charts keep their reward while rice / short-LN charts are untouched.
@@ -135,15 +145,30 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 return ur_acc_min;
 
             double lowAccFade = DiffUtils.Smoothstep(calculateCustomAccuracy(), low_acc_fade_lo, low_acc_fade_hi);
+            double baseMultiplier = lowAccFade * accuracyScaling(noteUnstableRate(estimatedUnstableRate.Value, attributes.ReleaseDifficulty), attributes.StarRating);
 
-            return lowAccFade * accuracyScaling(noteUnstableRate(estimatedUnstableRate.Value, attributes.ReleaseDifficulty), attributes.StarRating);
+            return baseMultiplier * pushGate() * highAccuracyBonus();
         }
 
         /// <summary>
-        /// Discounts the estimated unstable rate on long-note charts, whose MAX proportion is dragged down by tail
-        /// releases rather than by tap inaccuracy. The discount is driven by the map's release difficulty, so heavy
-        /// LN charts keep their accuracy reward while rice and short/easy-LN charts (low release) are left untouched.
+        /// In-game (305-weighted) accuracy, used by the accuracy gates.
         /// </summary>
+        private double standardAccuracy()
+        {
+            if (totalHits == 0)
+                return 0;
+
+            return (305 * countPerfect + 300 * countGreat + 200 * countGood + 100 * countOk + 50 * countMeh) / (305 * totalHits);
+        }
+
+        private double pushGate()
+        {
+            double deficit = Math.Max(0.0, push_gate_threshold - standardAccuracy());
+            return 1.0 - Math.Min(push_gate_max_nerf, push_gate_rate * deficit);
+        }
+
+        private double highAccuracyBonus() => 1.0 + high_acc_bonus_strength * DiffUtils.Smoothstep(standardAccuracy(), high_acc_bonus_lo, high_acc_bonus_hi);
+
         private static double noteUnstableRate(double unstableRate, double releaseDifficulty)
         {
             double discount = 1.0 + release_discount_strength * DiffUtils.Smoothstep(releaseDifficulty, release_discount_lo, release_discount_hi);
