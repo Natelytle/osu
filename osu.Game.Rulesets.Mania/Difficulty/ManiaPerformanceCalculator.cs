@@ -16,6 +16,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaPerformanceCalculator : PerformanceCalculator
     {
+        // ALL TEMPORARY JUST FOR TESTING
         private const double ur_sr_lo = 6.0;
         private const double ur_sr_hi = 11.0;
         private const double ur_shift_easy = 150.0;
@@ -31,9 +32,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double low_acc_fade_lo = 0.80;
         private const double low_acc_fade_hi = 0.90;
 
-        // Accuracy gates on the in-game (305-weighted) accuracy, applied on top of the base accuracy curve so the
-        // 93%-98% range is left untouched (preserving score order). Below 93% "push" scores are nerfed; above 98%
-        // near-SS plays are pushed toward max pp.
         private const double push_gate_threshold = 0.93;
         private const double push_gate_rate = 7.0;
         private const double push_gate_max_nerf = 0.22;
@@ -41,9 +39,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double high_acc_bonus_hi = 1.00;
         private const double high_acc_bonus_strength = 0.18;
 
-        // Long-note charts drag tap accuracy down through tail-release timing, which is not the tap "accuracy
-        // skill" the UR scaling rewards. The estimate is discounted by how release-heavy the map is
-        // (ReleaseDifficulty), so genuine LN charts keep their reward while rice / short-LN charts are untouched.
         private const double release_discount_strength = 1.1;
         private const double release_discount_lo = 1.5;
         private const double release_discount_hi = 2.5;
