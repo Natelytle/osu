@@ -4,6 +4,7 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
@@ -52,6 +53,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double quad_minijack_recur_lo = 1.0;
         private const double quad_minijack_recur_hi = 2.0;
 
+        private const double speedjack_buff = 0.35;
+        private const double speedjack_speed_hi_ms = 110.0;
+        private const double speedjack_speed_lo_ms = 70.0;
+        private const double speedjack_single_gate = 0.5;
+        private const double speedjack_chord_taper = 0.8;
+        private const int speedjack_clean_window = 6;
+        private const int speedjack_max_shift = 1;
+
+        private const double anchor_buff = 1.0;
+        private const double anchor_window_ms = 400.0;
+        private const double anchor_gate_lo = 0.40;
+        private const double anchor_gate_hi = 0.85;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
             var previous = (ManiaDifficultyHitObject?)current.Previous();
@@ -79,7 +93,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             jackDifficulty *= calculateConcurrentHoldBonus(current, totalColumns);
             jackDifficulty *= calculateFullRowBonus(current, previous, totalColumns, columnDelta);
 
-            jackDifficulty *= current.ManipulationFactor * current.StaminaFactor;
+            jackDifficulty *= current.ManipulationFactor * current.StaminaFactor * calculateSpeedjackBonus(current) * calculateAnchorBonus(current);
 
             return jackDifficulty * jack_multiplier;
         }
@@ -199,6 +213,185 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             return 1.0 - DiffUtils.Smoothstep(fullChords, quad_minijack_recur_lo, quad_minijack_recur_hi);
+        }
+
+        private static double calculateSpeedjackBonus(ManiaDifficultyHitObject current)
+        {
+            ManiaRow row = current.Row;
+            ManiaRow? previous = row.Previous(0);
+            ManiaRow? previous2 = row.Previous(1);
+
+            if (previous == null || previous2 == null)
+                return 1.0;
+
+            double timeSincePreviousRow = row.StartTime - previous.StartTime;
+            double speedScale = DiffUtils.Smoothstep(speedjack_speed_hi_ms - timeSincePreviousRow, 0.0, speedjack_speed_hi_ms - speedjack_speed_lo_ms);
+
+            if (speedScale <= 0.0)
+                return 1.0;
+
+            bool isFullRepeat = sameColumns(row.Columns, previous.Columns) || sameColumns(row.Columns, previous2.Columns);
+            bool isRoll = columnShift(previous.Columns, row.Columns) != 0;
+            bool sharesJack = sharesColumn(row.Columns, previous.Columns) || sharesColumn(row.Columns, previous2.Columns);
+
+            if (isFullRepeat || isRoll || !sharesJack)
+                return 1.0;
+
+            double clean = 1.0 - localJumptrillRollDensity(row);
+
+            if (clean <= 0.0)
+                return 1.0;
+
+            double sizeGate = row.Size <= 1
+                ? speedjack_single_gate
+                : 1.0 - speedjack_chord_taper * DiffUtils.Smoothstep(row.Size, 2.0, 4.0);
+
+            return 1.0 + speedjack_buff * speedScale * sizeGate * clean;
+        }
+
+        private static double calculateAnchorBonus(ManiaDifficultyHitObject current)
+        {
+            int totalColumns = current.PreviousHitObjects.Length;
+
+            if (totalColumns < 2)
+                return 1.0;
+
+            double[] usage = new double[totalColumns];
+            double center = current.StartTime;
+
+            addRowUsage(current.Row, usage, center);
+
+            for (ManiaRow? row = current.Row.Previous(); row != null && center - row.StartTime <= anchor_window_ms; row = row.Previous(0))
+                addRowUsage(row, usage, center);
+
+            for (ManiaRow? row = current.Row.Next(); row != null && row.StartTime - center <= anchor_window_ms; row = row.Next(0))
+                addRowUsage(row, usage, center);
+
+            // Sort the per-column usages from busiest to least-used.
+            Array.Sort(usage);
+            Array.Reverse(usage);
+
+            double walkSum = 0.0;
+            double maxWalkSum = 0.0;
+
+            for (int i = 0; i + 1 < totalColumns; i++)
+            {
+                double currentUsage = usage[i];
+                double nextUsage = usage[i + 1];
+
+                // Only step between two active columns and once the next column is unused then that means that we've left the anchor.
+                if (nextUsage == 0.0)
+                    break;
+
+                double ratio = nextUsage / currentUsage;
+                double difference = 0.5 - ratio;
+                double balanceFactor = 1.0 - 4.0 * difference * difference;
+
+                walkSum += currentUsage * balanceFactor;
+                maxWalkSum += currentUsage;
+            }
+
+            double anchorValue = maxWalkSum != 0.0 ? walkSum / maxWalkSum : 0.0;
+
+            return 1.0 + anchor_buff * DiffUtils.Smoothstep(anchorValue, anchor_gate_lo, anchor_gate_hi);
+        }
+
+        /// <summary>
+        /// Adds each of <paramref name="row"/>'s columns to the per-column <paramref name="usage"/> tally,
+        /// weighted by a quadratic falloff with the row's time distance from <paramref name="center"/>.
+        /// </summary>
+        private static void addRowUsage(ManiaRow row, double[] usage, double center)
+        {
+            double distance = Math.Abs(row.StartTime - center) / anchor_window_ms;
+            double weight = 1.0 - distance * distance;
+
+            if (weight <= 0.0)
+                return;
+
+            foreach (int column in row.Columns)
+            {
+                if (column >= 0 && column < usage.Length)
+                    usage[column] += weight;
+            }
+        }
+
+        private static double localJumptrillRollDensity(ManiaRow row)
+        {
+            int window = 0;
+            int manipulable = 0;
+
+            for (ManiaRow? current = row; current != null && window < speedjack_clean_window; current = current.Previous(0))
+            {
+                window++;
+
+                ManiaRow? previous = current.Previous(0);
+                ManiaRow? previous2 = current.Previous(1);
+
+                if (previous == null || previous2 == null)
+                    continue;
+
+                if (current.StartTime - previous.StartTime > speedjack_speed_hi_ms)
+                    continue;
+
+                bool isJumptrill = sameColumns(current.Columns, previous2.Columns) && !sameColumns(current.Columns, previous.Columns);
+                bool isRoll = columnShift(previous.Columns, current.Columns) != 0;
+
+                if (isJumptrill || isRoll)
+                    manipulable++;
+            }
+
+            return window > 0 ? (double)manipulable / window : 0.0;
+        }
+
+        private static bool sameColumns(int[] a, int[] b)
+        {
+            if (a.Length != b.Length)
+                return false;
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i])
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static bool sharesColumn(int[] a, int[] b)
+        {
+            foreach (int columnA in a)
+            {
+                foreach (int columnB in b)
+                {
+                    if (columnA == columnB)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// If <paramref name="b"/> is <paramref name="a"/> with every column shifted by the same constant
+        /// k (with 0 &lt; |k| &lt;= <see cref="speedjack_max_shift"/>), returns k; otherwise returns 0.
+        /// </summary>
+        private static int columnShift(int[] a, int[] b)
+        {
+            if (a.Length != b.Length || a.Length == 0)
+                return 0;
+
+            int k = b[0] - a[0];
+
+            if (k == 0 || Math.Abs(k) > speedjack_max_shift)
+                return 0;
+
+            for (int i = 1; i < a.Length; i++)
+            {
+                if (b[i] - a[i] != k)
+                    return 0;
+            }
+
+            return k;
         }
     }
 }

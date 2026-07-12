@@ -43,27 +43,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double short_map_ln_lo = 0.55;
         private const double short_map_ln_hi = 0.72;
 
-        private const double note_count_bonus_strength = 0.021;
-        private const double note_count_bonus_lo = 5800.0;
-        private const double note_count_bonus_hi = 8500.0;
-        private const double drain_time_bonus_strength = 0.11;
-        private const double drain_time_bonus_lo_seconds = 380.0;
-        private const double drain_time_bonus_hi_seconds = 520.0;
-        private const double length_bonus_cap = 0.055;
-        private const double length_bonus_ln_gate_lo = 0.55;
-        private const double length_bonus_ln_gate_hi = 0.85;
-
-        private const double short_coord_nerf_strength = 0.018;
-        private const double short_coord_length_lo_seconds = 210.0;
-        private const double short_coord_length_hi_seconds = 300.0;
-        private const double short_coord_share_lo = 0.50;
-        private const double short_coord_share_hi = 0.62;
-
-        private const double coord_share_speed_weight = 1.02237;
-        private const double coord_share_jack_weight = 1.42793;
-        private const double coord_share_coordination_weight = 3.30000;
-        private const double coord_share_technical_weight = 2.49916;
-
         private const double spike_damper_strength = 0.118;
         private const double spike_sustain_ratio_lo = 0.24;
         private const double spike_sustain_ratio_hi = 0.50;
@@ -121,13 +100,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double hybridLn = DiffUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DiffUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
-            double mapLength = mapLengthSeconds(beatmap.HitObjects, mods);
-            double shortMapMult = shortMapNerf(mapLength, lnRatio);
+            double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap.HitObjects, mods), lnRatio);
             double spikeMult = spikeNerf(totalSkill.SustainRatio());
-            double lengthBonusMult = computeLengthBonus(totalNotes, mapLength, lnRatio);
-
-            double coordinationShare = coordinationPowerShare(speedSkill.DifficultyValue(), technicalSkill.DifficultyValue(), jackSkill.DifficultyValue(), coordinationSkill.DifficultyValue());
-            double shortCoordMult = shortCoordinationNerf(mapLength, coordinationShare);
 
             double totalDifficulty = totalSkill.DifficultyValue();
             double totalDifficultyNoReleases = totalSkillNoReleases.DifficultyValue();
@@ -139,7 +113,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double coordinationStarRating = scaleToStarRating(coordinationSkill.DifficultyValue()) * odMult;
             double releaseStarRating = scaleToStarRating(releaseSkill.DifficultyValue()) * odMult;
 
-            double starRating = computeStarRating(totalDifficulty, odMult, lnKeyedMult, spikeMult * lengthBonusMult * shortCoordMult, coordinationStarRating);
+            double starRating = computeStarRating(totalDifficulty, odMult, lnKeyedMult, spikeMult, coordinationStarRating);
 
             return new ManiaDifficultyAttributes
             {
@@ -187,38 +161,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         {
             double sustain = DiffUtils.Smoothstep(sustainRatio, spike_sustain_ratio_lo, spike_sustain_ratio_hi);
             return 1.0 - spike_damper_strength * (1.0 - sustain);
-        }
-
-        private static double computeLengthBonus(int noteCount, double lengthSeconds, double lnRatio)
-        {
-            double noteCountMultiplier = DiffUtils.Smoothstep(noteCount, note_count_bonus_lo, note_count_bonus_hi);
-            double drainTimeMultiplier = DiffUtils.Smoothstep(lengthSeconds, drain_time_bonus_lo_seconds, drain_time_bonus_hi_seconds);
-
-            double lengthBonus = Math.Min(length_bonus_cap, note_count_bonus_strength * noteCountMultiplier + drain_time_bonus_strength * drainTimeMultiplier);
-
-            // Near-pure-LN maps get their "length" for free from sustained holds, not tap endurance.
-            double lnNerf = 1.0 - DiffUtils.Smoothstep(lnRatio, length_bonus_ln_gate_lo, length_bonus_ln_gate_hi);
-
-            return 1.0 + lengthBonus * lnNerf;
-        }
-
-        private static double shortCoordinationNerf(double lengthSeconds, double coordinationShare)
-        {
-            double shortness = 1.0 - DiffUtils.Smoothstep(lengthSeconds, short_coord_length_lo_seconds, short_coord_length_hi_seconds);
-            double coordinationDominance = DiffUtils.Smoothstep(coordinationShare, short_coord_share_lo, short_coord_share_hi);
-
-            return 1.0 - short_coord_nerf_strength * shortness * coordinationDominance;
-        }
-
-        private static double coordinationPowerShare(double rawSpeed, double rawTechnical, double rawJack, double rawCoordination)
-        {
-            double coordinationTerm = coord_share_coordination_weight * rawCoordination * rawCoordination;
-            double powerSum = coord_share_speed_weight * rawSpeed * rawSpeed
-                              + coord_share_jack_weight * rawJack * rawJack
-                              + coordinationTerm
-                              + coord_share_technical_weight * rawTechnical * rawTechnical;
-
-            return powerSum > 0 ? coordinationTerm / powerSum : 0.0;
         }
 
         private static double computeStarRating(double totalDifficulty, double overallDifficultyMultiplier, double longNoteDamper, double shortMapMultiplier, double coordinationDifficulty)
