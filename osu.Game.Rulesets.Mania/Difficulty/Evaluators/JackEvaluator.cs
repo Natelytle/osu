@@ -18,7 +18,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         // Added to the column gap before inverting it into a tap rate, softening very fast jacks.
         private const double tap_rate_offset_ms = 60;
 
-        // Exponent applied to the raw strain before the row-size and hold multipliers.
         private const double strain_exponent = 1.29407;
 
         // Logistic speed bonus on the tap rate.
@@ -40,10 +39,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double chordjack_fast_mult = 1.2;
         private const double chordjack_veryfast_mult = 0.75;
 
-        // Bonus for jacking a column while other columns of the chord are still held.
         private const double held_ln_buff = 0.6;
 
-        // Quad-minijack (full-row) buff: an isolated full chord jacked against the row before it.
         private const double minijack_buff = 2.5;
         private const int minijack_min_chord = 4;
         private const double minijack_fast_ms = 85.0;
@@ -51,15 +48,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double minijack_manip_lo = 0.95;
         private const double minijack_manip_hi = 0.99;
 
-        // Upper bound on how many notes the backward/forward column scans walk.
         private const int minijack_scan_limit = 32;
 
-        // Run gate: fades the buff out once the same-column run is this many notes long.
         private const double minijack_run_window_scale = 1.5;
         private const double minijack_run_gate_lo = 3.0;
         private const double minijack_run_gate_hi = 4.0;
 
-        // Recur gate: fades the buff out when the full chord repeats (jumptrill) instead of being isolated.
         private const double minijack_recur_window_scale = 4.0;
         private const double minijack_recur_gate_lo = 1.0;
         private const double minijack_recur_gate_hi = 2.0;
@@ -74,7 +68,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double minijack_strain_density_lo = 2.0;
         private const double minijack_strain_density_hi = 2.4;
 
-        // Speedjack buff: fast, varied same-column jacks that are not rolls or full repeats.
         private const double speedjack_buff = 0.35;
         private const double speedjack_speed_hi_ms = 110.0;
         private const double speedjack_speed_lo_ms = 70.0;
@@ -112,8 +105,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             jackDifficulty *= calculateRowSizeMultiplier(current, rowSize, columnDelta);
             jackDifficulty *= calculateConcurrentHoldBonus(current, totalColumns);
 
-            // The quad-minijack (full-row) buff sees the running per-note jack strain so it can back off
-            // where it would otherwise double-count (dense chord-jacking, already-high strain).
             double baseBeforeFullRow = jackDifficulty * jack_multiplier;
             jackDifficulty *= calculateFullRowBonus(current, previous, totalColumns, columnDelta, baseBeforeFullRow);
 
