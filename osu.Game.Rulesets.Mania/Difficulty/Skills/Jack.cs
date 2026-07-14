@@ -9,9 +9,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Jack : ManiaSkill
     {
-        private readonly IDifficultyProcessor jackProcessor;
+        private readonly DifficultyProcessor jackProcessor;
 
-        public Jack(Mod[] mods, IDifficultyProcessor jackProcessor)
+        public Jack(Mod[] mods, DifficultyProcessor jackProcessor)
             : base(mods)
         {
             this.jackProcessor = jackProcessor;
@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double DifficultyAt(DifficultyHitObject current)
         {
-            jackProcessor.ProcessStrainFor(current);
+            jackProcessor.ProcessRowStrainFor(current);
 
             return jackProcessor.CurrentStrain;
         }

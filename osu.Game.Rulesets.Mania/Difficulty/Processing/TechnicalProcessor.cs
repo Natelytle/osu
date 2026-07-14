@@ -4,18 +4,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
-    public class TechnicalProcessor : IDifficultyProcessor
+    public class TechnicalProcessor : DifficultyProcessor
     {
-        public double CurrentStrain { get; private set; }
-
-        private const double strain_decay_base = 0.06696;
+        protected override double ChordStrainDecay => 0.06696;
 
         private const double speed_factor_offset = 0.050;
 
@@ -47,20 +44,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
         private readonly Queue<(int rhythmClass, int direction)> recentShapes = new Queue<(int, int)>();
 
-        public void ProcessStrainFor(DifficultyHitObject current)
+        protected override double CalculateNoteDifficulty(ManiaDifficultyHitObject current)
         {
-            CurrentStrain *= DiffUtils.Pow(strain_decay_base, current.DeltaTime / 1000);
-
-            var hitObject = (ManiaDifficultyHitObject)current;
-
-            if (hitObject.DeltaTime < ChordUtils.CHORD_TOLERANCE_MS)
-                return;
+            if (current.DeltaTime < ChordUtils.CHORD_TOLERANCE_MS)
+                return 0;
 
             double rhythmIrregularity = 0.0;
 
             if (previousDeltaTime > ChordUtils.CHORD_TOLERANCE_MS)
             {
-                double ratio = hitObject.DeltaTime / previousDeltaTime;
+                double ratio = current.DeltaTime / previousDeltaTime;
 
                 if (ratio > 1.0)
                     ratio = 1.0 / ratio;
@@ -70,31 +63,31 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
             double columnComplexity = 0.0;
 
-            if (hitObject.Previous() is ManiaDifficultyHitObject previous && hitObject.Previous(1) is ManiaDifficultyHitObject previous2)
+            if (current.Previous() is ManiaDifficultyHitObject previous && current.Previous(1) is ManiaDifficultyHitObject previous2)
             {
                 int previousDirection = previous.Column - previous2.Column;
-                int currentDirection = hitObject.Column - previous.Column;
+                int currentDirection = current.Column - previous.Column;
 
                 if (previousDirection != 0 && currentDirection != 0 && Math.Sign(previousDirection) != Math.Sign(currentDirection))
                 {
-                    double coefficient = CrossColumnUtils.SumBoundaryMultipliersBetween(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length);
+                    double coefficient = CrossColumnUtils.SumBoundaryMultipliersBetween(previous.Column, current.Column, current.PreviousHitObjects.Length);
                     columnComplexity += reversal_base_complexity + reversal_coefficient_multiplier * coefficient;
                 }
 
                 if (Math.Abs(currentDirection) >= 2)
-                    columnComplexity += CrossColumnUtils.AverageBoundaryMultipliersBetween(previous.Column, hitObject.Column, hitObject.PreviousHitObjects.Length); // wide jump, averaged path scaled by sqrt(span)
+                    columnComplexity += CrossColumnUtils.AverageBoundaryMultipliersBetween(previous.Column, current.Column, current.PreviousHitObjects.Length); // wide jump, averaged path scaled by sqrt(span)
 
                 double spanDamper = 1.0 - wide_jump_nerf * DiffUtils.Smoothstep(Math.Abs(currentDirection), wide_jump_span_lo, wide_jump_span_hi);
                 columnComplexity *= spanDamper;
             }
 
-            double speedFactor = 1.0 / (hitObject.DeltaTime / 1000.0 + speed_factor_offset);
+            double speedFactor = 1.0 / (current.DeltaTime / 1000.0 + speed_factor_offset);
 
-            previousDeltaTime = hitObject.DeltaTime;
-            double complexity = Math.Max(rhythmIrregularity + columnComplexity, variety_floor * patternVariety(hitObject));
+            previousDeltaTime = current.DeltaTime;
+            double complexity = Math.Max(rhythmIrregularity + columnComplexity, variety_floor * patternVariety(current));
             double rhythmAmp = rhythmAmplifier(windowedIrregularity(rhythmIrregularity));
 
-            CurrentStrain += pattern_buff * complexity * speedFactor * technical_scale * rhythmAmp * hitObject.ManipulationFactor * hitObject.StaminaFactor;
+            return pattern_buff * complexity * speedFactor * technical_scale * rhythmAmp * current.ManipulationFactor * current.StaminaFactor;
         }
 
         private double windowedIrregularity(double rhythmIrregularity)

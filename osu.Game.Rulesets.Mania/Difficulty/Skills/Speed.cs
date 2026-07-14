@@ -9,9 +9,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Speed : ManiaSkill
     {
-        private readonly IDifficultyProcessor speedProcessor;
+        private readonly DifficultyProcessor speedProcessor;
 
-        public Speed(Mod[] mods, IDifficultyProcessor speedProcessor)
+        public Speed(Mod[] mods, DifficultyProcessor speedProcessor)
             : base(mods)
         {
             this.speedProcessor = speedProcessor;
@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double DifficultyAt(DifficultyHitObject current)
         {
-            speedProcessor.ProcessStrainFor(current);
+            speedProcessor.ProcessRowStrainFor(current);
 
             return speedProcessor.CurrentStrain;
         }

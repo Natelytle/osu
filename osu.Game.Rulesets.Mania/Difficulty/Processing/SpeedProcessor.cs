@@ -1,24 +1,18 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using osu.Game.Rulesets.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
-    public class SpeedProcessor : IDifficultyProcessor
+    public class SpeedProcessor : DifficultyProcessor
     {
-        private const double strain_decay_base = 0.05007;
+        protected override double ChordStrainDecay => 0.05007;
 
-        public double CurrentStrain { get; private set; }
-
-        public void ProcessStrainFor(DifficultyHitObject current)
+        protected override double CalculateNoteDifficulty(ManiaDifficultyHitObject current)
         {
-            CurrentStrain *= DiffUtils.Pow(strain_decay_base, current.DeltaTime / 1000);
-
-            CurrentStrain += SpeedEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current);
+            return SpeedEvaluator.EvaluateDifficultyOf(current);
         }
     }
 }

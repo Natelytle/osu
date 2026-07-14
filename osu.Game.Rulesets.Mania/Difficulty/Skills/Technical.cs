@@ -9,9 +9,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Technical : ManiaSkill
     {
-        private readonly IDifficultyProcessor technicalProcessor;
+        private readonly DifficultyProcessor technicalProcessor;
 
-        public Technical(Mod[] mods, IDifficultyProcessor technicalProcessor)
+        public Technical(Mod[] mods, DifficultyProcessor technicalProcessor)
             : base(mods)
         {
             this.technicalProcessor = technicalProcessor;
@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double DifficultyAt(DifficultyHitObject current)
         {
-            technicalProcessor.ProcessStrainFor(current);
+            technicalProcessor.ProcessRowStrainFor(current);
 
             return technicalProcessor.CurrentStrain;
         }

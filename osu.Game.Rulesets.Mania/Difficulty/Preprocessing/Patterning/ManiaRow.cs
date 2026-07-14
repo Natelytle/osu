@@ -13,6 +13,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning
     public class ManiaRow
     {
         public int Size => Columns.Length;
+        public double Time => Objects.Select(o => o.StartTime).Average();
 
         /// <summary>Sorted column indices of every note in this row.</summary>
         public readonly int[] Columns;

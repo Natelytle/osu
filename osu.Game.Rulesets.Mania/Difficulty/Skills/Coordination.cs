@@ -9,9 +9,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Coordination : ManiaSkill
     {
-        private readonly IDifficultyProcessor coordinationProcessor;
+        private readonly DifficultyProcessor coordinationProcessor;
 
-        public Coordination(Mod[] mods, IDifficultyProcessor coordinationProcessor)
+        public Coordination(Mod[] mods, DifficultyProcessor coordinationProcessor)
             : base(mods)
         {
             this.coordinationProcessor = coordinationProcessor;
@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected override double DifficultyAt(DifficultyHitObject current)
         {
-            coordinationProcessor.ProcessStrainFor(current);
+            coordinationProcessor.ProcessRowStrainFor(current);
 
             return coordinationProcessor.CurrentStrain;
         }
