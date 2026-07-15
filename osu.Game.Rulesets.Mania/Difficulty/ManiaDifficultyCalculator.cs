@@ -39,9 +39,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double ln_hybrid_fade_hi = 0.75;
 
         private const double short_map_nerf = 0.195;
-        private const double short_map_cap_seconds = 66.0;
-        private const double short_map_ln_lo = 0.55;
-        private const double short_map_ln_hi = 0.72;
+        private const double short_map_cap_notes = 197.0;
+        private const double short_map_sustain_lo = 250.0;
+        private const double short_map_sustain_hi = 450.0;
 
         private const double spike_damper_strength = 0.118;
         private const double spike_sustain_ratio_lo = 0.24;
@@ -88,8 +88,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             else if (mods.Any(m => m is ManiaModEasy))
                 windowScale = 1.0 / ManiaModEasy.HIT_WINDOW_DIFFICULTY_MULTIPLIER;
 
-            // OD only feeds the star rating (via odMult). Accuracy/UR scaling in the performance
-            // calculator uses a fixed reference OD, so we no longer expose per-map hit windows.
             double greatHitWindow = hitWindows.WindowFor(HitResult.Great) * windowScale;
             double odMult = hitWindowMultiplier(greatHitWindow);
 
@@ -100,12 +98,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double hybridLn = DiffUtils.Smoothstep(lnRatio, ln_hybrid_ramp_lo, ln_hybrid_ramp_hi) * (1.0 - DiffUtils.Smoothstep(lnRatio, ln_hybrid_fade_lo, ln_hybrid_fade_hi));
             double lnDamper = (1.0 - full_ln_damper * lnRatio * lnRatio) * (1.0 - ln_hybrid_damper * hybridLn);
 
-            double shortMapMult = shortMapNerf(mapLengthSeconds(beatmap.HitObjects, mods), lnRatio);
+            int columns = ((ManiaBeatmap)Beatmap).TotalColumns;
+            double meanHoldMs = holdNotes > 0 ? beatmap.HitObjects.OfType<HoldNote>().Average(h => h.Duration) : 0.0;
+            double shortMapMult = shortMapNerf(totalNotes, columns, meanHoldMs);
             double spikeMult = spikeNerf(totalSkill.SustainRatio());
 
             double totalDifficulty = totalSkill.DifficultyValue();
             double totalDifficultyNoReleases = totalSkillNoReleases.DifficultyValue();
-            double lnKeyedMult = monotonicLnMultiplier(lnDamper * shortMapMult, totalDifficulty, totalDifficultyNoReleases);
+            double lnKeyedMult = monotonicLnMultiplier(lnDamper, totalDifficulty, totalDifficultyNoReleases);
 
             double speedStarRating = scaleToStarRating(speedSkill.DifficultyValue()) * odMult;
             double technicalStarRating = scaleToStarRating(technicalSkill.DifficultyValue()) * odMult;
@@ -113,7 +113,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double coordinationStarRating = scaleToStarRating(coordinationSkill.DifficultyValue()) * odMult;
             double releaseStarRating = scaleToStarRating(releaseSkill.DifficultyValue()) * odMult;
 
-            double starRating = computeStarRating(totalDifficulty, odMult, lnKeyedMult, spikeMult, coordinationStarRating);
+            double starRating = computeStarRating(totalDifficulty, odMult, lnKeyedMult, spikeMult * shortMapMult, coordinationStarRating);
 
             return new ManiaDifficultyAttributes
             {
@@ -149,12 +149,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return sumSquares > 0 ? sum * sum / sumSquares : 1.0;
         }
 
-        private static double shortMapNerf(double lengthSeconds, double lnRatio)
+        private static double shortMapNerf(int totalNotes, int columns, double meanHoldMs)
         {
-            double shortness = 1.0 - Math.Clamp(lengthSeconds / short_map_cap_seconds, 0.0, 1.0);
-            double lnGate = DiffUtils.Smoothstep(lnRatio, short_map_ln_lo, short_map_ln_hi);
+            double perColumnNotes = columns > 0 ? (double)totalNotes / columns : totalNotes;
+            double shortness = 1.0 - Math.Clamp(perColumnNotes / short_map_cap_notes, 0.0, 1.0);
 
-            return 1.0 - short_map_nerf * shortness * lnGate;
+            double sustainProtection = DiffUtils.Smoothstep(meanHoldMs, short_map_sustain_lo, short_map_sustain_hi);
+            shortness *= 1.0 - sustainProtection;
+
+            return 1.0 - short_map_nerf * shortness;
         }
 
         private static double spikeNerf(double sustainRatio)
@@ -213,13 +216,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             // Our hit window multiplier is scaled around a base value of od8 (40ms)
             double raw = hitLeniency(od8_great_window) / hitLeniency(greatHitWindow);
             return 1.0 + od_weight * (raw - 1.0);
-        }
-
-        private static double mapLengthSeconds(IReadOnlyList<HitObject> hitObjects, Mod[] mods)
-        {
-            double clockRate = ModUtils.CalculateRateWithMods(mods);
-
-            return ((hitObjects.LastOrDefault()?.GetEndTime() ?? 0) - (hitObjects.FirstOrDefault()?.StartTime ?? 0)) / 1000.0 / clockRate;
         }
 
         private int maxComboForObject(HitObject hitObject)
