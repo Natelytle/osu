@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators.Jack
         private const double anchor_gate_lo = 0.40;
         private const double anchor_gate_hi = 0.85;
 
-        public static double Evaluate(ManiaDifficultyHitObject current)
+        public static double EvaluateMultiplierOf(ManiaDifficultyHitObject current)
         {
             int totalColumns = current.PreviousHitObjects.Length;
 

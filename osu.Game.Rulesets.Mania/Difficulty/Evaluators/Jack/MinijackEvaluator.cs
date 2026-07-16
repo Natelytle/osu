@@ -38,7 +38,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators.Jack
         private const double minijack_strain_density_lo = 2.0;
         private const double minijack_strain_density_hi = 2.4;
 
-        public static double Evaluate(ManiaDifficultyHitObject current, ManiaDifficultyHitObject? previous, int totalColumns, double columnDelta, double baseStrain)
+        public static double EvaluateMultiplierOf(ManiaDifficultyHitObject current, ManiaDifficultyHitObject? previous, int totalColumns, double columnDelta, double baseStrain)
         {
             int fullChord = Math.Max(minijack_min_chord, totalColumns);
 

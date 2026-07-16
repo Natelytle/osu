@@ -17,7 +17,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators.Jack
         private const double speedjack_chord_taper = 0.8;
         private const int speedjack_clean_window = 6;
 
-        public static double Evaluate(ManiaDifficultyHitObject current)
+        public static double EvaluateMultiplierOf(ManiaDifficultyHitObject current)
         {
             ManiaRow row = current.Row;
             ManiaRow? previous = row.Previous();

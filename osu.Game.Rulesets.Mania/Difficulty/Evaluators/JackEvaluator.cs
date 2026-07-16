@@ -81,9 +81,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             jackDifficulty *= calculateConcurrentHoldBonus(current, totalColumns);
 
             double baseBeforeFullRow = jackDifficulty * jack_multiplier;
-            jackDifficulty *= MinijackEvaluator.Evaluate(current, previous, totalColumns, columnDelta, baseBeforeFullRow);
+            jackDifficulty *= MinijackEvaluator.EvaluateMultiplierOf(current, previous, totalColumns, columnDelta, baseBeforeFullRow);
 
-            jackDifficulty *= current.ManipulationFactor * current.StaminaFactor * SpeedjackEvaluator.Evaluate(current) * AnchorEvaluator.Evaluate(current);
+            jackDifficulty *= current.ManipulationFactor * current.StaminaFactor * SpeedjackEvaluator.EvaluateMultiplierOf(current) * AnchorEvaluator.EvaluateMultiplierOf(current);
 
             jackDifficulty *= calculateSingleJackNerf(rowSize, tapRate);
             jackDifficulty *= calculateIncidentalJackNerf(current, rowSize);
