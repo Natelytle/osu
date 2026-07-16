@@ -19,6 +19,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double base_sr_offset = 0.15;
         private const double base_exponent = 2.470;
 
+        private const double low_end_coefficient = 7.7;
+        private const double low_end_exponent = 1.63;
+        private const double low_end_taper_lo = 2.5;
+        private const double low_end_taper_hi = 7.0;
+
         private const double accuracy_sr_lo = 6.0;
         private const double accuracy_sr_hi = 11.0;
         private const double accuracy_shift_easy = 155.0;
@@ -123,7 +128,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            return base_coefficient * DiffUtils.Pow(Math.Max(attributes.StarRating - base_sr_offset, 0.05), base_exponent) * denseFastMultiplier(attributes);
+            double baseValue = base_coefficient * DiffUtils.Pow(Math.Max(attributes.StarRating - base_sr_offset, 0.05), base_exponent);
+
+            double lowEndBonus = low_end_coefficient * DiffUtils.Pow(attributes.StarRating, low_end_exponent)
+                                                     * (1.0 - DiffUtils.Smoothstep(attributes.StarRating, low_end_taper_lo, low_end_taper_hi));
+
+            return (baseValue + lowEndBonus) * denseFastMultiplier(attributes);
         }
 
         private double computeAccuracyScale(ManiaDifficultyAttributes attributes)
