@@ -24,8 +24,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         private const double movement_taper_hi = 160.0;
         private const double movement_stamina_relief = 0.9;
 
-        private const double movement_dir_lo = 0.30;
-        private const double movement_dir_hi = 0.46;
+        private const double movement_dir_lo = 0.42;
+        private const double movement_dir_hi = 0.50;
 
         private const int movement_chord_window = 14;
         private const double movement_chord_lo = 0.14;
