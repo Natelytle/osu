@@ -35,19 +35,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double low_acc_fade_hi = 0.925;
 
         private const double release_reward_strength = 0.38;
-        private const double release_reward_lo = 1.0;
-        private const double release_reward_hi = 3.0;
+        private const double release_reward_lo = 1.73522;
+        private const double release_reward_hi = 5.20566;
 
         private const double variety_floor = 0.88;
         private const double variety_cap = 1.10;
-        private const double variety_midpoint = 3.7;
+        private const double variety_midpoint = 3.7987;
         private const double variety_steepness = 2.0;
 
         private const double dense_buff = 0.18;
-        private const double dense_coact_lo = 3.0;
-        private const double dense_coact_hi = 5.0;
-        private const double dense_release_lo = 1.5;
-        private const double dense_release_hi = 3.0;
+        private const double dense_coact_lo = 3.01761;
+        private const double dense_coact_hi = 5.02934;
+        private const double dense_release_lo = 2.60283;
+        private const double dense_release_hi = 5.20566;
         private const double dense_sr_taper_lo = 9.5;
         private const double dense_sr_taper_hi = 13.0;
 

@@ -12,6 +12,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double jack_speed_nerf = 0.49996;
         private const double speed_scale = 1.39127;
 
+        private const double total_weight = 1.01112; // sqrt(1.02237)
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
         {
             if (hitObject.DeltaTime < ChordUtils.CHORD_TOLERANCE_MS)
@@ -23,7 +25,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double patternMultiplier = isJack ? jack_speed_nerf : TrillUtils.TrillFactor(hitObject);
 
-            return tapRate * patternMultiplier * speed_scale * hitObject.ManipulationFactor * hitObject.StaminaFactor;
+            return tapRate * patternMultiplier * speed_scale * hitObject.ManipulationFactor * hitObject.StaminaFactor * total_weight;
         }
     }
 }

@@ -56,19 +56,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private double combinedDifficulty(double coordinationDifficulty, double releaseDifficulty, double speedDifficulty, double jackDifficulty, double technicalDifficulty)
         {
             const int combine_lambda = 2;
-            const double speed_weight = 1.02237;
-            const double jack_weight = 1.42793;
-            const double coordination_weight = 3.30000;
-            const double technical_weight = 2.49916;
-            const double release_weight = 2.83449;
 
-            double powerSum = speed_weight * DiffUtils.Pow(speedDifficulty, combine_lambda)
-                              + jack_weight * DiffUtils.Pow(jackDifficulty, combine_lambda)
-                              + coordination_weight * DiffUtils.Pow(coordinationDifficulty, combine_lambda)
-                              + technical_weight * DiffUtils.Pow(technicalDifficulty, combine_lambda);
+            double powerSum = DiffUtils.Pow(speedDifficulty, combine_lambda)
+                              + DiffUtils.Pow(jackDifficulty, combine_lambda)
+                              + DiffUtils.Pow(coordinationDifficulty, combine_lambda)
+                              + DiffUtils.Pow(technicalDifficulty, combine_lambda);
 
             double tapDifficulty = powerSum > 0 ? DiffUtils.Pow(powerSum, 1.0 / combine_lambda) : 0.0;
-            return tapDifficulty + release_weight * releaseDifficulty;
+            return tapDifficulty + releaseDifficulty;
         }
     }
 }

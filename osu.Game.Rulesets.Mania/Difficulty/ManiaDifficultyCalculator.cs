@@ -50,8 +50,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double high_end_compression_knee = 11.5;
         private const double high_end_compression_strength = 0.5;
 
-        private const double high_end_coordination_gate_lo = 5.4;
-        private const double high_end_coordination_gate_hi = 8.5;
+        private const double high_end_coordination_gate_lo = 7.40522;
+        private const double high_end_coordination_gate_hi = 11.65637;
 
         private const double od_weight = 0.188;
 

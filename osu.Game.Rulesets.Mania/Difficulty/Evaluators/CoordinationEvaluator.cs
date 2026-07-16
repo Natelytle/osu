@@ -22,6 +22,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double boundary_min_delta_ms = 35.0;
         private const double boundary_activity_window_ms = 450.0;
 
+        private const double total_weight = 1.81659; // sqrt(3.3)
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
             double coordinationDifficulty = calculateBoundaryPressure(current);
@@ -34,7 +36,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             coordinationDifficulty *= current.ManipulationFactor * current.StaminaFactor;
 
-            return coordinationDifficulty;
+            return coordinationDifficulty * total_weight;
         }
 
         /// <summary>

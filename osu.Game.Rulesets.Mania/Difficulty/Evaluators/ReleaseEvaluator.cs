@@ -28,6 +28,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private const double overlapping_release_offset_ms = 30.0;
         private const double overlapping_release_weight = 0.2;
 
+        private const double total_weight = 2.83449;
+
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
             double releaseDifficulty = 0.0;
@@ -41,7 +43,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             releaseDifficulty += calculateLongHoldBonus(duration, longNoteGate);
             releaseDifficulty += calculateReleaseSpeedBonus(current, longNoteGate);
 
-            return releaseDifficulty;
+            return releaseDifficulty * total_weight;
         }
 
         private static double calculateLongHoldBonus(double duration, double longNoteGate)

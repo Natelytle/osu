@@ -14,6 +14,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
     {
         private const double jack_multiplier = 0.62159;
 
+        private const double total_weight = 1.19496; // sqrt(1.42793)
+
         public const double JACK_WINDOW_MS = 350.0;
 
         // Added to the column gap before inverting it into a tap rate, softening very fast jacks.
@@ -88,7 +90,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             jackDifficulty *= calculateSingleJackNerf(rowSize, tapRate);
             jackDifficulty *= calculateIncidentalJackNerf(current, rowSize);
 
-            return jackDifficulty * jack_multiplier;
+            return jackDifficulty * jack_multiplier * total_weight;
         }
 
         private static double calculateChordJackBonus(ManiaDifficultyHitObject current, int rowSize, double columnDelta)
