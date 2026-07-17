@@ -14,6 +14,7 @@ using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Processing;
 using osu.Game.Rulesets.Mania.Difficulty.Skills;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Scoring;
@@ -26,8 +27,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
+        public const double STAR_RATING_EXPONENT = 0.52899;
+
         private const double overall_multiplier = 0.360643;
-        private const double power_exponent = 0.52899;
 
         /// SR *= (1 - full_ln_damper * lnRatio^2).
         private const double full_ln_damper = 0.06263;
@@ -104,6 +106,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double spikeMult = spikeNerf(totalSkill.SustainRatio());
 
             double totalDifficulty = totalSkill.DifficultyValue();
+            double ssSkill = totalSkill.DifficultyValueAtAccuracy(1.0);
             double totalDifficultyNoReleases = totalSkillNoReleases.DifficultyValue();
             double lnKeyedMult = monotonicLnMultiplier(lnDamper, totalDifficulty, totalDifficultyNoReleases);
 
@@ -114,10 +117,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double releaseStarRating = scaleToStarRating(releaseSkill.DifficultyValue()) * odMult;
 
             double starRating = computeStarRating(totalDifficulty, odMult, lnKeyedMult, spikeMult * shortMapMult, coordinationStarRating);
+            double starRatingSS = computeStarRating(ssSkill, odMult, lnKeyedMult, spikeMult * shortMapMult, coordinationStarRating);
+
+            PolynomialPenaltyUtils.QuarticCoefficients scoreLossCoefficients = totalSkill.GetScoreLossCoefficients(ssSkill);
 
             return new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
+                StarRatingSS = starRatingSS,
+                ScoreLossCoefficientA = scoreLossCoefficients.A,
+                ScoreLossCoefficientB = scoreLossCoefficients.B,
+                ScoreLossCoefficientC = scoreLossCoefficients.C,
+                ScoreLossCoefficientD = scoreLossCoefficients.D,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
                 SpeedDifficulty = speedStarRating,
@@ -172,13 +183,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                                 * overallDifficultyMultiplier
                                 * longNoteDamper
                                 * shortMapMultiplier;
-
-            if (starRating > high_end_compression_knee)
-            {
-                double coordinationGate = DiffUtils.Smoothstep(coordinationDifficulty, high_end_coordination_gate_lo, high_end_coordination_gate_hi);
-                double excessAboveKnee = starRating - high_end_compression_knee;
-                starRating = high_end_compression_knee + excessAboveKnee * (1.0 - high_end_compression_strength * coordinationGate);
-            }
+            //
+            // if (starRating > high_end_compression_knee)
+            // {
+            //     double coordinationGate = DiffUtils.Smoothstep(coordinationDifficulty, high_end_coordination_gate_lo, high_end_coordination_gate_hi);
+            //     double excessAboveKnee = starRating - high_end_compression_knee;
+            //     starRating = high_end_compression_knee + excessAboveKnee * (1.0 - high_end_compression_strength * coordinationGate);
+            // }
 
             return starRating;
         }
@@ -204,7 +215,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (aggregatedDifficulty <= 0)
                 return 0.0;
 
-            return overall_multiplier * DiffUtils.Pow(aggregatedDifficulty, power_exponent);
+            return overall_multiplier * DiffUtils.Pow(aggregatedDifficulty, STAR_RATING_EXPONENT);
         }
 
         private static double hitLeniency(double greatHitWindow) => 0.6 * (greatHitWindow - 90) + 90;

@@ -5,6 +5,7 @@ using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
@@ -19,6 +20,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
             CurrentStrain *= Math.Pow(strain_decay_base, current.DeltaTime / 1000);
 
             CurrentStrain += JackEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current);
+        }
+
+        public AccuracyDifficulties TransformStrainToAccuracyDifficulties(double strain)
+        {
+            AccuracyValueMultipliers multipliers = new AccuracyValueMultipliers
+            {
+                MultiplierAtSS = 1.01,
+                MultiplierAt99 = 1.005,
+                MultiplierAt98 = 1.00,
+                MultiplierAt95 = 0.99,
+                MultiplierAt90 = 0.95,
+                MultiplierAt85 = 0.87,
+                MultiplierAt80 = 0.62,
+            };
+
+            return new AccuracyDifficulties(strain, multipliers);
         }
     }
 }

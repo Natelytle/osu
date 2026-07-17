@@ -2,8 +2,8 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Game.Rulesets.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Processing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
@@ -42,27 +42,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             return includeReleases ? base.GetNoteWeight(current) : 1.0;
         }
 
-        protected override double DifficultyAt(DifficultyHitObject current)
+        protected override AccuracyDifficulties AccuracyDifficultiesAt(DifficultyHitObject current)
         {
-            double coordinationDifficulty = coordinationProcessor.CurrentStrain;
-            double releaseDifficulty = includeReleases ? releaseProcessor.CurrentStrain : 0;
-            double speedDifficulty = speedProcessor.CurrentStrain;
-            double jackDifficulty = jackProcessor.CurrentStrain;
-            double technicalDifficulty = technicalProcessor.CurrentStrain;
+            AccuracyDifficulties coordinationDifficulties = coordinationProcessor.TransformStrainToAccuracyDifficulties(coordinationProcessor.CurrentStrain);
+            AccuracyDifficulties releaseDifficulty = releaseProcessor.TransformStrainToAccuracyDifficulties(includeReleases ? releaseProcessor.CurrentStrain : 0);
+            AccuracyDifficulties speedDifficulty = speedProcessor.TransformStrainToAccuracyDifficulties(speedProcessor.CurrentStrain);
+            AccuracyDifficulties jackDifficulty = jackProcessor.TransformStrainToAccuracyDifficulties(jackProcessor.CurrentStrain);
+            AccuracyDifficulties technicalDifficulty = technicalProcessor.TransformStrainToAccuracyDifficulties(technicalProcessor.CurrentStrain);
 
-            return combinedDifficulty(coordinationDifficulty, releaseDifficulty, speedDifficulty, jackDifficulty, technicalDifficulty);
+            return combinedDifficulty(coordinationDifficulties, releaseDifficulty, speedDifficulty, jackDifficulty, technicalDifficulty);
         }
 
-        private double combinedDifficulty(double coordinationDifficulty, double releaseDifficulty, double speedDifficulty, double jackDifficulty, double technicalDifficulty)
+        private AccuracyDifficulties combinedDifficulty(AccuracyDifficulties coordinationDifficulty, AccuracyDifficulties releaseDifficulty, AccuracyDifficulties speedDifficulty, AccuracyDifficulties jackDifficulty, AccuracyDifficulties technicalDifficulty)
         {
             const int combine_lambda = 2;
 
-            double powerSum = DiffUtils.Pow(speedDifficulty, combine_lambda)
-                              + DiffUtils.Pow(jackDifficulty, combine_lambda)
-                              + DiffUtils.Pow(coordinationDifficulty, combine_lambda)
-                              + DiffUtils.Pow(technicalDifficulty, combine_lambda);
+            AccuracyDifficulties powerSum = AccuracyDifficulties.Pow(speedDifficulty, combine_lambda)
+                                            + AccuracyDifficulties.Pow(jackDifficulty, combine_lambda)
+                                            + AccuracyDifficulties.Pow(coordinationDifficulty, combine_lambda)
+                                            + AccuracyDifficulties.Pow(technicalDifficulty, combine_lambda);
 
-            double tapDifficulty = powerSum > 0 ? DiffUtils.Pow(powerSum, 1.0 / combine_lambda) : 0.0;
+            AccuracyDifficulties tapDifficulty = powerSum.BaseDifficulty > 0 ? AccuracyDifficulties.Pow(powerSum, 1.0 / combine_lambda) : powerSum;
             return tapDifficulty + releaseDifficulty;
         }
     }

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Utils;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
@@ -15,9 +16,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaPerformanceCalculator : PerformanceCalculator
     {
-        private const double base_coefficient = 4.243;
+        private const double base_coefficient = 4.243 * 0.8;
         private const double base_sr_offset = 0.15;
-        private const double base_exponent = 2.470;
+        private const double performance_points_exponent = 2.470;
 
         private const double low_end_coefficient = 7.7;
         private const double low_end_exponent = 1.63;
@@ -93,22 +94,39 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             double multiplier = 1.0;
 
-            if (score.Mods.Any(m => m is ModNoFail))
-                multiplier *= 0.75;
+            // if (score.Mods.Any(m => m is ModNoFail))
+            //     multiplier *= 0.75;
             if (score.Mods.Any(m => m is ModEasy))
                 multiplier *= 0.5;
 
             double difficultyValue = computeDifficultyValue(maniaAttributes);
-            double accuracyScale = computeAccuracyScale(maniaAttributes);
+            double accuracyScale = computeAccuracyScale(calculateCustomAccuracy(), maniaAttributes);
             double varietyMultiplier = this.varietyMultiplier(maniaAttributes.Variety);
             double lengthMultiplier = this.lengthMultiplier(totalHits, maniaAttributes.StarRating);
             double totalValue = difficultyValue * accuracyScale * varietyMultiplier * lengthMultiplier * multiplier;
+            double valueSS = difficultyValue * varietyMultiplier * lengthMultiplier * multiplier;
+            double value99 = valueSS * computeAccuracyScale(0.99, maniaAttributes);
+            double value98 = valueSS * computeAccuracyScale(0.98, maniaAttributes);
+            double value97 = valueSS * computeAccuracyScale(0.97, maniaAttributes);
+            double value96 = valueSS * computeAccuracyScale(0.96, maniaAttributes);
+            double value95 = valueSS * computeAccuracyScale(0.95, maniaAttributes);
 
             return new ManiaPerformanceAttributes
             {
                 Difficulty = difficultyValue,
                 //EstimatedUnstableRate = accuracyImpliedDeviation,
-                Total = totalValue
+                Total = totalValue,
+                ValueSS = valueSS,
+                Value99 = value99,
+                Value98 = value98,
+                Value97 = value97,
+                Value96 = value96,
+                Value95 = value95,
+                Scale99 = value99 / valueSS,
+                Scale98 = value98 / value99,
+                Scale97 = value97 / value98,
+                Scale96 = value96 / value97,
+                Scale95 = value95 / value96
             };
         }
 
@@ -128,7 +146,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double computeDifficultyValue(ManiaDifficultyAttributes attributes)
         {
-            double baseValue = base_coefficient * DiffUtils.Pow(Math.Max(attributes.StarRating - base_sr_offset, 0.05), base_exponent);
+            double baseValue = base_coefficient * DiffUtils.Pow(Math.Max(attributes.StarRatingSS - base_sr_offset, 0.05), performance_points_exponent);
 
             double lowEndBonus = low_end_coefficient * DiffUtils.Pow(attributes.StarRating, low_end_exponent)
                                                      * (1.0 - DiffUtils.Smoothstep(attributes.StarRating, low_end_taper_lo, low_end_taper_hi));
@@ -136,18 +154,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return (baseValue + lowEndBonus) * denseFastMultiplier(attributes);
         }
 
-        private double computeAccuracyScale(ManiaDifficultyAttributes attributes)
+        private double computeAccuracyScale(double accuracy, ManiaDifficultyAttributes attributes)
         {
             if (accuracyImpliedDeviation == null)
                 return 0;
 
-            double customAccuracy = calculateCustomAccuracy();
-            double lowAccFade = DiffUtils.Smoothstep(customAccuracy, low_acc_fade_lo, low_acc_fade_hi);
+            double scoreLoss = 1 - accuracy;
+
+            return Math.Pow(1 -
+                            PolynomialPenaltyUtils.GetPenaltyAt(new PolynomialPenaltyUtils.QuarticCoefficients(
+                                attributes.ScoreLossCoefficientA,
+                                attributes.ScoreLossCoefficientB,
+                                attributes.ScoreLossCoefficientC,
+                                attributes.ScoreLossCoefficientD), Math.Log(scoreLoss + 1))
+                , performance_points_exponent * ManiaDifficultyCalculator.STAR_RATING_EXPONENT);
+
+            // double lowAccFade = DiffUtils.Smoothstep(customAccuracy, low_acc_fade_lo, low_acc_fade_hi);
 
             // Discount the implied deviation on release-heavy (LN) charts so that LN plays are rewarded.
-            double adjustedDeviation = accuracyImpliedDeviation.Value / (1.0 + release_reward_strength * DiffUtils.Smoothstep(attributes.ReleaseDifficulty, release_reward_lo, release_reward_hi));
+            // double adjustedDeviation = accuracyImpliedDeviation.Value / (1.0 + release_reward_strength * DiffUtils.Smoothstep(attributes.ReleaseDifficulty, release_reward_lo, release_reward_hi));
 
-            return lowAccFade * accuracyScaling(adjustedDeviation, attributes.StarRating);
+            // return lowAccFade * accuracyScaling(adjustedDeviation, attributes.StarRating);
         }
 
         private static double accuracyScaling(double deviation, double starRating)

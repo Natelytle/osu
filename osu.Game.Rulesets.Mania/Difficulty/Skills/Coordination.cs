@@ -3,6 +3,7 @@
 
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Processing;
+using osu.Game.Rulesets.Mania.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
@@ -17,11 +18,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             this.coordinationProcessor = coordinationProcessor;
         }
 
-        protected override double DifficultyAt(DifficultyHitObject current)
+        protected override AccuracyDifficulties AccuracyDifficultiesAt(DifficultyHitObject current)
         {
             coordinationProcessor.ProcessStrainFor(current);
 
-            return coordinationProcessor.CurrentStrain;
+            double strain = coordinationProcessor.CurrentStrain;
+
+            return coordinationProcessor.TransformStrainToAccuracyDifficulties(strain);
         }
     }
 }

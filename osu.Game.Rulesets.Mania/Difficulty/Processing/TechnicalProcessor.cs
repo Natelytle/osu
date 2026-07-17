@@ -62,5 +62,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
             return TechnicalEvaluator.EvaluatePatternVarietyOf(recentShapes.Distinct().Count());
         }
+
+        public AccuracyDifficulties TransformStrainToAccuracyDifficulties(double strain)
+        {
+            AccuracyValueMultipliers multipliers = new AccuracyValueMultipliers
+            {
+                MultiplierAtSS = 1.3,
+                MultiplierAt99 = 1.15,
+                MultiplierAt98 = 1.00,
+                MultiplierAt95 = 0.72,
+                MultiplierAt90 = 0.5,
+                MultiplierAt85 = 0.16,
+                MultiplierAt80 = 0.05
+            };
+
+            return new AccuracyDifficulties(strain, multipliers);
+        }
     }
 }
