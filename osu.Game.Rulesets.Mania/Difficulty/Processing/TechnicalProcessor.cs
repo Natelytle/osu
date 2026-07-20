@@ -70,7 +70,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
                 MultiplierAtSS = 1.3,
                 MultiplierAt99 = 1.15,
                 MultiplierAt98 = 1.00,
-                MultiplierAt95 = 0.72,
+                MultiplierAt95 = 0.82,
                 MultiplierAt90 = 0.5,
                 MultiplierAt85 = 0.16,
                 MultiplierAt80 = 0.05

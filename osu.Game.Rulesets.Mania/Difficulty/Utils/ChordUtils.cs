@@ -16,9 +16,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 
         private const double full_chord_run_ramp = 2.0;
 
-        private const double near_full_chord_nerf = 0.0;
+        private const double near_full_chord_nerf = 0.3;
 
-        private const double near_full_chord_run_ramp = 55.0;
+        private const double near_full_chord_run_ramp = 10.0;
 
         /// <summary>
         /// 16th note at 160 BPM - the crossover where chord presses earn full credit. Faster repeats get a
