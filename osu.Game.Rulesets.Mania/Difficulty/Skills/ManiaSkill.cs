@@ -105,8 +105,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 accuracySum += accuracy.AccuracyAt(skill);
             }
 
-            // Return the accuracy value, but we subtract 1% of the notes from the divisor so that an SS isn't just the difficulty of the highest note.
-            return accuracySum / (accuracyDifficulties.Count - Math.Min(accuracyDifficulties.Count * 0.01, 10));
+            // Return the accuracy value, but we subtract 1.5% of the notes from the divisor so that an SS isn't just the difficulty of the highest note.
+            return accuracySum / (accuracyDifficulties.Count - Math.Max(accuracyDifficulties.Count * 0.015, 3));
         }
 
         public override double DifficultyValue() => DifficultyValueAtAccuracy(0.96);

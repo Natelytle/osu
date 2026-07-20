@@ -28,11 +28,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
             {
                 MultiplierAtSS = 1.01,
                 MultiplierAt99 = 1.005,
-                MultiplierAt98 = 1.00,
-                MultiplierAt95 = 0.99,
-                MultiplierAt90 = 0.95,
-                MultiplierAt85 = 0.87,
-                MultiplierAt80 = 0.62,
+                MultiplierAt98 = 0.99,
+                MultiplierAt95 = 0.95,
+                MultiplierAt90 = 0.84,
+                MultiplierAt85 = 0.6,
+                MultiplierAt80 = 0.28,
             };
 
             return new AccuracyDifficulties(strain, multipliers);
