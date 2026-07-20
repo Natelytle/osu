@@ -8,22 +8,48 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public class AccuracyDifficulties
     {
-        public double BaseDifficulty => difficulties[2]; // Hacky - the difficulty at 98%.
-        private readonly double[] difficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
+        private const int base_index = 2; // Hacky - the difficulty at 98%.
 
-        public AccuracyDifficulties() { }
+        public double BaseDifficulty { get; }
+        public double[] Multipliers { get; }
+
+        public AccuracyDifficulties()
+        {
+            BaseDifficulty = 0;
+            Multipliers = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
+        }
 
         public AccuracyDifficulties(double difficulty, AccuracyValueMultipliers multipliers)
         {
-            for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                difficulties[i] = difficulty * multipliers.AccuracyMultipliers[i];
-            }
+            BaseDifficulty = difficulty;
+            Multipliers = multipliers.AccuracyMultipliers;
         }
 
-        private AccuracyDifficulties(double[] difficulties)
+        private AccuracyDifficulties(double baseDifficulty, double[] multipliers)
         {
-            this.difficulties = difficulties;
+            BaseDifficulty = baseDifficulty;
+            Multipliers = multipliers;
+        }
+
+        /// <summary>
+        /// Reconstructs the absolute difficulty value at a given accuracy index from
+        /// <see cref="BaseDifficulty"/> and <see cref="Multipliers"/>.
+        /// </summary>
+        private double getDifficulty(int index) => BaseDifficulty * Multipliers[index];
+
+        /// <summary>
+        /// Builds an <see cref="AccuracyDifficulties"/> from a full array of absolute difficulty
+        /// values, decomposing it back into a base difficulty and relative multipliers.
+        /// </summary>
+        private static AccuracyDifficulties fromDifficultyArray(double[] difficulties)
+        {
+            double baseDifficulty = difficulties[base_index];
+            double[] multipliers = new double[difficulties.Length];
+
+            for (int i = 0; i < difficulties.Length; i++)
+                multipliers[i] = baseDifficulty != 0 ? difficulties[i] / baseDifficulty : 0;
+
+            return new AccuracyDifficulties(baseDifficulty, multipliers);
         }
 
         public static AccuracyDifficulties Pow(AccuracyDifficulties difficultiesBase, double exponent)
@@ -31,11 +57,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newDifficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
 
             for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                newDifficulties[i] = Math.Pow(difficultiesBase.difficulties[i], exponent);
-            }
+                newDifficulties[i] = Math.Pow(difficultiesBase.getDifficulty(i), exponent);
 
-            return new AccuracyDifficulties(newDifficulties);
+            return fromDifficultyArray(newDifficulties);
         }
 
         public static AccuracyDifficulties Norm(double exponent, params AccuracyDifficulties[] normedDifficulties)
@@ -57,11 +81,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newDifficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
 
             for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                newDifficulties[i] = left.difficulties[i] + right.difficulties[i];
-            }
+                newDifficulties[i] = left.getDifficulty(i) + right.getDifficulty(i);
 
-            return new AccuracyDifficulties(newDifficulties);
+            return fromDifficultyArray(newDifficulties);
         }
 
         public static AccuracyDifficulties operator +(AccuracyDifficulties left, double right)
@@ -69,11 +91,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newDifficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
 
             for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                newDifficulties[i] = left.difficulties[i] + right;
-            }
+                newDifficulties[i] = left.getDifficulty(i) + right;
 
-            return new AccuracyDifficulties(newDifficulties);
+            return fromDifficultyArray(newDifficulties);
         }
 
         public static AccuracyDifficulties operator -(AccuracyDifficulties left, AccuracyDifficulties right)
@@ -81,11 +101,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newDifficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
 
             for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                newDifficulties[i] = left.difficulties[i] - right.difficulties[i];
-            }
+                newDifficulties[i] = left.getDifficulty(i) - right.getDifficulty(i);
 
-            return new AccuracyDifficulties(newDifficulties);
+            return fromDifficultyArray(newDifficulties);
         }
 
         public static AccuracyDifficulties operator *(AccuracyDifficulties left, AccuracyDifficulties right)
@@ -93,11 +111,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newDifficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
 
             for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                newDifficulties[i] = left.difficulties[i] * right.difficulties[i];
-            }
+                newDifficulties[i] = left.getDifficulty(i) * right.getDifficulty(i);
 
-            return new AccuracyDifficulties(newDifficulties);
+            return fromDifficultyArray(newDifficulties);
         }
 
         public static AccuracyDifficulties operator *(AccuracyDifficulties left, double right)
@@ -105,11 +121,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newDifficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
 
             for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                newDifficulties[i] = left.difficulties[i] * right;
-            }
+                newDifficulties[i] = left.getDifficulty(i) * right;
 
-            return new AccuracyDifficulties(newDifficulties);
+            return fromDifficultyArray(newDifficulties);
         }
 
         public static AccuracyDifficulties operator /(AccuracyDifficulties left, AccuracyDifficulties right)
@@ -117,27 +131,25 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newDifficulties = new double[AccuracyValueMultipliers.ACCURACY_VALUES.Length];
 
             for (int i = 0; i < AccuracyValueMultipliers.ACCURACY_VALUES.Length; i++)
-            {
-                newDifficulties[i] = left.difficulties[i] / right.difficulties[i];
-            }
+                newDifficulties[i] = left.getDifficulty(i) / right.getDifficulty(i);
 
-            return new AccuracyDifficulties(newDifficulties);
+            return fromDifficultyArray(newDifficulties);
         }
 
         public double AccuracyAt(double skill)
         {
-            if (skill >= difficulties[0])
+            if (skill >= getDifficulty(0))
                 return AccuracyValueMultipliers.ACCURACY_VALUES[0];
             if (skill <= 0)
                 return AccuracyValueMultipliers.ACCURACY_VALUES[^1];
 
-            for (int i = 1; i < difficulties.Length; i++)
+            for (int i = 1; i < Multipliers.Length; i++)
             {
-                if (difficulties[i] > skill)
+                if (getDifficulty(i) > skill)
                     continue;
 
-                double upperSkillBound = difficulties[i - 1];
-                double lowerSkillBound = difficulties[i];
+                double upperSkillBound = getDifficulty(i - 1);
+                double lowerSkillBound = getDifficulty(i);
 
                 double upperAccuracyBound = AccuracyValueMultipliers.ACCURACY_VALUES[i - 1];
                 double lowerAccuracyBound = AccuracyValueMultipliers.ACCURACY_VALUES[i];
@@ -151,17 +163,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         public double DifficultyAt(double accuracy)
         {
             if (accuracy >= AccuracyValueMultipliers.ACCURACY_VALUES[0])
-                return difficulties[0];
+                return getDifficulty(0);
             if (accuracy <= AccuracyValueMultipliers.ACCURACY_VALUES[^1])
-                return difficulties[^1];
+                return getDifficulty(Multipliers.Length - 1);
 
-            for (int i = 1; i < difficulties.Length; i++)
+            for (int i = 1; i < Multipliers.Length; i++)
             {
                 if (AccuracyValueMultipliers.ACCURACY_VALUES[i] > accuracy)
                     continue;
 
-                double upperSkillBound = difficulties[i - 1];
-                double lowerSkillBound = difficulties[i];
+                double upperSkillBound = getDifficulty(i - 1);
+                double lowerSkillBound = getDifficulty(i);
 
                 double upperAccuracyBound = AccuracyValueMultipliers.ACCURACY_VALUES[i - 1];
                 double lowerAccuracyBound = AccuracyValueMultipliers.ACCURACY_VALUES[i];

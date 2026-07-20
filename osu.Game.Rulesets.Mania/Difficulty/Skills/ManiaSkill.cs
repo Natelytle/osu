@@ -22,6 +22,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         protected int BaseNoteCount { get; private set; }
 
+        private readonly BinnedDifficulties binnedDifficulties = new BinnedDifficulties();
+
         protected ManiaSkill(Mod[] mods)
             : base(mods)
         {
@@ -39,8 +41,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (difficulties.BaseDifficulty > 0)
             {
                 sortedDifficulties.Add(difficulties.BaseDifficulty);
-                accuracyDifficulties.Add(difficulties);
             }
+
+            accuracyDifficulties.Add(difficulties);
+
+            // Invalidate our current bins, we need to remake them.
+            binnedDifficulties.Add(difficulties);
 
             return difficulties.BaseDifficulty;
         }
@@ -98,6 +104,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         public double AccuracyAtSkill(double skill)
         {
+            if (skill == 0)
+                return 0;
+
+            return accuracyDifficulties.Count > 64 ? AccuracyAtSkillBinned(skill, binnedDifficulties.Bins) : AccuracyAtSkillExact(skill);
+        }
+
+        public double AccuracyAtSkillExact(double skill)
+        {
             double accuracySum = 0;
 
             foreach (AccuracyDifficulties accuracy in accuracyDifficulties)
@@ -107,6 +121,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             // Return the accuracy value, but we subtract 1% of the notes from the divisor so that an SS isn't just the difficulty of the highest note.
             return accuracySum / (accuracyDifficulties.Count - Math.Min(accuracyDifficulties.Count * 0.01, 10));
+        }
+
+        public double AccuracyAtSkillBinned(double skill, Bin[] binnedAccuracies)
+        {
+            double accuracySum = 0;
+
+            foreach (Bin accuracyBin in binnedAccuracies)
+            {
+                accuracySum += accuracyBin.AccuracyAt(skill) * accuracyBin.Count;
+            }
+
+            // Return the accuracy value, but we subtract 1% of the notes from the divisor so that an SS isn't just the difficulty of the highest note.
+            double result = accuracySum / (accuracyDifficulties.Count - Math.Min(accuracyDifficulties.Count * 0.01, 10));
+
+            return result;
         }
 
         public override double DifficultyValue() => DifficultyValueAtAccuracy(0.96);
@@ -134,7 +163,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 double penalizedSkill = ssSkill * skillProportion;
 
                 // We take the log to squash miss counts, which have large absolute value differences, but low relative differences, into a straighter line for the polynomial.
-                scoreLosses[skillProportion] = Math.Log((1.0 - AccuracyAtSkill(penalizedSkill)) + 1);
+                scoreLosses[skillProportion] = Math.Log((1.0 - AccuracyAtSkillExact(penalizedSkill)) + 1);
             }
 
             return PolynomialPenaltyUtils.GetPenaltyCoefficients(scoreLosses);
