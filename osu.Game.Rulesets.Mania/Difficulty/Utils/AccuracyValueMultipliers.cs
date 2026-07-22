@@ -21,6 +21,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         };
 
         public required double MultiplierAtSS;
+        public required double MultiplierAt995;
         public required double MultiplierAt99;
         public required double MultiplierAt98;
         public required double MultiplierAt95;
