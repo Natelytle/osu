@@ -9,7 +9,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
     {
         double CurrentStrain { get; }
 
-        // Wrong place to put this but who cares!
         AccuracyDifficulties TransformStrainToAccuracyDifficulties(double strain);
     }
 }

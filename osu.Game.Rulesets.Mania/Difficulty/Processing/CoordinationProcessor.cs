@@ -13,6 +13,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
     {
         private const double strain_decay_base = 0.52909;
 
+        private static readonly AccuracyValueMultipliers multipliers = new AccuracyValueMultipliers
+        (
+            multiplierAtSS: 1.22,
+            multiplierAt995: 1.15,
+            multiplierAt99: 1.1,
+            multiplierAt98: 1.00,
+            multiplierAt95: 0.94,
+            multiplierAt90: 0.83,
+            multiplierAt85: 0.72,
+            multiplierAt80: 0.32
+        );
+
         public double CurrentStrain { get; private set; }
 
         public void ProcessStrainFor(DifficultyHitObject current)
@@ -22,21 +34,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
             CurrentStrain += CoordinationEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current);
         }
 
-        public AccuracyDifficulties TransformStrainToAccuracyDifficulties(double strain)
-        {
-            AccuracyValueMultipliers multipliers = new AccuracyValueMultipliers
-            {
-                MultiplierAtSS = 1.22,
-                MultiplierAt99_5 = 1.15,
-                MultiplierAt99 = 1.1,
-                MultiplierAt98 = 1.00,
-                MultiplierAt95 = 0.94,
-                MultiplierAt90 = 0.83,
-                MultiplierAt85 = 0.72,
-                MultiplierAt80 = 0.32
-            };
-
-            return new AccuracyDifficulties(strain, multipliers);
-        }
+        public AccuracyDifficulties TransformStrainToAccuracyDifficulties(double strain) => new AccuracyDifficulties(strain, multipliers);
     }
 }

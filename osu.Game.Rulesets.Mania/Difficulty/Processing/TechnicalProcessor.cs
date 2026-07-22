@@ -13,9 +13,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
     public class TechnicalProcessor : IDifficultyProcessor
     {
-        public double CurrentStrain { get; private set; }
-
         private const double strain_decay_base = 0.06696;
+
+        private static readonly AccuracyValueMultipliers multipliers = new AccuracyValueMultipliers
+        (
+            multiplierAtSS: 1.46,
+            multiplierAt995: 1.38,
+            multiplierAt99: 1.25,
+            multiplierAt98: 1.10,
+            multiplierAt95: 0.88,
+            multiplierAt90: 0.7,
+            multiplierAt85: 0.55,
+            multiplierAt80: 0.25
+        );
+
+        public double CurrentStrain { get; private set; }
 
         private const int rhythm_window = 10;
         private const int variety_window = 8;
@@ -63,21 +75,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
             return TechnicalEvaluator.EvaluatePatternVarietyOf(recentShapes.Distinct().Count());
         }
 
-        public AccuracyDifficulties TransformStrainToAccuracyDifficulties(double strain)
-        {
-            AccuracyValueMultipliers multipliers = new AccuracyValueMultipliers
-            {
-                MultiplierAtSS = 1.46,
-                MultiplierAt99_5 = 1.38,
-                MultiplierAt99 = 1.25,
-                MultiplierAt98 = 1.10,
-                MultiplierAt95 = 0.88,
-                MultiplierAt90 = 0.7,
-                MultiplierAt85 = 0.55,
-                MultiplierAt80 = 0.25
-            };
-
-            return new AccuracyDifficulties(strain, multipliers);
-        }
+        public AccuracyDifficulties TransformStrainToAccuracyDifficulties(double strain) => new AccuracyDifficulties(strain, multipliers);
     }
 }
