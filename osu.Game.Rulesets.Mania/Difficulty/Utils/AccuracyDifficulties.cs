@@ -8,7 +8,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public class AccuracyDifficulties
     {
-        private const int base_index = 2; // Hacky - the difficulty at 98%.
+        private const int base_index = 3; // Hacky - the difficulty at 98%.
 
         public double BaseDifficulty { get; }
         public double[] Multipliers { get; }

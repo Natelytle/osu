@@ -5,11 +5,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public struct AccuracyValueMultipliers
     {
-        public static readonly double[] ACCURACY_VALUES = { 1.00, 0.99, 0.98, 0.95, 0.90, 0.85, 0.80, 0.75 };
+        public static readonly double[] ACCURACY_VALUES = { 1.00, 0.995, 0.99, 0.98, 0.95, 0.90, 0.85, 0.80, 0.75 };
 
         public readonly double[] AccuracyMultipliers => new[]
         {
             MultiplierAtSS,
+            MultiplierAt995,
             MultiplierAt99,
             MultiplierAt98,
             MultiplierAt95,
