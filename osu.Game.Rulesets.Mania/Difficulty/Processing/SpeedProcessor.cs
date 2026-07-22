@@ -26,12 +26,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
         {
             AccuracyValueMultipliers multipliers = new AccuracyValueMultipliers
             {
-                MultiplierAtSS = 1.1,
+                MultiplierAtSS = 1.2,
+                MultiplierAt99_5 = 1.125,
                 MultiplierAt99 = 1.05,
                 MultiplierAt98 = 1.00,
                 MultiplierAt95 = 0.84,
                 MultiplierAt90 = 0.65,
-                MultiplierAt85 = 0.3,
+                MultiplierAt85 = 0.4,
                 MultiplierAt80 = 0.1
             };
 
