@@ -1,7 +1,6 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -11,33 +10,36 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 {
     public static class AgilityEvaluator
     {
-        private const double distance_cap = OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25; // 1.25 circles distance between centers
-
         /// <summary>
         /// Evaluates the difficulty of fast aiming
         /// </summary>
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
+            const double previous_delta_influence = 0.5;
+
             if (current.BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = current.Index > 0 ? (OsuDifficultyHitObject)current.Previous(0) : null;
+            var osuPrevObj = (OsuDifficultyHitObject?)current.Previous();
 
-            double travelDistance = osuPrevObj?.LazyTravelDistance ?? 0;
-            double distance = travelDistance + osuCurrObj.LazyJumpDistance;
+            // For objects that are stacked we want to reduce the agility difficulty slightly by combining delta times of both objects together
+            // Because we can assume that they likely would be done in one movement.
+            double previousDelta = 0;
 
-            double distanceScaled = Math.Min(distance, distance_cap) / distance_cap;
+            if (osuPrevObj != null)
+            {
+                previousDelta = osuPrevObj.AdjustedDeltaTime *
+                                DiffUtils.ReverseLerp(osuPrevObj.LazyJumpDistance, OsuDifficultyHitObject.NORMALISED_RADIUS, 0);
+            }
 
-            double strain = distanceScaled * 1000 / osuCurrObj.AdjustedDeltaTime;
+            double combinedDelta = osuCurrObj.AdjustedDeltaTime + previousDelta * previous_delta_influence;
 
-            strain *= osuCurrObj.SmallCircleBonus;
+            double agilityDifficulty = DiffUtils.Pow(1000 / combinedDelta, 2);
 
-            strain *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
+            agilityDifficulty *= DiffUtils.Pow(osuCurrObj.SmallCircleBonus, 1.5);
 
-            return strain * DifficultyCalculationUtils.Smootherstep(distance, 0, OsuDifficultyHitObject.NORMALISED_RADIUS);
+            return agilityDifficulty;
         }
-
-        private static double highBpmBonus(double ms) => 1 / (1 - Math.Pow(0.3, Math.Pow(ms / 1000, 0.9)));
     }
 }

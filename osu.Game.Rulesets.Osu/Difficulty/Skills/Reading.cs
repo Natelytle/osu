@@ -2,23 +2,22 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Utils;
+using osu.Game.Rulesets.Difficulty.Aggregation;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Mods;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
-    public class Reading : HarmonicSkill
+    public class Reading : Skill
     {
-        private readonly List<DifficultyHitObject> objectList = new List<DifficultyHitObject>();
-
         private readonly bool hasHiddenMod;
+        private double harmonicWeightSum;
 
         public Reading(Mod[] mods)
             : base(mods)
@@ -26,73 +25,87 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             hasHiddenMod = mods.OfType<OsuModHidden>().Any(m => !m.OnlyFadeApproachCircles.Value);
         }
 
-        private double currentDifficulty;
+        private double currentStrain;
 
-        private double skillMultiplier => 2.5;
-        private double strainDecayBase => 0.8;
+        private double? firstObjectStartTime;
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+        private double strainDecay(double ms) => DiffUtils.Pow(0.8, ms / 1000);
 
-        protected override double ObjectDifficultyOf(DifficultyHitObject current)
+        protected override double ProcessInternal(DifficultyHitObject current)
         {
-            objectList.Add(current);
+            const double skill_multiplier = 2.5;
+            const double reduced_difficulty_duration = 40 * 1000;
 
-            currentDifficulty *= strainDecay(current.DeltaTime);
+            double decay = strainDecay(current.DeltaTime);
 
-            currentDifficulty += ReadingEvaluator.EvaluateDifficultyOf(current, hasHiddenMod) * skillMultiplier;
+            // This currently operates under the assumption that `ObjectDifficultyOf` is called once per object, and in order.
+            // Under that assumption, we can trust that `current.StartTime` refers to the start time of the first object in the case that `firstObjectStartTime` is yet to be set.
+            firstObjectStartTime ??= current.StartTime;
 
-            return currentDifficulty;
-        }
+            const double reduced_difficulty_base_line = 0.2; // Assume that even with full memorisation, skill is still required to read and play the first objects.
 
-        protected override void ApplyDifficultyTransformation(double[] difficulties)
-        {
-            const double reduced_difficulty_base_line = 0.0; // Assume the first seconds are completely memorised
+            double currentObjectStrain = calculateAdjustedDifficulty(current) * (1 - decay) * skill_multiplier;
 
-            int reducedNoteCount = calculateReducedNoteCount();
-
-            for (int i = 0; i < Math.Min(difficulties.Length, reducedNoteCount); i++)
+            if (current.StartTime <= firstObjectStartTime + reduced_difficulty_duration)
             {
-                double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp((double)i / reducedNoteCount, 0, 1)));
-                difficulties[i] *= Interpolation.Lerp(reduced_difficulty_base_line, 1.0, scale);
+                double scale = Math.Log10(double.Lerp(1, 10, Math.Clamp((current.StartTime - firstObjectStartTime.Value) / reduced_difficulty_duration, 0, 1)));
+                currentObjectStrain *= double.Lerp(reduced_difficulty_base_line, 1.0, scale);
             }
+
+            currentStrain *= decay;
+            currentStrain += currentObjectStrain;
+
+            return currentStrain;
         }
 
-        private int calculateReducedNoteCount()
+        private double calculateAdjustedDifficulty(DifficultyHitObject current)
         {
-            const double reduced_difficulty_duration = 60 * 1000;
+            double difficulty = ReadingEvaluator.EvaluateDifficultyOf(current, hasHiddenMod);
 
-            if (objectList.Count == 0)
+            if (Mods.Any(m => m is OsuModTouchDevice))
+                difficulty = DiffUtils.Pow(difficulty, 0.89);
+
+            if (Mods.Any(m => m is OsuModMagnetised))
+            {
+                float magnetisedStrength = Mods.OfType<OsuModMagnetised>().First().AttractionStrength.Value;
+                difficulty *= 1.0 - magnetisedStrength;
+            }
+
+            if (Mods.Any(m => m is OsuModRelax))
+                difficulty *= 0.4;
+
+            if (Mods.Any(m => m is OsuModAutopilot))
+                difficulty *= 0.1;
+
+            difficulty *= 0.825 + DiffUtils.Pow(Math.Max(0, ((OsuDifficultyHitObject)current).OverallDifficulty), 2.2) / 1125.0;
+
+            return difficulty;
+        }
+
+        public override double DifficultyValue()
+        {
+            if (ObjectDifficulties.Count == 0)
                 return 0;
 
-            double reducedDuration = objectList.First().StartTime + reduced_difficulty_duration;
+            (double difficulty, harmonicWeightSum) = HarmonicSeries.Aggregate(ObjectDifficulties);
 
-            int reducedNoteCount = 0;
-
-            foreach (var hitObject in objectList)
-            {
-                if (hitObject.StartTime > reducedDuration)
-                    break;
-
-                reducedNoteCount++;
-            }
-
-            return reducedNoteCount;
+            return difficulty;
         }
 
-        public override double CountTopWeightedObjectDifficulties(double difficultyValue)
+        public double CountTopWeightedObjectDifficulties(double difficultyValue)
         {
             if (ObjectDifficulties.Count == 0)
                 return 0.0;
 
-            if (NoteWeightSum == 0)
+            if (harmonicWeightSum == 0)
                 return 0.0;
 
-            double consistentTopNote = difficultyValue / NoteWeightSum; // What would the top difficulty be if all object difficulties were identical
+            double consistentTopNote = difficultyValue / harmonicWeightSum; // What would the top difficulty be if all object difficulties were identical
 
             if (consistentTopNote == 0)
                 return 0;
 
-            return ObjectDifficulties.Sum(d => DifficultyCalculationUtils.Logistic(d / consistentTopNote, 1.15, 5, 1.1));
+            return ObjectDifficulties.Sum(d => DiffUtils.Logistic(d / consistentTopNote, 1.15, 5, 1.1));
         }
     }
 }
