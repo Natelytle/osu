@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.Taiko.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Taiko.Difficulty.Preprocessing.Rhythm;
 using osu.Game.Rulesets.Taiko.Difficulty.Preprocessing.Rhythm.Data;
@@ -32,8 +31,6 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Evaluators
             double gapPenalty = 0;
 
             double hitWindow = hitObject.HitWindowGreat;
-
-            double hitWindow = hitObject.HitWindow(HitResult.Great);
 
             if (rhythmData.SameRhythmGroupedHitObjects?.FirstHitObject == hitObject) // Difficulty for SameRhythmGroupedHitObjects
             {

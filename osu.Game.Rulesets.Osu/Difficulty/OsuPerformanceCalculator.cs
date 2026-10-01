@@ -10,12 +10,9 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Scoring;
-using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
-using osu.Game.Rulesets.Osu.Scoring;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Utils;
@@ -26,6 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     {
         public const double PERFORMANCE_BASE_MULTIPLIER = 1.12; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
         public const double PERFORMANCE_NORM_EXPONENT = 1.1;
+        public const double PERFORMANCE_BASE_EXPONENT = 3.0;
 
         private bool usingClassicSliderAccuracy;
         private bool usingScoreV2;
@@ -66,7 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double aimEstimatedSliderBreaks;
         private double speedEstimatedSliderBreaks;
 
-        public static double DifficultyToPerformance(double difficulty) => 4.0 * DiffUtils.Pow(difficulty, 3);
+        public static double DifficultyToPerformance(double difficulty) => 4.0 * DiffUtils.Pow(difficulty, PERFORMANCE_BASE_EXPONENT);
 
         public OsuPerformanceCalculator()
             : base(new OsuRuleset())
@@ -540,7 +538,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count.
-        private double calculatePolynomialMissPenalty(double missCount, double[] coefficients) => Math.Pow(1 - PolynomialPenaltyUtils.GetPenaltyAt(coefficients, Math.Log(missCount + 1)), 1.89);
+        private double calculatePolynomialMissPenalty(double missCount, double[] coefficients) => Math.Pow(1 - PolynomialPenaltyUtils.GetPenaltyAt(coefficients, Math.Log(missCount + 1)),
+            PERFORMANCE_BASE_EXPONENT * OsuDifficultyCalculator.AIM_STAR_RATING_EXPONENT);
 
         // Miss penalty assumes that a player will miss on the hardest parts of a map,
         // so we use the amount of relatively difficult sections to adjust miss penalty

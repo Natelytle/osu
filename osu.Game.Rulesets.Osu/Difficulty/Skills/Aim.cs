@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -38,7 +37,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulty <= 0) return 1;
             if (skill <= 0) return 0;
 
-            return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
+            return DiffUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
         private double strainDecay(double ms) => DiffUtils.Pow(0.2, ms / 1000);
@@ -84,7 +83,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
-            const double skill_multiplier_total = 1.12;
+            const double skill_multiplier_total = 5.3;
             const double combined_snap_norm_exponent = 1.2;
 
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
