@@ -19,9 +19,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : VariableLengthStrainSkill
+    public class Aim : Skill
     {
         public readonly bool IncludeSliders;
+
+        private readonly List<double> snapProbs = new List<double>();
+        private readonly List<double> deltas = new List<double>();
 
         public Aim(Mod[] mods, bool includeSliders)
             : base(mods)
@@ -35,53 +38,67 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => DiffUtils.Pow(0.2, ms / 1000);
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) =>
-            currentStrain * strainDecay(time - current.Previous().StartTime);
+        protected override double ProcessInternal(DifficultyHitObject current)
+        {
+            (double strain, double _, double _, double pSnap) = StrainValueAt(current);
 
-        protected override double StrainValueAt(DifficultyHitObject current)
+            snapProbs.Add(pSnap);
+            deltas.Add(current.DeltaTime);
+
+            return strain;
+        }
+
+        protected (double strain, double snap, double flow, double pSnap) StrainValueAt(DifficultyHitObject current)
         {
             if (Mods.Any(m => m is OsuModAutopilot))
-                return 0;
+                return (0, 0, 0, 0);
 
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
+            (double total, double snap, double flow, double pSnap) = calculateAdjustedDifficulty(current);
+
             currentStrain *= decay;
-            currentStrain += calculateAdjustedDifficulty(current) * (1 - decay);
+            currentStrain += total * (1 - decay);
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
-            return currentStrain;
+            return (currentStrain, snap, flow, pSnap);
         }
 
-        private double calculateAdjustedDifficulty(DifficultyHitObject current)
+        private (double total, double snap, double flow, double pSnap) calculateAdjustedDifficulty(DifficultyHitObject current)
         {
             const double skill_multiplier_snap = 71.0;
             const double skill_multiplier_agility = 1.63;
             const double skill_multiplier_flow = 247.0;
-            const double skill_multiplier_spinner = 22.0;
-
-            if (current.BaseObject is Spinner)
-                return SpinnerEvaluator.EvaluateDifficultyOf(current) * skill_multiplier_spinner;
 
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_snap;
             double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skill_multiplier_agility;
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_flow;
 
-            double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
+            (double snap, double flow, double pSnap) = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
+
+            double total = snap * pSnap + flow * (1 - pSnap);
 
             if (Mods.Any(m => m is OsuModMagnetised))
             {
                 float magnetisedStrength = Mods.OfType<OsuModMagnetised>().First().AttractionStrength.Value;
-                totalDifficulty *= 1.0 - magnetisedStrength;
+                double mult = 1.0 - magnetisedStrength;
+
+                total *= mult;
+                snap *= mult;
+                flow *= mult;
             }
 
-            totalDifficulty *= 0.985 + DiffUtils.Pow(Math.Max(0, ((OsuDifficultyHitObject)current).OverallDifficulty), 2) / 4000;
+            double odMult = DiffUtils.Pow(Math.Max(0, ((OsuDifficultyHitObject)current).OverallDifficulty), 2) / 4000;
+            total *= odMult;
+            snap *= odMult;
+            flow *= odMult;
 
-            return totalDifficulty;
+            return (total, snap, flow, pSnap);
         }
 
-        private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
+        private (double snap, double flow, double pSnap) calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
             const double skill_multiplier_total = 1.12;
             const double combined_snap_norm_exponent = 1.2;
@@ -92,7 +109,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double combinedSnapDifficulty = DiffUtils.Norm(combined_snap_norm_exponent, snapDifficulty, agilityDifficulty);
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
-            double pFlow = 1 - pSnap;
 
             if (Mods.Any(m => m is OsuModTouchDevice))
             {
@@ -107,11 +123,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 flowDifficulty *= 0.6;
             }
 
-            double totalDifficulty = combinedSnapDifficulty * pSnap + flowDifficulty * pFlow;
-
-            double totalStrain = totalDifficulty * skill_multiplier_total;
-
-            return totalStrain;
+            return (combinedSnapDifficulty * skill_multiplier_total, flowDifficulty * skill_multiplier_total, pSnap);
         }
 
         // A function that turns the ratio of snap : flow into the probability of snapping/flowing
@@ -152,7 +164,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (sliderStrains.Count == 0)
                 return 0;
 
-            double consistentTopStrain = difficultyValue * (1 - DecayWeight); // What would the top strain be if all strain values were identical
+            double consistentTopStrain = difficultyValue * (1 - 0.9); // What would the top strain be if all strain values were identical
 
             if (consistentTopStrain == 0)
                 return 0;
@@ -163,83 +175,100 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public override double DifficultyValue()
         {
-            double difficulty = 0;
-            double time = 0;
+            if (ObjectDifficulties.Max() == 0)
+                return 0;
 
-            var strains = getReducedStrainPeaks();
+            double skill = RootFinding.FindRootExpand(skill => fcProbAtSkill(skill) - 0.02, 0, 10);
 
-            // Difficulty is a continuous weighted sum of the sorted strains
-            foreach (StrainPeak strain in strains)
-            {
-                /* Weighting function can be thought of as:
-                        b
-                        ∫ DecayWeight^x dx
-                        a
-                    where a = startTime and b = endTime
-
-                    Technically, the function below has been slightly modified from the equation above.
-                    The real function would be
-                        double weight = DiffUtils.Pow(DecayWeight, startTime) - DiffUtils.Pow(DecayWeight, endTime);
-                        ...
-                        return difficulty / Math.Log(1 / DecayWeight);
-                    E.g. for a DecayWeight of 0.9, we're multiplying by 10 instead of 9.49122...
-
-                    This change makes it so that a map composed solely of MaxSectionLength chunks will have the exact same value when summed in this class and StrainSkill.
-                    Doing this ensures the relationship between strain values and difficulty values remains the same between the two classes.
-                */
-                double startTime = time;
-                double endTime = time + strain.SectionLength / MaxSectionLength;
-
-                double weight = DiffUtils.Pow(DecayWeight, startTime) - DiffUtils.Pow(DecayWeight, endTime);
-
-                difficulty += strain.Value * weight;
-                time = endTime;
-            }
-
-            return difficulty / (1 - DecayWeight);
+            return skill * 150;
         }
 
-        /// <summary>
-        /// Returns a sorted enumerable of strain peaks with the highest values reduced.
-        /// </summary>
-        /// <returns></returns>
-        private IEnumerable<StrainPeak> getReducedStrainPeaks()
+        private double fcProbAtSkill(double skill)
         {
-            const int reduced_section_time = 4000;
-            const double reduced_strain_baseline = 0.727;
+            if (skill <= 0)
+                return 0;
 
-            // Sections with 0 strain are excluded to avoid worst-case time complexity of the following sort (e.g. /b/2351871).
-            // These sections will not contribute to the difficulty.
-            List<StrainPeak> strains = GetCurrentStrainPeaks()
-                                       .Where(p => p.Value > 0)
-                                       .ToList();
+            List<ConditionalProbability> conditionalProbabilities = new List<ConditionalProbability>();
 
-            const int chunk_size = 20;
-            double time = 0;
-            int skipCount = 0;
-
-            // We are reducing the highest strains first to account for extreme difficulty spikes
-            // Strains are split into 20ms chunks to try to mitigate inconsistencies caused by reducing strains
-            while (strains.Count > skipCount && time < reduced_section_time)
+            for (int i = 0; i < ObjectDifficulties.Count; i++)
             {
-                StrainPeak strain = strains[skipCount];
+                double diffPrev = i == 0 ? 0 : ObjectDifficulties[i - 1];
+                double diff = ObjectDifficulties[i];
 
-                for (double addedTime = 0; addedTime < strain.SectionLength; addedTime += chunk_size)
+                double snapProb = snapProbs[i];
+
+                double snapHitProb = DiffUtils.Erf(skill / (Math.Sqrt(2) * diff));
+                ConditionalProbability flowHitProb = getFlowProbOf(skill, diff, diffPrev, deltas[i]);
+
+                conditionalProbabilities.Add(new ConditionalProbability
                 {
-                    double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp((time + addedTime) / reduced_section_time, 0, 1)));
-
-                    // intentionally add at end and sort afterwards, should be cheaper.
-                    strains.Add(new StrainPeak(
-                        strain.Value * Interpolation.Lerp(reduced_strain_baseline, 1.0, scale),
-                        Math.Min(chunk_size, strain.SectionLength - addedTime)
-                    ));
-                }
-
-                time += strain.SectionLength;
-                skipCount++;
+                    PGivenSuccess = snapHitProb * snapProb + flowHitProb.PGivenSuccess * (1 - snapProb),
+                    PGivenFail = snapHitProb * snapProb + flowHitProb.PGivenFail * (1 - snapProb)
+                });
             }
 
-            return strains.Skip(skipCount).OrderByDescending(p => p.Value);
+            return DependentProbabilityUtils.TotalProbabilitiesOf(conditionalProbabilities).Aggregate(1.0, (prod, x) => prod * x);
+        }
+
+        private ConditionalProbability getFlowProbOf(double skill, double d, double dPrev, double delta)
+        {
+            const double theta = 100.0;
+
+            double rho = Math.Exp(-(delta / theta));
+            double a = skill / dPrev, b = skill / d;
+
+            double j = rectProb(a, b, rho);
+            double pPrev = Math.Clamp(DiffUtils.Erf(a / Math.Sqrt(2)), 0.0000001, 0.9999999);
+            double pCurr = DiffUtils.Erf(b / Math.Sqrt(2));
+
+            return new ConditionalProbability
+            {
+                PGivenSuccess = Math.Clamp(j / pPrev, 0, 1),
+                PGivenFail = (pCurr - j) / (1 - pPrev)
+            };
+        }
+
+        private static double rectProb(double a, double b, double rho)
+        {
+            // Zero-difficulty note => infinite window => that note is always hit.
+            bool aInf = double.IsPositiveInfinity(a);
+            bool bInf = double.IsPositiveInfinity(b);
+
+            if (aInf && bInf) return 1.0;
+
+            if (aInf) return 2 * DiffUtils.NormalCdf(0, 1, b) - 1; // only note 2 constrains
+            if (bInf) return 2 * DiffUtils.NormalCdf(0, 1, a) - 1; // only note 1 constrains
+
+            if (rho >= 1.0)
+                return 2 * DiffUtils.NormalCdf(0, 1, Math.Min(a, b)) - 1;
+
+            double s = Math.Sqrt(1 - rho * rho);
+
+            // P(note 2 hit | note 1 error = u)
+            double inner(double u) => DiffUtils.NormalCdf(0, 1, (b - rho * u) / s) - DiffUtils.NormalCdf(0, 1, (-b - rho * u) / s);
+            double integrand(double u) => DiffUtils.NormalPdf(0, 1, u) * inner(u);
+
+            // Split where the inner term changes sharply, so the integrator behaves
+            double k = b / rho;
+            double[] cuts = { -a, Math.Max(-a, Math.Min(a, -k)), Math.Max(-a, Math.Min(a, k)), a };
+
+            double total = 0;
+            for (int i = 0; i < cuts.Length - 1; i++)
+                total += simpson(integrand, cuts[i], cuts[i + 1], 200);
+
+            return total;
+        }
+
+        private static double simpson(Func<double, double> f, double lo, double hi, int n)
+        {
+            if (hi <= lo)
+                return 0;
+
+            double h = (hi - lo) / n, sum = f(lo) + f(hi);
+            for (int i = 1; i < n; i++)
+                sum += f(lo + i * h) * (i % 2 == 0 ? 2 : 4);
+
+            return sum * h / 3;
         }
     }
 }
