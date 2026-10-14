@@ -60,9 +60,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double calculateLongHoldBonus(double duration, double longNoteGate)
         {
             double seconds = duration / 1000.0;
-            double holdLengthFactor = 1.6 * DiffUtils.Smoothstep(duration, 500, 680) * seconds;
+            double holdLengthFactor = 1.4 * DiffUtils.Smoothstep(duration, 500, 680) * seconds;
 
-            return (0.42 + 0.9 * seconds + holdLengthFactor) * longNoteGate;
+            return Math.Min((0.42 + 0.75 * seconds + holdLengthFactor), 1.0) * longNoteGate;
         }
 
         /// <summary>
@@ -115,8 +115,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double nextNoteNerf(ManiaDifficultyHitObject current)
         {
-            const double min_ms = 80.0;
-            const double max_ms = 220.0;
+            const double min_ms = 40.0;
+            const double max_ms = 190.0;
 
             ManiaDifficultyHitObject? nextInColumn = current.NextInColumn(0);
 

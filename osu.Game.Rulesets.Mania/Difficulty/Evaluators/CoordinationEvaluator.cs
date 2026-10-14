@@ -4,6 +4,7 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
@@ -44,7 +45,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double saturate(double strain)
         {
-            const double threshold = 14.0;
+            const double threshold = 13.0;
             const double strength = 0.75;
             const double width = 1.5;
 
@@ -61,7 +62,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double calculateBoundaryPressure(ManiaDifficultyHitObject current)
         {
-            const double boundary_pressure_weight = 1.39;
+            const double boundary_pressure_weight = 1.07;
 
             int column = current.Column;
             int totalColumns = current.Row.TotalColumns;
@@ -73,7 +74,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (column < totalColumns - 1)
                 total += columnBoundaryPressure(current, column, left: false, totalColumns);
 
-            return total * TrillUtils.TrillFactor(current) * boundary_pressure_weight * densityDampenFor(current, totalColumns);
+            return total * TrillUtils.TrillFactor(current) * boundary_pressure_weight;
         }
 
         /// <summary>
@@ -108,95 +109,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double coefficient = CrossColumnUtils.ColumnBoundaryMultiplier(boundaryIndex, totalColumns);
             bool otherActive = adjacentDelta <= activity_window_ms;
 
-            return intensity * coefficient * (otherActive ? 1.0 : (1.0 - coefficient));
+            return intensity * coefficient * (otherActive ? 1.0 : (1.0 - coefficient)) * previousRowMultiplier(current, adjacentDelta);
         }
 
-
         /// <summary>
-        /// Dampens the difficulty of a hit object based on streaks of notes in a column.
+        /// How far back this column itself was last pressed, compared to how far back the neighbour was.
+        /// A neighbour that is fresher than this column means the finger landing here is the one that has
+        /// been resting, so the placement costs the hand less.
         /// </summary>
-        // # Note: This targets rolls and other manipable high density patterns in higher key modes such as 7k where the boundary pressure would accumulate
-        // # because I couldnt manage to catch them in manipdetection for some reason since in 7k+ its usually accompagnied with other pattern and the easy roll slips through
-        private static double densityDampenFor(ManiaDifficultyHitObject current, int totalColumns)
+        private static double previousRowMultiplier(ManiaDifficultyHitObject current, double adjacentDelta)
         {
-            const double tightest_gap_ms = 10.0;
-            const double max_gap_ms = 70.0;
+            const double min_share = 0.3;
 
-            const double tightest_nerf = 0.84;
-            const double full_nerf = 1.0;
+            // How long this column has been idle, in comparison to the adjacent one.
+            double ratio = current.ColumnDelta / adjacentDelta;
 
-            // A long run stacks enough of these to take almost everything, but it still has to be worth something.
-            const double min_dampen = 0.25;
-
-            // A note with two neighbours can't be manipulated as easily, such as in brackets.
-            const double opposite_margin_ms = 16.0;
-
-            // Streaks of notes with holes are still accounted for but their nerf will weight for less.
-            const double after_gap = 0.75;
-
-            double dampen = 1.0;
-
-            foreach (int direction in stackalloc[] { -1, 1 })
-            {
-                double runDampen = 1.0;
-                double firstDiscount = 1.0;
-                int neighbours = 0;
-                bool weakened = false;
-                int column = current.Column;
-
-                while (true)
-                {
-                    int step = column + direction - current.Column;
-                    column += direction;
-
-                    if (column < 0 || column >= totalColumns)
-                        break;
-
-                    // Always the latest note in that column before this one.
-                    ManiaDifficultyHitObject? neighbour = current.PrevInColumnBefore(column, current.Index);
-
-                    // An empty column isnt always the end of the run, so the walk carries on past it.
-                    if (neighbour is null)
-                    {
-                        weakened = true;
-                        continue;
-                    }
-
-                    double gap = current.StartTime - neighbour.StartTime;
-
-                    int oppositeColumn = current.Column - step;
-
-                    if (oppositeColumn >= 0 && oppositeColumn < totalColumns
-                        && current.PrevInColumnBefore(oppositeColumn, current.Index) is { } opposite
-                        && current.StartTime - opposite.StartTime <= gap + opposite_margin_ms)
-                        continue;
-
-                    double discount = weakened ? 1.0 - (1.0 - discountFor(gap)) * after_gap : discountFor(gap);
-
-                    // The nerf starts from the second neighbour.
-                    if (neighbours++ == 0)
-                        firstDiscount = discount;
-                    else
-                        runDampen *= discount;
-
-                    weakened = false;
-                }
-
-                if (neighbours > 1)
-                    runDampen *= firstDiscount;
-
-                dampen = Math.Min(dampen, runDampen);
-            }
-
-            return Math.Max(dampen, min_dampen);
-
-            double discountFor(double gap)
-            {
-                if (gap >= max_gap_ms)
-                    return 1.0;
-
-                return DiffUtils.ReverseLerp(gap, tightest_gap_ms, max_gap_ms) * (full_nerf - tightest_nerf) + tightest_nerf;
-            }
+            return 1.0 - DiffUtils.Smoothstep(ratio, 2.0, 6.0) * (1 - min_share);
         }
 
         /// <summary>
@@ -205,14 +133,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double calculateChordDifficulty(ManiaDifficultyHitObject current, int depthInChord, double columnDelta)
         {
-            const double load_per_extra_column = 2.7;
-            const double shapeBonusWeight = 1.6;
+            const double load_per_extra_column = 1.5;
+            const double shapeBonusWeight = 2.5;
 
             if (depthInChord < 2)
                 return 0.0;
 
-            // Chordjacks are already paid for by Jack, so the dampening here only targets sustained chord spam.
-            bool isChordjack = columnDelta <= JackEvaluator.JACK_WINDOW_MS;
+            // Chordjacks are already paid for by Jack, so the dampening here is only for a chord that is
+            // actually coming back to itself. A chord played soon after a different one is two separate
+            // placements, not one repeated, and keeps the full value.
+            bool isChordjack = current.Row.Previous() is { } previousShape
+                               && ColumnPatternUtils.SameColumns(previousShape.Columns, current.Row.Columns);
 
             double difficulty = load_per_extra_column * (depthInChord - 1) * ChordUtils.ChordRepeatNerf(current, columnDelta)
                                 * (isChordjack ? ChordUtils.CHORDJACK_NERF : 1.0) * ChordUtils.ChordSpeedFactor(columnDelta)
@@ -220,7 +151,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             // The same shape is a movement the hand is already doing rather than new fingers to
             // place, so it of course requires less coordination overall.
-            if (current.Row.Previous() is { } previousShape && ColumnPatternUtils.SameColumns(previousShape.Columns, current.Row.Columns))
+            if (isChordjack)
                 difficulty *= 0.5;
 
             return difficulty;
@@ -233,7 +164,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double calculateShapeBonus(ManiaDifficultyHitObject current, double columnDelta)
         {
             if (current.Row.Previous() is not { } previous
-                || previous.Size < 2
+                || previous.Size < 1
                 || !ColumnPatternUtils.SharesColumn(previous.Columns, current.Row.Columns))
                 return 0.0;
 
@@ -242,10 +173,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // Each repeated column asks less movement from the fingers, so they get progressively reduced
             int shared = ColumnPatternUtils.SharedColumnCount(previous.Columns, current.Row.Columns);
 
-            if (shared > 0)
+            if (shared > 1)
             {
                 double keymode = Math.Min(current.Row.TotalColumns, 9);
-                shapeBonus *= Math.Min(Math.Pow(0.58 + keymode * 0.04, shared), 0.99);
+                shapeBonus *= Math.Pow(0.61 + keymode * 0.04, shared);
             }
 
             // Slow transitions give the hand time to re-place.
@@ -264,10 +195,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             const double scale_ms = 1300.0;
             const double min_delta_ms = 35.0;
 
-            // Intensity cap.
-            const double max_intensity = 20.0;
-
-            // LN lenght.
             const double min_shield_ms = 250.0;
             const double full_shield_ms = 800.0;
 
@@ -277,41 +204,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (holdLength <= 0.0)
                 return 0.0;
 
-            // A long note placed into a column with nothing in it is just where the hand lands.
             if (current.PrevInColumn(0) is null)
                 return 0.0;
 
             // The tighter the jack, the harder it is for the hand to hold current note.
-            double intensity = Math.Min(scale_ms / (current.DeltaTime + min_delta_ms), max_intensity);
+            double intensity = Math.Min(scale_ms / (current.DeltaTime + min_delta_ms), 20.0);
 
             return shield_weight * intensity * DiffUtils.ReverseLerp(holdLength, min_shield_ms, full_shield_ms);
         }
-
-        /// <summary>
-        /// Long notes held in other columns take fingers out of play, and the less time there is between presses
-        /// the more that costs.
-        /// </summary>
-        // private static double calculateHoldDifficulty(ManiaDifficultyHitObject current)
-        // {
-        //     const double held_long_note_weight = 0.25;
-        //     const double held_speed_factor_offset = 0.08;
-        //     const double hold_start_cap_end_ms = 35.0;
-
-        //     // High difficulty cap
-        //     const double soft_ceiling_midpoint = 2.719;
-
-        //     int heldColumns = current.ConcurrentlyHeldColumns(ChordUtils.CHORD_TOLERANCE_MS);
-        //     if (heldColumns == 0)
-        //         return 0.0;
-
-        //     double heldSpeedFactor = current.DeltaTime >= ChordUtils.CHORD_TOLERANCE_MS ? 1.0 / (current.DeltaTime / 1000.0 + held_speed_factor_offset) : 1.0;
-        //     double columnFactor = 1.0 / (-25.0 / 66.0 * heldColumns - 5.0 / 11.0) + 2.2;
-        //     double holdDifficulty = columnFactor * heldSpeedFactor; // https://www.desmos.com/calculator/aoqjrgqqht
-        //     double difficultyCap = soft_ceiling_midpoint / (soft_ceiling_midpoint + holdDifficulty);
-        //     // Grace notes are basically chords, they don't have a hold difficulty.
-        //     double holdStartCap = DiffUtils.Smoothstep(current.DeltaTime, ChordUtils.CHORD_TOLERANCE_MS, hold_start_cap_end_ms);
-
-        //     return holdStartCap * held_long_note_weight * holdDifficulty * difficultyCap;
-        // }
     }
 }

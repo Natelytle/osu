@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -24,13 +24,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 return 0.0;
 
             const double tap_rate_offset_ms = 36;
-            const double speed_weight = 1.51;
+            const double speed_weight = 1.74;
 
             // A repeat in the same column is one finger doing the work of two, so it taps slower than its gap suggests.
             const double jack_speed_nerf = 0.5;
 
-            // Total combines the tap skills in quadrature, so this evaluator carries the square root of its weight.
-            const double total_weight = 1.01112; // sqrt(1.02237)
+            // A dense single stream carries its difficulty in the rate itself rather than in the shapes around
+            // it, and this was carrying the smallest share of the quadrature of the four tap skills.
+            const double total_weight = 1.3; // sqrt(1.69)
 
             double tapRate = 1000.0 / (hitObject.DeltaTime + tap_rate_offset_ms);
             tapRate *= speedGrowth(hitObject);
@@ -83,7 +84,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (longRows >= 20)
             {
                 double longEven = 1.0 - (double)longShared / longRows;
-                sustainReward = 0.8 * DiffUtils.Smoothstep(longRows, 20.0, 30.0) * DiffUtils.Smoothstep(longEven, 0.6, 0.8) * hitObject.ManipulationFactor;
+                sustainReward = 0.85 * DiffUtils.Smoothstep(longRows, 20.0, 30.0) * DiffUtils.Smoothstep(longEven, 0.6, 0.8) * hitObject.ManipulationFactor;
             }
 
             return spikeNerf * (1.0 + sustainReward);

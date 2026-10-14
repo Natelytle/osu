@@ -27,8 +27,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators.Jack
             const double anchor_buff = 1.0;
 
             // The anchor values a merely uneven section and an unambiguous one measure at.
-            const double uneven = 0.40;
-            const double anchored = 0.85;
+            const double uneven = 0.35;
+            const double anchored = 0.75;
 
             int totalColumns = current.Row.TotalColumns;
 

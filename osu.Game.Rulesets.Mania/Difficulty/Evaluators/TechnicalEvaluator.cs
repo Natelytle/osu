@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -24,7 +24,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject, double rhythmIrregularity, double patternVariety, double windowedIrregularity)
         {
             const double pattern_buff = 0.69740;
-            const double technical_scale = 2.11;
+            const double technical_weight = 2.6;
 
             // Total combines the tap skills in quadrature, so this evaluator carries the square root of its weight.
             const double total_weight = 1.58087; // sqrt(2.49916)
@@ -44,44 +44,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double varietyFloor = 1.55 * patternVariety * readingPressure * DiffUtils.Smoothstep(windowedIrregularity, 0.04, 0.12);
 
             // A gap too short to read leaves nothing for a change of rhythm to register against, so irregularity counts for less the tighter the note is.
-            double rhythmShare = DiffUtils.Smoothstep(hitObject.DeltaTime, 12.0, 50.0);
+            double rhythmShare = DiffUtils.Smoothstep(hitObject.DeltaTime, 8.0, 30.0);
 
             double complexity = Math.Max(rhythmIrregularity + columnComplexity, varietyFloor) * rhythmShare;
 
-            return pattern_buff * complexity * speedFactor * technical_scale * rhythmAmplifier * chordWidth(hitObject)
-                   * minijackPressure(hitObject) * hitObject.ManipulationFactor * total_weight;
-        }
-
-        /// <summary>
-        /// What it costs to land a minijack in the middle of a fast stream. The hand is flowing through a pattern
-        /// and the jack asks it to stop, which breaks its momentum.
-        /// </summary>
-        private static double minijackPressure(ManiaDifficultyHitObject hitObject)
-        {
-            // Measured sample.
-            const double window_ms_minijack = 200.0;
-
-            // How fast the jack itself has to land for the hand to notice it as a break.
-            const double minijack_fast_ms = 60.0;
-            const double minijack_slow_ms = 120.0;
-
-            // TODO: density cap scales with minijack delta
-            const double notes_peak = 9.0;
-            const double notes_width = 5.0;
-
-            const double minijack_pressure_weight = 1.5;
-
-            if (hitObject.Previous() is not ManiaDifficultyHitObject previous || previous.Column != hitObject.Column)
-                return 1.0;
-
-            int notes = 0;
-
-            for (var row = hitObject.Row.Previous(); row != null && hitObject.StartTime - row.StartTime <= window_ms_minijack; row = row.Previous())
-                notes += row.Size;
-
-            double jackSpeed = DiffUtils.Smoothstep(hitObject.DeltaTime, minijack_fast_ms, minijack_slow_ms);
-
-            return 1.0 + minijack_pressure_weight * jackSpeed * DiffUtils.SmoothstepBellCurve(notes, notes_peak, notes_width);
+            return pattern_buff * complexity * speedFactor * technical_weight * rhythmAmplifier * chordWidth(hitObject)
+                    * hitObject.ManipulationFactor * total_weight;
         }
 
 
@@ -211,9 +179,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (hitObject.Previous() is not ManiaDifficultyHitObject previous || hitObject.Previous(1) is not ManiaDifficultyHitObject previous2)
                 return 0.0;
 
-            // A passage written as two streams, one per hand, offset in time so they interleave, reads as a zigzag
-            // if the two are compared against each other, when each hand is travelling in a straight line of its own.
-            // Comparing within the hand is what the move actually costs.
             int handSplit = hitObject.Row.TotalColumns / 2;
 
             if ((previous.Column < handSplit) != (hitObject.Column < handSplit))

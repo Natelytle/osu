@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             const double tap_rate_offset_ms = 60;
             const double strain_exponent = 1.29407;
-            const double jack_multiplier = 0.592;
+            const double jack_multiplier = 0.92;
 
             // Total combines the tap skills in quadrature, so this evaluator carries the square root of its weight.
             const double total_weight = 1.19496; // sqrt(1.42793)
@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                                 && ColumnPatternUtils.SharesColumn(previousRow.Columns, current.Row.Columns);
 
             // How quickly the column comes back to itself, scaled by the chord it repeats inside.
-            double jackDifficulty = tapRate * calculateChordJackBonus(current, chordDepth, columnDelta) * calculateSpeedBonus(tapRate);
+            double jackDifficulty = tapRate * calculateChordJackBonus(current, chordDepth, columnDelta);
 
             jackDifficulty = DiffUtils.Pow(jackDifficulty, strain_exponent);
 
@@ -62,7 +62,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // Repeats the map lets you hit with something other than a jack motion.
             jackDifficulty *= JackSpacingEvaluator.EvaluateMultiplierOf(current, chordDepth, columnDelta, tapRate);
 
-            return jackDifficulty * jack_multiplier * total_weight;
+            return jackDifficulty * jack_multiplier * total_weight * minijackPressure(current);
         }
 
         /// <summary>
@@ -71,17 +71,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double calculateChordJackBonus(ManiaDifficultyHitObject current, int chordDepth, double columnDelta)
         {
             return Math.Max(0.1,
-                (1.0 + 0.17460 * ChordUtils.ChordSpeedFactor(columnDelta) * (chordDepth - 1))
+                (1.0 + 0.14 * ChordUtils.ChordSpeedFactor(columnDelta) * (chordDepth - 1))
                 * ChordUtils.ChordRepeatNerf(current, columnDelta));
-        }
-
-        /// <summary>
-        /// Fast repeats cost more than their rate alone suggests, since there is no time to reposition between them.
-        /// </summary>
-        private static double calculateSpeedBonus(double tapRate)
-        {
-            // Centred on 5 notes per second, which is roughly a 1/4 note at 150bpm.
-            return 1.0 + 0.7 * DiffUtils.Logistic(tapRate, 5.0, 0.5);
         }
 
         /// <summary>
@@ -92,11 +83,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double calculateChordDepthMultiplier(ManiaDifficultyHitObject current, int chordDepth, double columnDelta, bool sharesColumn)
         {
             const double middle_ms = 100.0;
-            const double smoothness = 3.9;
-            const double midpoint = 1.75;
+            const double smoothness = 5.0;
+            const double midpoint = 1.8;
 
-            const double middle_value = 2.35344; // This has to match the middle_ms y axis of the function
-            const double saturation_ceiling = 2.6;
+            const double middle_value = 2.25; // This has to match the middle_ms y axis of the function
+            const double saturation_ceiling = 2.75;
             const double saturation_floor_ms = 10.0;
             const double slowest_mult = 0.3;
             const double same_shape_nerf = 0.6;
@@ -113,7 +104,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (speedShare < 1.0)
                 chordSpeedMultiplier = middle_value + (saturation_ceiling - middle_value) * (1.0 - speedShare);
 
-            chordSpeedMultiplier *= calculateHandRestMultiplier(current);
+            chordSpeedMultiplier *= calculateHandRestMultiplier(current, sharesColumn);
 
             // The same shape again is one press the hand is already doing rather than a new one to place.
             if (current.Row.Previous() is { } previousShape
@@ -126,7 +117,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <summary>
         /// An empty row in a hand (half of the playfield) gives it time to rest and eases fast patterns.
         /// </summary>
-        private static double calculateHandRestMultiplier(ManiaDifficultyHitObject current)
+        private static double calculateHandRestMultiplier(ManiaDifficultyHitObject current, bool sharesColumn)
         {
             const double empty_hand_nerf = 0.75;
             const double no_shared_column_nerf = 0.9;
@@ -134,8 +125,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             int totalColumns = current.Row.TotalColumns;
             int[] columns = current.Row.Columns;
 
-            if (current.Row.Previous() is { } previous
-                && !ColumnPatternUtils.SharesColumn(previous.Columns, columns))
+            if (current.Row.Previous() is { } previous && !sharesColumn)
                 return no_shared_column_nerf;
 
             // Half the keymode per hand, and the odd column in the middle goes to the other hand.
@@ -189,6 +179,66 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             }
 
             return held_bonus_weight * (1 + heldNeighbours * held_neighbour_weight);
+        }
+
+        /// <summary>
+        /// What it costs to land a minijack in the middle of a fast stream. The hand is flowing through a pattern
+        /// and the jack asks it to stop, which breaks its momentum.
+        /// </summary>
+        private static double minijackPressure(ManiaDifficultyHitObject hitObject)
+        {
+            const double minijack_pressure_weight = 0.4;
+
+            // A minijack is worth less when there are other jacks.
+            // It only breaks the pattern if the chart is not already full of them.
+            const double minijack_other_penalty = 0.25;
+            const double minijack_mult_floor = 0.1;
+
+            const double window_ms_minijack = 300.0;
+
+            const double minijack_fast_ms = 60.0;
+            const double minijack_slow_ms = 120.0;
+            
+            const double chordjack_repeat_window_ms = 400.0;
+
+            if (hitObject.PrevInColumn(0) is not { } previousNote)
+                return 1.0;
+
+            if (hitObject.Row.Size > 1)
+            {
+                for (var row = hitObject.Row.Previous();
+                     row != null && hitObject.StartTime - row.StartTime <= chordjack_repeat_window_ms;
+                     row = row.Previous())
+                {
+                    if (ColumnPatternUtils.SameColumns(row.Columns, hitObject.Row.Columns))
+                        return 1.0;
+                }
+            }
+
+            double jackDelta = hitObject.StartTime - previousNote.StartTime;
+
+            double jackSpeed = DiffUtils.ReverseLerp(jackDelta, minijack_fast_ms, minijack_slow_ms);
+
+            double minijackMult = 1.0;
+
+            foreach (int column in hitObject.Row.Columns)
+            {
+                if (column == hitObject.Column)
+                    continue;
+
+                if (hitObject.PrevInColumnBefore(column, hitObject.Index) is not { } neighbour
+                    || hitObject.PrevInColumnBefore(column, neighbour.Index) is not { } before)
+                    continue;
+
+                double otherDelta = neighbour.StartTime - before.StartTime;
+
+                if (otherDelta > window_ms_minijack)
+                    continue;
+
+                minijackMult -= DiffUtils.Smoothstep(otherDelta, minijack_fast_ms, minijack_slow_ms) * minijack_other_penalty;
+            }
+
+            return 1.0 + minijack_pressure_weight * jackSpeed * Math.Max(minijackMult, minijack_mult_floor);
         }
     }
 }
