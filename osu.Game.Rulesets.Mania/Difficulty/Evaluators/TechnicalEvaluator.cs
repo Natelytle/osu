@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // A gap too short to read leaves nothing for a change of rhythm to register against, so irregularity counts for less the tighter the note is.
             double rhythmShare = DiffUtils.Smoothstep(hitObject.DeltaTime, 8.0, 30.0);
 
-            double complexity = Math.Max(rhythmIrregularity + columnComplexity, varietyFloor) * rhythmShare;
+            double complexity = (Math.Max(rhythmIrregularity + columnComplexity, varietyFloor) + burstReward(patternVariety, windowedIrregularity)) * rhythmShare;
 
             return pattern_buff * complexity * speedFactor * technical_weight * rhythmAmplifier * chordWidth(hitObject)
                     * hitObject.ManipulationFactor * total_weight;
@@ -205,6 +205,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double spanDamper = 1.0 - 0.60 * DiffUtils.Smoothstep(Math.Abs(currentDirection), 3.0, 5.5);
 
             return columnComplexity * spanDamper;
+        }
+
+        /// <summary>
+        /// A passage that keeps its spacing changing and is written in many shapes are hard to play no matter how
+        /// familiar the individual shapes are. It forces the hand to dose its strain according to the bursts.
+        /// </summary>
+        private static double burstReward(double patternVariety, double windowedIrregularity)
+        {
+            const double burst_weight = 1.75;
+
+            return burst_weight * patternVariety * DiffUtils.Smoothstep(windowedIrregularity, 0.16, 0.30);
         }
     }
 }

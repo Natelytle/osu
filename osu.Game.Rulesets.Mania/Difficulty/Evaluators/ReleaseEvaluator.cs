@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
-            const double release_weight = 0.9;
+            const double release_weight = 1.06;
             double releaseDifficulty = 0.0;
             
             if (current.BaseObject is not HoldNote)
@@ -62,7 +62,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double seconds = duration / 1000.0;
             double holdLengthFactor = 1.4 * DiffUtils.Smoothstep(duration, 500, 680) * seconds;
 
-            return Math.Min((0.42 + 0.75 * seconds + holdLengthFactor), 1.0) * longNoteGate;
+            return Math.Min((0.42 + 0.75 * seconds + holdLengthFactor), 0.5) * longNoteGate;
         }
 
         /// <summary>

@@ -34,6 +34,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             coordinationDifficulty += calculateChordDifficulty(current, depthInChord, columnDelta);
             coordinationDifficulty += calculateShieldDifficulty(current);
 
+            coordinationDifficulty *= minijackPressure(current);
+
             coordinationDifficulty *= current.ManipulationFactor * current.EnduranceFactor;
 
             return saturate(coordinationDifficulty * total_weight);
@@ -45,8 +47,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double saturate(double strain)
         {
-            const double threshold = 13.0;
-            const double strength = 0.75;
+            const double threshold = 20.0;
+            const double strength = 0.5;
             const double width = 1.5;
 
             // A softplus of the excess above the threshold.
@@ -62,7 +64,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double calculateBoundaryPressure(ManiaDifficultyHitObject current)
         {
-            const double boundary_pressure_weight = 1.07;
+            const double boundary_pressure_weight = 1.12;
 
             int column = current.Column;
             int totalColumns = current.Row.TotalColumns;
@@ -119,12 +121,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double previousRowMultiplier(ManiaDifficultyHitObject current, double adjacentDelta)
         {
-            const double min_share = 0.3;
+            const double min_share = 0.2;
 
             // How long this column has been idle, in comparison to the adjacent one.
             double ratio = current.ColumnDelta / adjacentDelta;
 
-            return 1.0 - DiffUtils.Smoothstep(ratio, 2.0, 6.0) * (1 - min_share);
+            return 1.0 - DiffUtils.Smoothstep(ratio, 2.0, 4.5) * (1 - min_share);
         }
 
         /// <summary>
@@ -134,7 +136,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double calculateChordDifficulty(ManiaDifficultyHitObject current, int depthInChord, double columnDelta)
         {
             const double load_per_extra_column = 1.5;
-            const double shapeBonusWeight = 2.5;
+            const double shapeBonusWeight = 5.0;
 
             if (depthInChord < 2)
                 return 0.0;
@@ -211,6 +213,92 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double intensity = Math.Min(scale_ms / (current.DeltaTime + min_delta_ms), 20.0);
 
             return shield_weight * intensity * DiffUtils.ReverseLerp(holdLength, min_shield_ms, full_shield_ms);
+        }
+
+        /// <summary>
+        /// What it costs to land a minijack mid-flow. Moving this to coordination, this feeds each map's
+        /// dominant skill instead of only jack.
+        /// </summary>
+        private static double minijackPressure(ManiaDifficultyHitObject hitObject)
+        {
+            const double minijack_pressure_weight = 2.5;
+
+            // A minijack is worth less when there are other jacks.
+            const double minijack_other_penalty = 0.9;
+            const double minijack_mult_floor = 0.02;
+
+            const double window_ms_minijack = 300.0;
+
+            const double minijack_fast_ms = 60.0;
+            const double minijack_slow_ms = 120.0;
+
+            // How much faster than the previous part the column has to come back to count as a minijack.
+            const double acceleration_min = 1.0;
+            const double acceleration_max = 2.5;
+
+            // The hand is only mid-flow (so the jack breaks it) when the notes around it are this dense.
+            const double flowing_delta_ms = 90.0;
+            const double isolated_delta_ms = 220.0;
+
+            const double chordjack_repeat_window_ms = 400.0;
+
+            // Density gate: a speed-up only reads as a minijack when the column is not already being hammered.
+            const double density_window_ms = 400.0;
+            const double density_low = 2.0;
+            const double density_high = 4.0;
+
+            if (hitObject.PrevInColumn(0) is not { } previousNote)
+                return 1.0;
+
+            if (hitObject.Row.Size > 1)
+            {
+                for (var row = hitObject.Row.Previous();
+                     row != null && hitObject.StartTime - row.StartTime <= chordjack_repeat_window_ms;
+                     row = row.Previous())
+                {
+                    if (ColumnPatternUtils.SameColumns(row.Columns, hitObject.Row.Columns))
+                        return 1.0;
+                }
+            }
+
+            double jackDelta = hitObject.StartTime - previousNote.StartTime;
+
+            double previousPartDelta = previousNote.PrevInColumn(0) is { } beforePrevious
+                ? previousNote.StartTime - beforePrevious.StartTime
+                : 0.0;
+
+            double acceleration = previousPartDelta > 0.0 ? previousPartDelta / Math.Max(jackDelta, 1.0) : 1.0;
+            double speedUp = DiffUtils.Smoothstep(acceleration, acceleration_min, acceleration_max);
+
+            double flowing = 1.0 - DiffUtils.Smoothstep(hitObject.DeltaTime, flowing_delta_ms, isolated_delta_ms);
+
+            double minijackMult = 1.0;
+
+            foreach (int column in hitObject.Row.Columns)
+            {
+                if (column == hitObject.Column)
+                    continue;
+
+                if (hitObject.PrevInColumnBefore(column, hitObject.Index) is not { } neighbour
+                    || hitObject.PrevInColumnBefore(column, neighbour.Index) is not { } before)
+                    continue;
+
+                double otherDelta = neighbour.StartTime - before.StartTime;
+
+                if (otherDelta > window_ms_minijack)
+                    continue;
+
+                minijackMult -= DiffUtils.Smoothstep(otherDelta, minijack_fast_ms, minijack_slow_ms) * minijack_other_penalty;
+            }
+
+            int recentReturns = 0;
+
+            for (var earlier = previousNote; earlier != null && hitObject.StartTime - earlier.StartTime <= density_window_ms; earlier = earlier.PrevInColumn(0))
+                recentReturns++;
+
+            double densityGate = 1.0 - DiffUtils.Smoothstep(recentReturns, density_low, density_high);
+
+            return 1.0 + minijack_pressure_weight * speedUp * flowing * densityGate * Math.Max(minijackMult, minijack_mult_floor);
         }
     }
 }

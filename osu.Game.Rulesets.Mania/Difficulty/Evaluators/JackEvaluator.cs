@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             const double tap_rate_offset_ms = 60;
             const double strain_exponent = 1.29407;
-            const double jack_multiplier = 0.92;
+            const double jack_multiplier = 1.05;
 
             // Total combines the tap skills in quadrature, so this evaluator carries the square root of its weight.
             const double total_weight = 1.19496; // sqrt(1.42793)
@@ -62,7 +62,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // Repeats the map lets you hit with something other than a jack motion.
             jackDifficulty *= JackSpacingEvaluator.EvaluateMultiplierOf(current, chordDepth, columnDelta, tapRate);
 
-            return jackDifficulty * jack_multiplier * total_weight * minijackPressure(current);
+            return speedCap(jackDifficulty * jack_multiplier * total_weight * minijackPressure(current));
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         private static double calculateChordJackBonus(ManiaDifficultyHitObject current, int chordDepth, double columnDelta)
         {
             return Math.Max(0.1,
-                (1.0 + 0.14 * ChordUtils.ChordSpeedFactor(columnDelta) * (chordDepth - 1))
+                (1.0 + 0.05 * ChordUtils.ChordSpeedFactor(columnDelta) * (chordDepth - 1))
                 * ChordUtils.ChordRepeatNerf(current, columnDelta));
         }
 
@@ -153,8 +153,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double calculateConcurrentHoldBonus(ManiaDifficultyHitObject current)
         {
-            const double held_bonus_weight = 0.785;
-            const double held_neighbour_weight = 0.95;
+            const double held_bonus_weight = 0.72;
+            const double held_neighbour_weight = 0.9;
             int totalColumns = current.PreviousHitObjects.Length;
 
             if (totalColumns == 1)
@@ -187,19 +187,34 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double minijackPressure(ManiaDifficultyHitObject hitObject)
         {
-            const double minijack_pressure_weight = 0.4;
+            const double minijack_pressure_weight = 0.0;
 
             // A minijack is worth less when there are other jacks.
             // It only breaks the pattern if the chart is not already full of them.
-            const double minijack_other_penalty = 0.25;
-            const double minijack_mult_floor = 0.1;
+            const double minijack_other_penalty = 0.9;
+            const double minijack_mult_floor = 0.02;
 
             const double window_ms_minijack = 300.0;
 
             const double minijack_fast_ms = 60.0;
             const double minijack_slow_ms = 120.0;
-            
+
+            // How much faster than the previous part the column has to come back to count as a minijack.
+            const double acceleration_min = 1.0;
+            const double acceleration_max = 2.5;
+
+            // The hand is only mid-flow (so the jack breaks it) when the notes around it are this dense.
+            const double flowing_delta_ms = 90.0;
+            const double isolated_delta_ms = 220.0;
+
             const double chordjack_repeat_window_ms = 400.0;
+
+            // Density gate: a speed-up only reads as a minijack when the column is not already being hammered.
+            // If the same column returns many times in a short window the chart is just jack-textured, and the
+            // fast return is that texture rather than a break in a slower flow.
+            const double density_window_ms = 400.0;
+            const double density_low = 2.0;
+            const double density_high = 4.0;
 
             if (hitObject.PrevInColumn(0) is not { } previousNote)
                 return 1.0;
@@ -217,7 +232,17 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double jackDelta = hitObject.StartTime - previousNote.StartTime;
 
-            double jackSpeed = DiffUtils.ReverseLerp(jackDelta, minijack_fast_ms, minijack_slow_ms);
+            // The previous part: how long this column took to come back the time before this one.
+            double previousPartDelta = previousNote.PrevInColumn(0) is { } beforePrevious
+                ? previousNote.StartTime - beforePrevious.StartTime
+                : 0.0;
+
+            // Faster than the previous part: the column comes back sooner than it did last time.
+            double acceleration = previousPartDelta > 0.0 ? previousPartDelta / Math.Max(jackDelta, 1.0) : 1.0;
+            double speedUp = DiffUtils.Smoothstep(acceleration, acceleration_min, acceleration_max);
+
+            // Not isolated: the rows around are dense, so the hand is flowing and the jack breaks it.
+            double flowing = 1.0 - DiffUtils.Smoothstep(hitObject.DeltaTime, flowing_delta_ms, isolated_delta_ms);
 
             double minijackMult = 1.0;
 
@@ -238,7 +263,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 minijackMult -= DiffUtils.Smoothstep(otherDelta, minijack_fast_ms, minijack_slow_ms) * minijack_other_penalty;
             }
 
-            return 1.0 + minijack_pressure_weight * jackSpeed * Math.Max(minijackMult, minijack_mult_floor);
+            int recentReturns = 0;
+
+            for (var earlier = previousNote; earlier != null && hitObject.StartTime - earlier.StartTime <= density_window_ms; earlier = earlier.PrevInColumn(0))
+                recentReturns++;
+
+            double densityGate = 1.0 - DiffUtils.Smoothstep(recentReturns, density_low, density_high);
+
+            return 1.0 + minijack_pressure_weight * speedUp * flowing * densityGate * Math.Max(minijackMult, minijack_mult_floor);
+        }
+
+        /// <summary>
+        /// Compresses the very hardest repeats. The reference smooths its jack term over a window so a fast run
+        /// never runs away, which is what stops the densest jack maps from outrunning the sustained ones.
+        /// </summary>
+        private static double speedCap(double value)
+        {
+            const double knee = 12.0;
+            const double past_knee_slope = 0.5;
+
+            return value <= knee ? value : knee + past_knee_slope * (value - knee);
         }
     }
 }
