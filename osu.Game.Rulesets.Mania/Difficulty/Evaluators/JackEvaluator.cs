@@ -32,6 +32,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             const double strain_exponent = 1.29407;
             const double jack_multiplier = 1.05;
 
+            // Scales every jack, kept separate from the hold bonus so nerfing one never touches the other.
+            const double jack_scale = 0.72;
+
             // Total combines the tap skills in quadrature, so this evaluator carries the square root of its weight.
             const double total_weight = 1.19496; // sqrt(1.42793)
 
@@ -62,7 +65,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // Repeats the map lets you hit with something other than a jack motion.
             jackDifficulty *= JackSpacingEvaluator.EvaluateMultiplierOf(current, chordDepth, columnDelta, tapRate);
 
-            return speedCap(jackDifficulty * jack_multiplier * total_weight * minijackPressure(current));
+            return speedCap(jackDifficulty * jack_multiplier * jack_scale * total_weight * minijackPressure(current));
         }
 
         /// <summary>
@@ -153,8 +156,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double calculateConcurrentHoldBonus(ManiaDifficultyHitObject current)
         {
-            const double held_bonus_weight = 0.72;
-            const double held_neighbour_weight = 0.9;
+            const double held_neighbour_weight = 0.7;
+
+            // How much the long notes being held add to the jack, on top of the neighbours above. This is the
+            // held-note bonus; too nerf it, lower this rather than any global scale.
+            const double held_note_weight = 1.0;
             int totalColumns = current.PreviousHitObjects.Length;
 
             if (totalColumns == 1)
@@ -178,7 +184,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                     heldNeighbours++;
             }
 
-            return held_bonus_weight * (1 + heldNeighbours * held_neighbour_weight);
+            return (1 + heldNeighbours * held_neighbour_weight)
+                   * (1.0 + held_note_weight * (current.HeldNoteMultiplier - 1.0));
         }
 
         /// <summary>

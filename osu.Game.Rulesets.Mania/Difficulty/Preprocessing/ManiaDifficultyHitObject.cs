@@ -54,6 +54,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// </summary>
         public double EnduranceFactor = 1.0;
 
+        /// <summary>
+        /// The long notes being held when this note is hit, as a multiplier (at least 1). A hold that has been
+        /// down a while and still has time to run is worth the most, one that has only just been pressed or is
+        /// about to be let go is worth a little, and the holds add up.
+        /// This is populated via <see cref="HeldNoteMultiplier"/>.
+        /// </summary>
+        public double HeldNoteMultiplier = 1.0;
+
         private readonly List<DifficultyHitObject>[] perColumnObjects;
 
         private readonly int columnIndex;

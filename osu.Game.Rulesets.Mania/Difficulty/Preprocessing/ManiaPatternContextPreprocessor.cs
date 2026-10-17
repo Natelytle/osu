@@ -47,6 +47,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                     note.EnduranceFactor = endurance;
                 }
             }
+
+            // The held-note multiplier depends on the notes around the row, so it is read here as well.
+            HeldNoteMultiplier.ProcessAndAssign(mapData);
         }
     }
 }

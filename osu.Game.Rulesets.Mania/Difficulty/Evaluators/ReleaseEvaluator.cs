@@ -40,9 +40,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double duration = Math.Min(current.EndTime - current.StartTime, max_long_note_duration_ms);
             double longNoteGate = longNoteGateOf(duration);
 
-            releaseDifficulty += calculateLongHoldBonus(duration, longNoteGate);
             releaseDifficulty += calculateReleaseSpeedBonus(current, longNoteGate);
             releaseDifficulty += calculateReleaseWhileHolds(current, longNoteGate);
+
+            releaseDifficulty *= current.HeldNoteMultiplier;
 
             return releaseDifficulty * release_weight * total_weight;
         }
@@ -52,18 +53,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// motion that started it, so short durations fade out rather than switching off at a hard length.
         /// </summary>
         private static double longNoteGateOf(double duration) => DiffUtils.Logistic(duration, 110.90068, 0.07);
-
-        /// <summary>
-        /// The work of holding the note down, growing with its duration and growing faster once the hold is long
-        /// enough that it has to be tracked rather than just ridden out.
-        /// </summary>
-        private static double calculateLongHoldBonus(double duration, double longNoteGate)
-        {
-            double seconds = duration / 1000.0;
-            double holdLengthFactor = 1.4 * DiffUtils.Smoothstep(duration, 500, 680) * seconds;
-
-            return Math.Min((0.42 + 0.75 * seconds + holdLengthFactor), 0.5) * longNoteGate;
-        }
 
         /// <summary>
         /// Releases very close together are harder to time apart, so the closest release in any other column that
@@ -99,19 +88,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         {
             const double release_long_note_weight = 0.4;
 
-            int releasingColumns = current.TailOverlappedHolds.Count(o => o is not null);
-
-            if (releasingColumns == 0)
-                return 0.0;
-
-            double columnFactor = 1.0 / (-25.0 / 66.0 * releasingColumns - 5.0 / 11.0) + 2.2;
-
-            return release_long_note_weight * columnFactor * longNoteGate * nextNoteNerf(current);
+            return release_long_note_weight * (current.HeldNoteMultiplier - 1.0) * longNoteGate * nextNoteNerf(current);
         }
 
         /// <summary>
         /// If the next note starts too close to this release, the release difficulty should be reduced, with a
         /// rebound once the next note is far enough away that the motion is no longer being overlapped.
+        /// A note that starts right after a LN doesn't really need the player to think about release.
         /// </summary>
         private static double nextNoteNerf(ManiaDifficultyHitObject current)
         {
