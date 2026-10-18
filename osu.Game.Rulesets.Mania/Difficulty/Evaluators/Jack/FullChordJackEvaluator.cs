@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators.Jack
             // A section that jacks freely between its narrow rows was always going to jack here too.
             double looseDampen = 1.0 - 0.11 * DiffUtils.Smoothstep(chordlessJackTexture(current, fullChord), 0.45, 0.05);
 
-            return 1.0 + 2.5 * speedGate * manipGate * runGate * recurGate * sizeDampen * strainDampen * looseDampen;
+            return 1.0 + 3.0 * speedGate * manipGate * runGate * recurGate * sizeDampen * strainDampen * looseDampen;
         }
 
         /// <summary>

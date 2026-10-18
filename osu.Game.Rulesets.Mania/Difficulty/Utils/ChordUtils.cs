@@ -61,10 +61,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// </summary>
         public static double ChordRepeatNerf(ManiaDifficultyHitObject current, double columnDelta)
         {
-            const double full_chord_nerf = 0.50;
+            const double full_chord_nerf = 0.24;
             const double full_chord_run_ramp = 2.0;
 
-            const double near_full_chord_nerf = 0.085;
+            const double near_full_chord_nerf = 0.045;
             const double near_full_chord_run_ramp = 12.0;
 
             int totalColumns = current.Row.TotalColumns;

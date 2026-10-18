@@ -40,7 +40,29 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double patternMultiplier = isJack ? jack_speed_nerf : TrillUtils.TrillFactor(hitObject);
 
-            return tapRate * patternMultiplier * speed_weight * hitObject.ManipulationFactor * hitObject.EnduranceFactor * total_weight;
+            return tapRate * patternMultiplier * previousRowMultiplier(hitObject) * speed_weight * hitObject.ManipulationFactor * hitObject.EnduranceFactor * total_weight;
+        }
+
+        /// <summary>
+        /// A softer take on coordination's previous-row check. A column that has been idle far longer than the
+        /// flow around it means the finger landing here has been resting, so the tap asks a little less. This is
+        /// kept mild (unlike coordination's, which shapes chording) so it only trims isolated refreshes out of a
+        /// stream rather than reshaping the stream itself.
+        /// </summary>
+        private static double previousRowMultiplier(ManiaDifficultyHitObject hitObject)
+        {
+            const double min_share = 0.85;
+            const double idle_ratio = 3.0;
+            const double idle_ratio_full = 6.0;
+
+            double flow = hitObject.DeltaTime;
+
+            if (flow <= 0.0)
+                return 1.0;
+
+            double ratio = hitObject.ColumnDelta / flow;
+
+            return 1.0 - DiffUtils.Smoothstep(ratio, idle_ratio, idle_ratio_full) * (1 - min_share);
         }
 
         /// <summary>
@@ -84,7 +106,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (longRows >= 20)
             {
                 double longEven = 1.0 - (double)longShared / longRows;
-                sustainReward = 0.85 * DiffUtils.Smoothstep(longRows, 20.0, 30.0) * DiffUtils.Smoothstep(longEven, 0.6, 0.8) * hitObject.ManipulationFactor;
+                sustainReward = 0.75 * DiffUtils.Smoothstep(longRows, 20.0, 30.0) * DiffUtils.Smoothstep(longEven, 0.6, 0.8) * hitObject.ManipulationFactor;
             }
 
             return spikeNerf * (1.0 + sustainReward);

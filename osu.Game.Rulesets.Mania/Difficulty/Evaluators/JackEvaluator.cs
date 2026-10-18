@@ -65,7 +65,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // Repeats the map lets you hit with something other than a jack motion.
             jackDifficulty *= JackSpacingEvaluator.EvaluateMultiplierOf(current, chordDepth, columnDelta, tapRate);
 
-            return speedCap(jackDifficulty * jack_multiplier * jack_scale * total_weight * minijackPressure(current));
+            return speedCap(jackDifficulty * jack_multiplier * jack_scale * total_weight);
         }
 
         /// <summary>
@@ -186,98 +186,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             return (1 + heldNeighbours * held_neighbour_weight)
                    * (1.0 + held_note_weight * (current.HeldNoteMultiplier - 1.0));
-        }
-
-        /// <summary>
-        /// What it costs to land a minijack in the middle of a fast stream. The hand is flowing through a pattern
-        /// and the jack asks it to stop, which breaks its momentum.
-        /// </summary>
-        private static double minijackPressure(ManiaDifficultyHitObject hitObject)
-        {
-            const double minijack_pressure_weight = 0.0;
-
-            // A minijack is worth less when there are other jacks.
-            // It only breaks the pattern if the chart is not already full of them.
-            const double minijack_other_penalty = 0.9;
-            const double minijack_mult_floor = 0.02;
-
-            const double window_ms_minijack = 300.0;
-
-            const double minijack_fast_ms = 60.0;
-            const double minijack_slow_ms = 120.0;
-
-            // How much faster than the previous part the column has to come back to count as a minijack.
-            const double acceleration_min = 1.0;
-            const double acceleration_max = 2.5;
-
-            // The hand is only mid-flow (so the jack breaks it) when the notes around it are this dense.
-            const double flowing_delta_ms = 90.0;
-            const double isolated_delta_ms = 220.0;
-
-            const double chordjack_repeat_window_ms = 400.0;
-
-            // Density gate: a speed-up only reads as a minijack when the column is not already being hammered.
-            // If the same column returns many times in a short window the chart is just jack-textured, and the
-            // fast return is that texture rather than a break in a slower flow.
-            const double density_window_ms = 400.0;
-            const double density_low = 2.0;
-            const double density_high = 4.0;
-
-            if (hitObject.PrevInColumn(0) is not { } previousNote)
-                return 1.0;
-
-            if (hitObject.Row.Size > 1)
-            {
-                for (var row = hitObject.Row.Previous();
-                     row != null && hitObject.StartTime - row.StartTime <= chordjack_repeat_window_ms;
-                     row = row.Previous())
-                {
-                    if (ColumnPatternUtils.SameColumns(row.Columns, hitObject.Row.Columns))
-                        return 1.0;
-                }
-            }
-
-            double jackDelta = hitObject.StartTime - previousNote.StartTime;
-
-            // The previous part: how long this column took to come back the time before this one.
-            double previousPartDelta = previousNote.PrevInColumn(0) is { } beforePrevious
-                ? previousNote.StartTime - beforePrevious.StartTime
-                : 0.0;
-
-            // Faster than the previous part: the column comes back sooner than it did last time.
-            double acceleration = previousPartDelta > 0.0 ? previousPartDelta / Math.Max(jackDelta, 1.0) : 1.0;
-            double speedUp = DiffUtils.Smoothstep(acceleration, acceleration_min, acceleration_max);
-
-            // Not isolated: the rows around are dense, so the hand is flowing and the jack breaks it.
-            double flowing = 1.0 - DiffUtils.Smoothstep(hitObject.DeltaTime, flowing_delta_ms, isolated_delta_ms);
-
-            double minijackMult = 1.0;
-
-            foreach (int column in hitObject.Row.Columns)
-            {
-                if (column == hitObject.Column)
-                    continue;
-
-                if (hitObject.PrevInColumnBefore(column, hitObject.Index) is not { } neighbour
-                    || hitObject.PrevInColumnBefore(column, neighbour.Index) is not { } before)
-                    continue;
-
-                double otherDelta = neighbour.StartTime - before.StartTime;
-
-                if (otherDelta > window_ms_minijack)
-                    continue;
-
-                minijackMult -= DiffUtils.Smoothstep(otherDelta, minijack_fast_ms, minijack_slow_ms) * minijack_other_penalty;
-            }
-
-            int recentReturns = 0;
-
-            for (var earlier = previousNote; earlier != null && hitObject.StartTime - earlier.StartTime <= density_window_ms; earlier = earlier.PrevInColumn(0))
-                recentReturns++;
-
-            double densityGate = 1.0 - DiffUtils.Smoothstep(recentReturns, density_low, density_high);
-
-            return 1.0 + minijack_pressure_weight * speedUp * flowing * densityGate * Math.Max(minijackMult, minijack_mult_floor);
         }
 
         /// <summary>

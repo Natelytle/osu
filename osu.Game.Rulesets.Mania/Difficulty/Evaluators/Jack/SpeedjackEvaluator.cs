@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators.Jack
             // chordjack, which Jack already pays for, so it earns almost none.
             double sizeGate = row.Size <= 1 ? 0.5 : 1.0 - 0.8 * DiffUtils.Smoothstep(row.Size, 2.0, 4.0);
 
-            return 1.0 + 0.35 * speedScale * sizeGate * clean;
+            return 1.0 + 0.55 * speedScale * sizeGate * clean;
         }
 
         /// <summary>

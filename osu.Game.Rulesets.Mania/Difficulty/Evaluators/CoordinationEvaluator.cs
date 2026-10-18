@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double calculateBoundaryPressure(ManiaDifficultyHitObject current)
         {
-            const double boundary_pressure_weight = 1.12;
+            const double boundary_pressure_weight = 1.07;
 
             int column = current.Column;
             int totalColumns = current.Row.TotalColumns;
@@ -111,7 +111,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double coefficient = CrossColumnUtils.ColumnBoundaryMultiplier(boundaryIndex, totalColumns);
             bool otherActive = adjacentDelta <= activity_window_ms;
 
-            return intensity * coefficient * (otherActive ? 1.0 : (1.0 - coefficient)) * previousRowMultiplier(current, adjacentDelta);
+            return intensity * coefficient * (otherActive ? 1.0 : (1.0 - coefficient)) * previousGapMultiplier(current, adjacentDelta);
         }
 
         /// <summary>
@@ -119,14 +119,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// A neighbour that is fresher than this column means the finger landing here is the one that has
         /// been resting, so the placement costs the hand less.
         /// </summary>
-        private static double previousRowMultiplier(ManiaDifficultyHitObject current, double adjacentDelta)
+        private static double previousGapMultiplier(ManiaDifficultyHitObject current, double adjacentDelta)
         {
             const double min_share = 0.2;
 
             // How long this column has been idle, in comparison to the adjacent one.
             double ratio = current.ColumnDelta / adjacentDelta;
 
-            return 1.0 - DiffUtils.Smoothstep(ratio, 2.0, 4.5) * (1 - min_share);
+            return 1.0 - DiffUtils.Smoothstep(ratio, 2.5, 5.0) * (1 - min_share);
         }
 
         /// <summary>
@@ -135,33 +135,68 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// </summary>
         private static double calculateChordDifficulty(ManiaDifficultyHitObject current, int depthInChord, double columnDelta)
         {
-            const double load_per_extra_column = 1.5;
-            const double shapeBonusWeight = 5.0;
+            const double load_per_extra_column = 2.75;
+            const double shapeBonusWeight = 3.0;
 
             if (depthInChord < 2)
                 return 0.0;
 
-            // Chordjacks are already paid for by Jack, so the dampening here is only for a chord that is
-            // actually coming back to itself. A chord played soon after a different one is two separate
-            // placements, not one repeated, and keeps the full value.
-            bool isChordjack = current.Row.Previous() is { } previousShape
-                               && ColumnPatternUtils.SameColumns(previousShape.Columns, current.Row.Columns);
+            double chordjackValue = calculateChordjackValue(current);
 
-            double difficulty = load_per_extra_column * (depthInChord - 1) * ChordUtils.ChordRepeatNerf(current, columnDelta)
-                                * (isChordjack ? ChordUtils.CHORDJACK_NERF : 1.0) * ChordUtils.ChordSpeedFactor(columnDelta)
+            // A series of chords with equal density in each rows but few shared columns
+            // require a LOT more control than uneven chordjacks, example (O = note):
+            //   left is much harder than right for the same density
+            //          OOXOXXO                  XOXOXXX
+            //          XOOXOOX                  OOOOOXO
+            //          OXOOXOX                  XXXXOXO
+            //          OOXXOXO                  OOXOOOO
+            double balanceRatio = current.Row.Previous() is { } previous
+                ? (double)Math.Min(previous.Size, current.Row.Size) / Math.Max(previous.Size, current.Row.Size)
+                : 1.0;
+
+            double difficulty = load_per_extra_column * (depthInChord - 1) * balanceRatio * ChordUtils.ChordRepeatNerf(current, columnDelta) * ChordUtils.ChordSpeedFactor(columnDelta)
                                 + shapeBonusWeight * calculateShapeBonus(current, columnDelta);
 
-            // The same shape is a movement the hand is already doing rather than new fingers to
-            // place, so it of course requires less coordination overall.
-            if (isChordjack)
-                difficulty *= 0.5;
-
-            return difficulty;
+            return difficulty * chordjackMultiplier(chordjackValue);
         }
 
         /// <summary>
-        /// How much the hand has to re-place itself because the shape around the repeat changed. A shape that either repeats or shares
-        /// no column with the row earns nothing.
+        /// How much the current chord repeats the one before it.
+        /// 0 for a chord with nothing shared (or no previous row), 1 for the same chord played again.
+        /// </summary>
+        private static double calculateChordjackValue(ManiaDifficultyHitObject current)
+        {
+            if (current.Row.Previous() is not { } previous)
+                return 0.0;
+
+            int shared = ColumnPatternUtils.SharedColumnCount(previous.Columns, current.Row.Columns);
+            double averageSize = (previous.Size + current.Row.Size) / 2.0;
+
+            return averageSize > 0.0 ? shared / averageSize : 0.0;
+        }
+
+        /// <summary>
+        /// What a chord's repeat value does to its coordination. A chord that barely touches the one before it
+        /// is a new shape the hand has to place and is worth more.
+        /// </summary>
+        private static double chordjackMultiplier(double chordjackValue)
+        {
+            if (chordjackValue <= 0.0)
+                return 1.0;
+
+            const double centre = 0.5;
+            const double buff = 0.48;
+            const double nerf = 0.6;
+
+            return chordjackValue < centre
+                ? 1.0 + buff * (centre - chordjackValue) / centre
+                : 1.0 - nerf * (chordjackValue - centre) / (1.0 - centre);
+        }
+
+        /// <summary>
+        /// How much the hand has to re-place itself because the shape around the repeat changed. A shape that either repeats 
+        /// the exact same shape or shares no column with the row earns nothing.
+        /// This is similar to chordjackMultiplier except it purely adds as a bonus.
         /// </summary>
         private static double calculateShapeBonus(ManiaDifficultyHitObject current, double columnDelta)
         {
@@ -219,6 +254,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// What it costs to land a minijack mid-flow. Moving this to coordination, this feeds each map's
         /// dominant skill instead of only jack.
         /// </summary>
+        /// <remark>
+        /// It currently activates kinda randomly, needs to be improved.
+        /// </remark>
         private static double minijackPressure(ManiaDifficultyHitObject hitObject)
         {
             const double minijack_pressure_weight = 2.5;
@@ -236,30 +274,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             const double acceleration_min = 1.0;
             const double acceleration_max = 2.5;
 
-            // The hand is only mid-flow (so the jack breaks it) when the notes around it are this dense.
-            const double flowing_delta_ms = 90.0;
-            const double isolated_delta_ms = 220.0;
-
-            const double chordjack_repeat_window_ms = 400.0;
-
-            // Density gate: a speed-up only reads as a minijack when the column is not already being hammered.
+            // Density gate: count only returns that are as fast as (or faster than) this one, so continuing an
+            // already-fast jack earns less than landing a fresh spike.
             const double density_window_ms = 400.0;
             const double density_low = 2.0;
             const double density_high = 4.0;
+            const double similar_gap_margin = 1.0;
+
+            const double runup_short_ms = 200.0;
+            const double runup_long_ms = 800.0;
+            const double runup_floor = 1.0;
+            const double runup_reward_weight = 0.5;
+
+            // A minijack with little else going on around it is not worth much, so fade the bonus out as the
+            // surrounding notes thin out.
+            const double local_density_window_ms = 250.0;
+            const double local_density_low = 1.5;
+            const double local_density_high = 3.5;
 
             if (hitObject.PrevInColumn(0) is not { } previousNote)
                 return 1.0;
-
-            if (hitObject.Row.Size > 1)
-            {
-                for (var row = hitObject.Row.Previous();
-                     row != null && hitObject.StartTime - row.StartTime <= chordjack_repeat_window_ms;
-                     row = row.Previous())
-                {
-                    if (ColumnPatternUtils.SameColumns(row.Columns, hitObject.Row.Columns))
-                        return 1.0;
-                }
-            }
 
             double jackDelta = hitObject.StartTime - previousNote.StartTime;
 
@@ -270,7 +304,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             double acceleration = previousPartDelta > 0.0 ? previousPartDelta / Math.Max(jackDelta, 1.0) : 1.0;
             double speedUp = DiffUtils.Smoothstep(acceleration, acceleration_min, acceleration_max);
 
-            double flowing = 1.0 - DiffUtils.Smoothstep(hitObject.DeltaTime, flowing_delta_ms, isolated_delta_ms);
+            double runUpFactor = runup_floor + runup_reward_weight * DiffUtils.Smoothstep(previousPartDelta, runup_short_ms, runup_long_ms);
+
+            int localNotes = 0;
+
+            for (var row = hitObject.Row.Previous(); row != null && hitObject.StartTime - row.StartTime <= local_density_window_ms; row = row.Previous())
+                localNotes += row.Size;
+
+            double localDensity = DiffUtils.Smoothstep(localNotes, local_density_low, local_density_high);
 
             double minijackMult = 1.0;
 
@@ -291,14 +332,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 minijackMult -= DiffUtils.Smoothstep(otherDelta, minijack_fast_ms, minijack_slow_ms) * minijack_other_penalty;
             }
 
-            int recentReturns = 0;
+            int similarOrFaster = 0;
 
             for (var earlier = previousNote; earlier != null && hitObject.StartTime - earlier.StartTime <= density_window_ms; earlier = earlier.PrevInColumn(0))
-                recentReturns++;
+            {
+                if (earlier.PrevInColumn(0) is not { } before)
+                    break;
 
-            double densityGate = 1.0 - DiffUtils.Smoothstep(recentReturns, density_low, density_high);
+                double gap = earlier.StartTime - before.StartTime;
 
-            return 1.0 + minijack_pressure_weight * speedUp * flowing * densityGate * Math.Max(minijackMult, minijack_mult_floor);
+                if (gap <= jackDelta * similar_gap_margin)
+                    similarOrFaster++;
+            }
+
+            double densityGate = 1.0 - DiffUtils.Smoothstep(similarOrFaster, density_low, density_high);
+
+            return 1.0 + minijack_pressure_weight * speedUp * runUpFactor * localDensity * densityGate * Math.Max(minijackMult, minijack_mult_floor);
         }
     }
 }

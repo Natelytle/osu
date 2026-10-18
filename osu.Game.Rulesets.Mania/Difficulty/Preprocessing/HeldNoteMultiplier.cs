@@ -31,7 +31,19 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// The least a held note contributes, so a hold whose head or tail lands right on a note still counts a
         /// little rather than switching on from nothing.
         /// </summary>
-        private const double hold_edge_factor = 0.25;
+        private const double hold_edge_factor = 0.4;
+
+        /// <summary>
+        /// Holds shorter than this barely work the hand more than the tap that made them, so a hold fades out
+        /// below it. Matches <c>ReleaseEvaluator</c> so a short hold is priced the same everywhere it is
+        /// read rather than only being discounted on release.
+        /// </summary>
+        private const double short_hold_ms = 110.90068;
+
+        /// <summary>
+        /// How sharply a hold fades out below <see cref="short_hold_ms"/>; matches the release gate.
+        /// </summary>
+        private const double short_hold_steepness = 0.07;
 
         /// <summary>
         /// How much a fully held note adds to the multiplier.
@@ -100,7 +112,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         /// <summary>
         /// What a single long note contributes while it is held at <paramref name="time"/>, ramping in from its
         /// start and out towards its end over <see cref="hold_ramp_ms"/> either side, and never below
-        /// <see cref="hold_edge_factor"/>.
+        /// <see cref="hold_edge_factor"/>. Short holds that barely outlast a tap fade out here the same way
+        /// <c>ReleaseEvaluator</c> fades them, so a hold costs according to how much it really holds.
         /// </summary>
         private static double heldNoteFactor(double startTime, double endTime, double time)
         {
@@ -113,7 +126,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             double rampIn = DiffUtils.Smoothstep(heldFor, 0.0, hold_ramp_ms);
             double rampOut = DiffUtils.Smoothstep(stillToGo, 0.0, hold_end_ramp_ms);
 
-            return hold_edge_factor + (1.0 - hold_edge_factor) * rampIn * rampOut;
+            double shortHoldGate = DiffUtils.Logistic(endTime - startTime, short_hold_ms, short_hold_steepness);
+
+            return (hold_edge_factor + (1.0 - hold_edge_factor) * rampIn * rampOut) * shortHoldGate;
         }
     }
 }
