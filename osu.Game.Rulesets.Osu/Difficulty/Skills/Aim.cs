@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -180,7 +179,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double skill = RootFinding.FindRootExpand(skill => fcProbAtSkill(skill) - 0.02, 0, 10);
 
-            return skill * 150;
+            return skill * 200;
         }
 
         private double fcProbAtSkill(double skill)
@@ -188,7 +187,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (skill <= 0)
                 return 0;
 
-            List<ConditionalProbability> conditionalProbabilities = new List<ConditionalProbability>();
+            double fcProb = 1.0;
 
             for (int i = 0; i < ObjectDifficulties.Count; i++)
             {
@@ -200,19 +199,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 double snapHitProb = DiffUtils.Erf(skill / (Math.Sqrt(2) * diff));
                 ConditionalProbability flowHitProb = getFlowProbOf(skill, diff, diffPrev, deltas[i]);
 
-                conditionalProbabilities.Add(new ConditionalProbability
-                {
-                    PGivenSuccess = snapHitProb * snapProb + flowHitProb.PGivenSuccess * (1 - snapProb),
-                    PGivenFail = snapHitProb * snapProb + flowHitProb.PGivenFail * (1 - snapProb)
-                });
+                fcProb *= snapHitProb * snapProb + flowHitProb.PGivenSuccess * (1 - snapProb);
             }
 
-            return DependentProbabilityUtils.TotalProbabilitiesOf(conditionalProbabilities).Aggregate(1.0, (prod, x) => prod * x);
+            return fcProb;
         }
 
         private ConditionalProbability getFlowProbOf(double skill, double d, double dPrev, double delta)
         {
-            const double theta = 100.0;
+            const double theta = 550.0;
 
             double rho = Math.Exp(-(delta / theta));
             double a = skill / dPrev, b = skill / d;
