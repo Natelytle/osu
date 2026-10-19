@@ -17,7 +17,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double star_rating_accuracy = 0.9575;
 
         private readonly TotalAccuracyCurve accuracyCurve = new TotalAccuracyCurve();
-        // private readonly List<AccuracyDifficulties> accuracyDifficulties = new List<AccuracyDifficulties>();
 
         private double noteCount;
         private double totalNoteWeight;
@@ -33,8 +32,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             totalNoteWeight += getNoteWeight(current);
 
             AccuracyDifficulties difficulties = AccuracyDifficultiesAt(current);
-            // accuracyDifficulties.Add(difficulties);
-            accuracyCurve.AddToCurve(difficulties);
+            accuracyCurve.AddNote(difficulties);
 
             return difficulties.BaseDifficulty;
         }

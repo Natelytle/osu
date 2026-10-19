@@ -1,27 +1,35 @@
 using System;
 using System.Collections.Generic;
-using osu.Framework.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public class TotalAccuracyCurve
     {
         private const double min_ramp_width = 1e-6;
+        private const double min_difficulty_bin = 0.1;
+        private const double bin_ratio = 1.05;
 
-        private readonly List<(double Skill, double SlopeDelta, int ActiveDelta)> events = new List<(double, double, int)>();
+        private int size = 16;
+        private double[] edges;
+        private double[] slopeSum;
+        private double[] gain;
+        private List<(double Skill, double Delta)>?[] bucketEvents;
 
         private double baseAccuracy;
         private double maxAccuracy;
 
-        private double[] skills = Array.Empty<double>();
-        private double[] values = Array.Empty<double>();
-        private bool dirty;
+        public TotalAccuracyCurve()
+        {
+            edges = buildEdges(size);
+            slopeSum = new double[2 * size];
+            gain = new double[2 * size];
+            bucketEvents = new List<(double, double)>?[size];
+        }
 
-        public void AddToCurve(AccuracyDifficulties difficulties)
+        public void AddNote(AccuracyDifficulties difficulties)
         {
             double[] table = AccuracyValueMultipliers.ACCURACY_VALUES;
 
-            dirty = true;
             maxAccuracy += table[0];
 
             if (difficulties.BaseDifficulty <= 0)
@@ -36,74 +44,146 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             {
                 double upper = difficulties.GetDifficulty(i);
                 double lower = Math.Min(difficulties.GetDifficulty(i + 1), upper - min_ramp_width);
-                double step = table[i] - table[i + 1];
-                double slope = step / (upper - lower);
+                double slope = (table[i] - table[i + 1]) / (upper - lower);
 
-                events.Add((lower, slope, 1));
-                events.Add((upper, -slope, -1));
+                insert(lower, slope);
+                insert(upper, -slope);
             }
-        }
-
-        public double TotalAccuracyAt(double skill)
-        {
-            if (dirty) build();
-
-            if (skills.Length == 0 || skill <= skills[0])
-                return baseAccuracy;
-
-            if (skill >= skills[^1])
-                return values[^1];
-
-            int idx = Array.BinarySearch(skills, skill);
-
-            if (idx >= 0)
-                return values[idx];
-
-            int hi = ~idx;
-            int lo = hi - 1;
-
-            return Interpolation.Lerp(values[lo], values[hi], (skill - skills[lo]) / (skills[hi] - skills[lo]));
         }
 
         public double TotalAccuracy() => maxAccuracy;
 
-        private void build()
+        public double TotalAccuracyAt(double skill)
         {
-            dirty = false;
-            events.Sort((a, b) => a.Skill.CompareTo(b.Skill));
+            int k = bucketOf(skill);
 
-            var skillList = new List<double>(events.Count);
-            var valueList = new List<double>(events.Count);
+            // Fold buckets [0, k): accS = slope entering bucket k, accV = value at edge(k).
+            // k may equal size (skill beyond every allocated bucket), which folds the whole tree.
+            double accS = 0, accV = 0;
+            int node = 1, lo = 0, hi = size;
 
-            double slope = 0;
-            double value = baseAccuracy;
-            int active = 0;
-
-            for (int i = 0; i < events.Count; i++)
+            while (k > lo)
             {
-                var (skill, slopeDelta, activeDelta) = events[i];
-
-                if (i > 0)
-                    value = Math.Clamp(value + slope * (skill - events[i - 1].Skill), value, maxAccuracy);
-
-                slope += slopeDelta;
-                active += activeDelta;
-
-                if (active == 0)
-                    slope = 0;
-
-                if (skillList.Count > 0 && skillList[^1] == skill)
+                if (k >= hi)
                 {
-                    valueList[^1] = value;
-                    continue;
+                    accV += gain[node] + accS * (edges[hi] - edges[lo]);
+                    accS += slopeSum[node];
+                    break;
                 }
 
-                skillList.Add(skill);
-                valueList.Add(value);
+                int mid = (lo + hi) >> 1;
+
+                if (k <= mid)
+                {
+                    node = 2 * node;
+                    hi = mid;
+                }
+                else
+                {
+                    int l = 2 * node;
+                    accV += gain[l] + accS * (edges[mid] - edges[lo]);
+                    accS += slopeSum[l];
+                    node = l + 1;
+                    lo = mid;
+                }
             }
 
-            skills = skillList.ToArray();
-            values = valueList.ToArray();
+            double result = baseAccuracy + accV + accS * (skill - edge(k));
+
+            // Events inside this bucket that have already happened.
+            if (k < size && bucketEvents[k] is { } events)
+            {
+                foreach (var (eventSkill, delta) in events)
+                {
+                    if (eventSkill <= skill)
+                        result += delta * (skill - eventSkill);
+                }
+            }
+
+            return Math.Clamp(result, baseAccuracy, maxAccuracy);
+        }
+
+        // Lower edge of bucket i (== upper edge of bucket i - 1).
+        private double computeEdge(int i) => i == 0 ? 0 : min_difficulty_bin * Math.Pow(bin_ratio, i - 1);
+
+        private double edge(int i) => i < edges.Length ? edges[i] : computeEdge(i);
+
+        private double[] buildEdges(int buckets)
+        {
+            var e = new double[buckets + 1];
+            for (int i = 0; i <= buckets; i++)
+                e[i] = computeEdge(i);
+            return e;
+        }
+
+        private int bucketOf(double skill)
+        {
+            if (!(skill >= min_difficulty_bin)) // also catches NaN and negatives
+                return 0;
+
+            double raw = Math.Log(skill / min_difficulty_bin) / Math.Log(bin_ratio);
+
+            int b = 1 + (int)raw;
+
+            // Correct for floating-point error in the log.
+            while (b > 1 && skill < edge(b)) b--;
+            while (skill >= edge(b + 1)) b++;
+
+            return b;
+        }
+
+        private void insert(double skill, double delta)
+        {
+            int b = bucketOf(skill);
+
+            if (b >= size)
+                grow(b);
+
+            (bucketEvents[b] ??= new List<(double, double)>()).Add((skill, delta));
+
+            int leaf = size + b;
+            slopeSum[leaf] += delta;
+            gain[leaf] += delta * (edges[b + 1] - skill);
+
+            // Walk up: the node covering [lo, lo + w) is (size + lo) / w.
+            for (int w = 2; w <= size; w <<= 1)
+                pull(b & ~(w - 1), w);
+        }
+
+        private void pull(int lo, int w)
+        {
+            int p = (size + lo) / w;
+            int l = 2 * p, r = l + 1;
+
+            slopeSum[p] = slopeSum[l] + slopeSum[r];
+            gain[p] = gain[l] + gain[r] + slopeSum[l] * (edges[lo + w] - edges[lo + w / 2]);
+        }
+
+        private void grow(int needed)
+        {
+            int newSize = size;
+            while (newSize <= needed) newSize <<= 1;
+
+            double[] newSlope = new double[2 * newSize];
+            double[] newGain = new double[2 * newSize];
+
+            // Leaf values depend only on their own bucket's edges, which don't change with size.
+            Array.Copy(slopeSum, size, newSlope, newSize, size);
+            Array.Copy(gain, size, newGain, newSize, size);
+
+            Array.Resize(ref bucketEvents, newSize);
+
+            size = newSize;
+            edges = buildEdges(size);
+            slopeSum = newSlope;
+            gain = newGain;
+
+            // Rebuild internal nodes bottom-up.
+            for (int w = 2; w <= size; w <<= 1)
+            {
+                for (int lo = 0; lo < size; lo += w)
+                    pull(lo, w);
+            }
         }
     }
 }
