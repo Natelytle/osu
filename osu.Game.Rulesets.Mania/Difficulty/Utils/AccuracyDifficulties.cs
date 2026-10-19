@@ -31,7 +31,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// <summary>
         /// The absolute skill this note asks for at a given accuracy index.
         /// </summary>
-        private double getDifficulty(int index) => index == 0 ? BaseDifficulty : BaseDifficulty * Multipliers[index];
+        public double GetDifficulty(int index) => index == 0 ? BaseDifficulty : BaseDifficulty * Multipliers[index];
 
         public static AccuracyDifficulties Pow(AccuracyDifficulties difficultiesBase, int exponent)
         {
@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             double[] newMultipliers = new double[left.Multipliers.Length];
 
             for (int i = 0; i < left.Multipliers.Length - 1; i++)
-                newMultipliers[i] = newBaseDifficulty > 0 ? (left.getDifficulty(i) + right.getDifficulty(i)) / newBaseDifficulty : 1;
+                newMultipliers[i] = newBaseDifficulty > 0 ? (left.GetDifficulty(i) + right.GetDifficulty(i)) / newBaseDifficulty : 1;
 
             return new AccuracyDifficulties(newBaseDifficulty, newMultipliers);
         }
@@ -81,18 +81,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// </summary>
         public double AccuracyAt(double skill)
         {
-            if (skill >= getDifficulty(0))
+            if (skill >= GetDifficulty(0))
                 return AccuracyValueMultipliers.ACCURACY_VALUES[0];
             if (skill <= 0)
                 return AccuracyValueMultipliers.ACCURACY_VALUES[^1];
 
             for (int i = 1; i < Multipliers.Length; i++)
             {
-                if (getDifficulty(i) > skill)
+                if (GetDifficulty(i) > skill)
                     continue;
 
-                double upperSkillBound = getDifficulty(i - 1);
-                double lowerSkillBound = getDifficulty(i);
+                double upperSkillBound = GetDifficulty(i - 1);
+                double lowerSkillBound = GetDifficulty(i);
 
                 double upperAccuracyBound = AccuracyValueMultipliers.ACCURACY_VALUES[i - 1];
                 double lowerAccuracyBound = AccuracyValueMultipliers.ACCURACY_VALUES[i];
