@@ -20,6 +20,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Aim : TimeSkill
     {
+        private const double horizontal_aim_dev_mult = 1.0;
+        private const double contamination_factor = 3.0;
+        private const double contamination_percent = 0.005;
+
         public readonly bool IncludeSliders;
 
         public Aim(Mod[] mods, bool includeSliders)
@@ -37,7 +41,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulty <= 0) return 1;
             if (skill <= 0) return 0;
 
-            return DiffUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
+            double d = Math.Sqrt(2) * difficulty;
+            double baseProbability = DiffUtils.Erf(skill / d) * // Overshoot aim error
+                                     DiffUtils.Erf(skill / (d * horizontal_aim_dev_mult)); // Sideways aim error
+
+            double contaminatedProbability = DiffUtils.Erf(skill / (d * contamination_factor));
+
+            return baseProbability * (1 - contamination_percent) + contaminatedProbability * contamination_percent;
         }
 
         private double strainDecay(double ms) => DiffUtils.Pow(0.2, ms / 1000);
@@ -87,7 +97,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
-            const double skill_multiplier_total = 5.3;
+            const double skill_multiplier_total = 5.0;
             const double combined_snap_norm_exponent = 1.5;
 
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
