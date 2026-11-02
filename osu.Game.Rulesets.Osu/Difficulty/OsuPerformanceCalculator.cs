@@ -10,10 +10,10 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Scoring;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
-using osu.Game.Rulesets.Osu.Scoring;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Utils;
@@ -24,6 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     {
         public const double PERFORMANCE_BASE_MULTIPLIER = 1.12; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
         public const double PERFORMANCE_NORM_EXPONENT = 1.1;
+        public const double PERFORMANCE_BASE_EXPONENT = 3.0;
 
         private bool usingClassicSliderAccuracy;
         private bool usingScoreV2;
@@ -64,7 +65,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double aimEstimatedSliderBreaks;
         private double speedEstimatedSliderBreaks;
 
-        public static double DifficultyToPerformance(double difficulty) => 4.0 * DiffUtils.Pow(difficulty, 3);
+        public static double DifficultyToPerformance(double difficulty) => 4.0 * DiffUtils.Pow(difficulty, PERFORMANCE_BASE_EXPONENT);
 
         public OsuPerformanceCalculator()
             : base(new OsuRuleset())
@@ -210,15 +211,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimValue = DifficultyToPerformance(aimDifficulty);
 
-            double lengthBonus = 0.95 + 0.35 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
-
             if (effectiveMissCount > 0)
             {
                 double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
 
-                aimValue *= calculateMissPenalty(relevantMissCount, attributes.AimDifficultStrainCount);
+                double[] coefficients =
+                [
+                    attributes.AimMissPenaltyCoefficientA,
+                    attributes.AimMissPenaltyCoefficientB,
+                    attributes.AimMissPenaltyCoefficientC,
+                    // We can derive the 4th coefficient from the first third, since at x = 1 our polynomial is equal to the sum of the coefficients,
+                    // and the relevant miss count there is log(totalHits - 1) since our polynomial uses log miss counts.
+                    Math.Log(totalHits + 1) - attributes.AimMissPenaltyCoefficientA - attributes.AimMissPenaltyCoefficientB - attributes.AimMissPenaltyCoefficientC
+                ];
+
+                aimValue *= calculatePolynomialMissPenalty(relevantMissCount, coefficients);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -247,7 +254,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 double relevantMissCount = Math.Min(effectiveMissCount + speedEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
 
-                speedValue *= calculateMissPenalty(relevantMissCount, attributes.SpeedDifficultStrainCount);
+                speedValue *= calculateStrainCountMissPenalty(relevantMissCount, attributes.SpeedDifficultStrainCount);
             }
 
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -336,7 +343,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double readingValue = DifficultyToPerformance(attributes.ReadingDifficulty);
 
             if (effectiveMissCount > 0)
-                readingValue *= calculateMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.ReadingDifficultNoteCount);
+                readingValue *= calculateStrainCountMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.ReadingDifficultNoteCount);
 
             // Scale the reading value with accuracy _harshly_.
             readingValue *= DiffUtils.Pow(accuracy, 3);
@@ -533,10 +540,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return traceableBonus;
         }
 
+        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count.
+        private double calculatePolynomialMissPenalty(double missCount, double[] coefficients) => Math.Pow(1 - PolynomialPenaltyUtils.GetPenaltyAt(coefficients, Math.Log(missCount + 1)),
+            PERFORMANCE_BASE_EXPONENT * OsuDifficultyCalculator.AIM_STAR_RATING_EXPONENT);
+
         // Miss penalty assumes that a player will miss on the hardest parts of a map,
         // so we use the amount of relatively difficult sections to adjust miss penalty
         // to make it more punishing on maps with lower amount of hard sections.
-        private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.93 / (missCount / (4 * Math.Log(Math.Max(1, difficultStrainCount))) + 1);
+        private double calculateStrainCountMissPenalty(double missCount, double difficultStrainCount) => 0.93 / (missCount / (4 * Math.Log(Math.Max(1, difficultStrainCount))) + 1);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(DiffUtils.Pow(scoreMaxCombo, 0.8) / DiffUtils.Pow(attributes.MaxCombo, 0.8), 1.0);
 
         private double calculateRateAdjustedApproachRate(double approachRate, double clockRate)
