@@ -22,7 +22,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     {
         private const double horizontal_aim_dev_mult = 1.0;
         private const double contamination_factor = 3.0;
-        private const double contamination_percent = 0.005;
+        private const double contamination_percent = 0.5;
+        private const double contamination_proportion = contamination_percent / 100;
 
         public readonly bool IncludeSliders;
 
@@ -47,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double contaminatedProbability = DiffUtils.Erf(skill / (d * contamination_factor));
 
-            return baseProbability * (1 - contamination_percent) + contaminatedProbability * contamination_percent;
+            return baseProbability * (1 - contamination_proportion) + contaminatedProbability * contamination_proportion;
         }
 
         private double strainDecay(double ms) => DiffUtils.Pow(0.2, ms / 1000);
@@ -97,7 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
-            const double skill_multiplier_total = 5.07;
+            const double skill_multiplier_total = 4.75;
             const double combined_snap_norm_exponent = 1.5;
 
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
