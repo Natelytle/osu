@@ -89,7 +89,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double starRatingSS = scaleToStarRating(ssSkill * consistencyMult) * odMult * lengthBonus;
 
             var accPenalties = totalSkill.GetAccuracyPenalties(ssSkill);
-            (double p1, double p2, double p3, double p4, double p5, double p6, double p7, double p8, double p9, double p10, double p11) = accPenalties.Unpack();
+            (long p1, long p2, long p3) = accPenalties.Pack();
 
             return new ManiaDifficultyAttributes
             {
@@ -98,14 +98,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 P1 = p1,
                 P2 = p2,
                 P3 = p3,
-                P4 = p4,
-                P5 = p5,
-                P6 = p6,
-                P7 = p7,
-                P8 = p8,
-                P9 = p9,
-                P10 = p10,
-                P11 = p11,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
                 SpeedDifficulty = speedStarRating,

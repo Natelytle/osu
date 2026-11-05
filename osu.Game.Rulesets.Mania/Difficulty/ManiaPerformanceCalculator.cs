@@ -105,12 +105,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (accuracyImpliedDeviation == null)
                 return 0;
 
-            return Math.Pow(AccuracyPenalties.GetMultiplierAt(AccuracyPenalties.CreateFromAttribs(
-                        (attributes.P1, attributes.P2, attributes.P3, attributes.P4,
-                            attributes.P5, attributes.P6, attributes.P7, attributes.P8,
-                            attributes.P9, attributes.P10, attributes.P11)),
-                    accuracy),
-                base_exponent * ManiaDifficultyCalculator.STAR_RATING_EXPONENT);
+            return Math.Pow(
+                AccuracyPenalties.GetMultiplierAt(AccuracyPenalties.Unpack((attributes.P1, attributes.P2, attributes.P3)), accuracy),
+                base_exponent * ManiaDifficultyCalculator.STAR_RATING_EXPONENT
+            );
         }
 
         /// <summary>

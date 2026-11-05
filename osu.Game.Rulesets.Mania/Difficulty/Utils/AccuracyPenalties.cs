@@ -9,40 +9,49 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public class AccuracyPenalties
     {
-        public static readonly double[] PENALTY_VALUES = [1, 0.97, 0.91, 0.83, 0.75, 0.64, 0.65, 0.53, 0.41, 0.28, 0.15, 0];
+        public static readonly double[] PENALTY_VALUES = [1, 0.91, 0.82, 0.73, 0.64, 0.55, 0.46, 0.37, 0.28, 0.19, 0.10, 0.01];
         public readonly double[] Accuracies = new double[PENALTY_VALUES.Length];
 
-        public (double, double, double, double, double, double, double, double, double, double, double) Unpack() => (
-            Accuracies[0],
-            Accuracies[1],
-            Accuracies[2],
-            Accuracies[3],
-            Accuracies[4],
-            Accuracies[5],
-            Accuracies[6],
-            Accuracies[7],
-            Accuracies[8],
-            Accuracies[9],
-            Accuracies[10]
-        );
+        public (long, long, long) Pack()
+        {
+            long a2 = (ushort)(Accuracies[1] * ushort.MaxValue);
+            long a3 = (ushort)(Accuracies[2] * ushort.MaxValue);
+            long a4 = (ushort)(Accuracies[3] * ushort.MaxValue);
+            long p1 = ((long)ushort.MaxValue << 48) | (a2 << 32) | (a3 << 16) | a4;
 
-        public static AccuracyPenalties CreateFromAttribs((double, double, double, double, double, double, double, double, double, double, double) values)
+            long a5 = (ushort)(Accuracies[4] * ushort.MaxValue);
+            long a6 = (ushort)(Accuracies[5] * ushort.MaxValue);
+            long a7 = (ushort)(Accuracies[6] * ushort.MaxValue);
+            long a8 = (ushort)(Accuracies[7] * ushort.MaxValue);
+            long p2 = (a5 << 48) | (a6 << 32) | (a7 << 16) | a8;
+
+            long a9 = (ushort)(Accuracies[8] * ushort.MaxValue);
+            long a10 = (ushort)(Accuracies[9] * ushort.MaxValue);
+            long a11 = (ushort)(Accuracies[10] * ushort.MaxValue);
+            long a12 = (ushort)(Accuracies[11] * ushort.MaxValue);
+            long p3 = (a9 << 48) | (a10 << 32) | (a11 << 16) | a12;
+
+            return (p1, p2, p3);
+        }
+
+        public static AccuracyPenalties Unpack((long, long, long) values)
         {
             return new AccuracyPenalties
             {
                 Accuracies =
                 {
-                    [0] = values.Item1,
-                    [1] = values.Item2,
-                    [2] = values.Item3,
-                    [3] = values.Item4,
-                    [4] = values.Item5,
-                    [5] = values.Item6,
-                    [6] = values.Item7,
-                    [7] = values.Item8,
-                    [8] = values.Item9,
-                    [9] = values.Item10,
-                    [10] = values.Item11
+                    [0] = (double)(ushort)(values.Item1 >> 48) / ushort.MaxValue,
+                    [1] = (double)(ushort)(values.Item1 >> 32) / ushort.MaxValue,
+                    [2] = (double)(ushort)(values.Item1 >> 16) / ushort.MaxValue,
+                    [3] = (double)(ushort)values.Item1 / ushort.MaxValue,
+                    [5] = (double)(ushort)(values.Item2 >> 48) / ushort.MaxValue,
+                    [6] = (double)(ushort)(values.Item2 >> 32) / ushort.MaxValue,
+                    [7] = (double)(ushort)(values.Item2 >> 16) / ushort.MaxValue,
+                    [4] = (double)(ushort)values.Item2 / ushort.MaxValue,
+                    [8] = (double)(ushort)(values.Item3 >> 48) / ushort.MaxValue,
+                    [9] = (double)(ushort)(values.Item3 >> 32) / ushort.MaxValue,
+                    [10] = (double)(ushort)(values.Item3 >> 16) / ushort.MaxValue,
+                    [11] = (double)(ushort)values.Item3 / ushort.MaxValue,
                 }
             };
         }
