@@ -88,16 +88,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             double ssSkill = totalSkill.DifficultyValueAtAccuracy(1.0);
             double starRatingSS = scaleToStarRating(ssSkill * consistencyMult) * odMult * lengthBonus;
 
-            var scoreLossCoefficients = totalSkill.GetScoreLossCoefficients(ssSkill);
+            var accPenalties = totalSkill.GetAccuracyPenalties(ssSkill);
+            (double p1, double p2, double p3, double p4, double p5, double p6, double p7, double p8, double p9, double p10, double p11) = accPenalties.Unpack();
 
             return new ManiaDifficultyAttributes
             {
                 StarRating = starRating,
                 StarRatingSS = starRatingSS,
-                ScoreLossCoefficientA = scoreLossCoefficients.A,
-                ScoreLossCoefficientB = scoreLossCoefficients.B,
-                ScoreLossCoefficientC = scoreLossCoefficients.C,
-                ScoreLossCoefficientD = scoreLossCoefficients.D,
+                P1 = p1,
+                P2 = p2,
+                P3 = p3,
+                P4 = p4,
+                P5 = p5,
+                P6 = p6,
+                P7 = p7,
+                P8 = p8,
+                P9 = p9,
+                P10 = p10,
+                P11 = p11,
                 Mods = mods,
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
                 SpeedDifficulty = speedStarRating,
@@ -230,12 +238,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             // Total has to come last so that every other skill has processed the current note before it reads them.
             return new Skill[]
             {
-                new Speed(mods, speedProcessor),
-                new Technical(mods, technicalProcessor),
-                new Jack(mods, jackProcessor),
-                new Coordination(mods, coordinationProcessor),
-                new Release(mods, releaseProcessor),
-                new Total(mods, coordinationProcessor, jackProcessor, releaseProcessor, speedProcessor, technicalProcessor),
+                new Speed(mods, speedProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Technical(mods, technicalProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Jack(mods, jackProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Coordination(mods, coordinationProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Release(mods, releaseProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Total(mods, coordinationProcessor, jackProcessor, releaseProcessor, speedProcessor, technicalProcessor, beatmap.Difficulty.OverallDifficulty),
             };
         }
 
