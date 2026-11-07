@@ -34,24 +34,24 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
             return (p1, p2, p3);
         }
 
-        public static AccuracyPenalties Unpack((long, long, long) values)
+        public static AccuracyPenalties Unpack(long p1, long p2, long p3)
         {
             return new AccuracyPenalties
             {
                 Accuracies =
                 {
-                    [0] = (double)(ushort)(values.Item1 >> 48) / ushort.MaxValue,
-                    [1] = (double)(ushort)(values.Item1 >> 32) / ushort.MaxValue,
-                    [2] = (double)(ushort)(values.Item1 >> 16) / ushort.MaxValue,
-                    [3] = (double)(ushort)values.Item1 / ushort.MaxValue,
-                    [4] = (double)(ushort)(values.Item2 >> 48) / ushort.MaxValue,
-                    [5] = (double)(ushort)(values.Item2 >> 32) / ushort.MaxValue,
-                    [6] = (double)(ushort)(values.Item2 >> 16) / ushort.MaxValue,
-                    [7] = (double)(ushort)values.Item2 / ushort.MaxValue,
-                    [8] = (double)(ushort)(values.Item3 >> 48) / ushort.MaxValue,
-                    [9] = (double)(ushort)(values.Item3 >> 32) / ushort.MaxValue,
-                    [10] = (double)(ushort)(values.Item3 >> 16) / ushort.MaxValue,
-                    [11] = (double)(ushort)values.Item3 / ushort.MaxValue,
+                    [0] = (double)(ushort)(p1 >> 48) / ushort.MaxValue,
+                    [1] = (double)(ushort)(p1 >> 32) / ushort.MaxValue,
+                    [2] = (double)(ushort)(p1 >> 16) / ushort.MaxValue,
+                    [3] = (double)(ushort)p1 / ushort.MaxValue,
+                    [4] = (double)(ushort)(p2 >> 48) / ushort.MaxValue,
+                    [5] = (double)(ushort)(p2 >> 32) / ushort.MaxValue,
+                    [6] = (double)(ushort)(p2 >> 16) / ushort.MaxValue,
+                    [7] = (double)(ushort)p2 / ushort.MaxValue,
+                    [8] = (double)(ushort)(p3 >> 48) / ushort.MaxValue,
+                    [9] = (double)(ushort)(p3 >> 32) / ushort.MaxValue,
+                    [10] = (double)(ushort)(p3 >> 16) / ushort.MaxValue,
+                    [11] = (double)(ushort)p3 / ushort.MaxValue,
                 }
             };
         }

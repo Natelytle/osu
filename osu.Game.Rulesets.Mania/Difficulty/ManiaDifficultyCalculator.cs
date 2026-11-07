@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double overall_multiplier = 0.35;
+        private const double overall_multiplier = 0.34;
         public const double STAR_RATING_EXPONENT = 0.52899;
 
         /*private const double strain_length_base_nerf = 0.195;
@@ -66,7 +66,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
 
             double greatHitWindow = hitWindows.WindowFor(HitResult.Great) / hitWindowDifficultyMultiplier(beatmap);
-            double odMult = hitWindowMultiplier(greatHitWindow);
+            double odMult = 1; // hitWindowMultiplier(greatHitWindow);
 
             int totalNotes = beatmap.HitObjects.Count;
             int holdNotes = beatmap.HitObjects.Count(h => h is HoldNote);
