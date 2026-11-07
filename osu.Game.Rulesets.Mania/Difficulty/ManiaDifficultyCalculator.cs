@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double overall_multiplier = 0.34;
+        private const double overall_multiplier = 0.36;
         public const double STAR_RATING_EXPONENT = 0.52899;
 
         /*private const double strain_length_base_nerf = 0.195;
