@@ -7,6 +7,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
+using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
@@ -28,7 +29,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         protected ManiaSkill(Mod[] mods, double overallDifficulty, double minCurveScale, double maxCurveScale)
             : base(mods)
         {
-            hitWindows = new DifficultyHitWindows(overallDifficulty);
+            hitWindows = new DifficultyHitWindows(overallDifficulty, mods.Any(m => m is ManiaModClassic));
             binnedDifficulties = new CurveBinning(minCurveScale, maxCurveScale);
         }
 
