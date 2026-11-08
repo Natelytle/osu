@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how many long notes are being held when it is hit.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             double coordinationDifficulty = calculateBoundaryPressure(current);
 
@@ -32,7 +32,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             coordinationDifficulty += calculateShieldDifficulty(current);
             coordinationDifficulty += calculateNoteWhileHolds(current);
 
-            return coordinationDifficulty * coordination_multiplier;
+            return coordinationDifficulty * constants.CoordinationMultiplier;
         }
 
         /// <summary>

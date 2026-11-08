@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             if (score.Mods.Any(m => m is ModEasy))
                 multiplier *= 0.5;
 
-            double difficultyValue = computeDifficultyValue(maniaAttributes.StarRatingSS);
+            double difficultyValue = computeDifficultyValue(maniaAttributes.StarRatingSS, maniaAttributes.Constants);
             double accuracyScale = computeAccuracyScale(calculateCustomAccuracy(), maniaAttributes);
             double totalValue = difficultyValue * accuracyScale * multiplier;
 
@@ -67,7 +67,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             {
                 Difficulty = difficultyValue * accuracyScale,
                 Total = totalValue,
-                StarRatingPP = computeDifficultyValue(maniaAttributes.StarRating),
+                StarRatingPP = computeDifficultyValue(maniaAttributes.StarRating, maniaAttributes.Constants),
                 StarRatingAccValue = estimatedStarRatingPP,
                 ValueSS = valueSS,
                 Value99 = value99,
@@ -83,9 +83,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             };
         }
 
-        private double computeDifficultyValue(double starRating)
+        private double computeDifficultyValue(double starRating, ManiaDifficultyConstants constants)
         {
-            double baseValue = base_coefficient * DiffUtils.Pow(starRating, base_exponent);
+            double baseValue = constants.PerformanceMultiplier * DiffUtils.Pow(starRating, constants.PerformanceExponent);
 
             return baseValue;
         }
@@ -96,7 +96,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             return Math.Pow(
                 AccuracyPenalties.GetMultiplierAt(accPenalties, accuracy),
-                base_exponent * ManiaDifficultyCalculator.STAR_RATING_EXPONENT
+                attributes.Constants.PerformanceExponent * attributes.Constants.StarRatingExponent
             );
         }
 

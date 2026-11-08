@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how many other long notes are held during its release.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             double releaseDifficulty = 0.0;
 
@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             releaseDifficulty *= current.HeldNoteMultiplier;
 
-            return releaseDifficulty * release_weight * 0.8;
+            return releaseDifficulty * constants.ReleaseMultiplier;
         }
 
         /// <summary>

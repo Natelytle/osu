@@ -61,18 +61,16 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             return DiffUtils.Smoothstep(handLoad.Fill, fill_lo, fill_hi);
         }
 
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             const double hand_combine = 1.5;
-            const double jack_scale = 139.3;
-            const double total_weight = 0.8;
 
             RowLoad load = current.Row.Load;
 
             double left = handDifficulty(load, ManiaHand.Left, current.Row);
             double right = handDifficulty(load, ManiaHand.Right, current.Row);
 
-            return DiffUtils.Norm(hand_combine, left, right) * AnchorEvaluator.EvaluateMultiplierOf(load) * jack_scale * total_weight;
+            return DiffUtils.Norm(hand_combine, left, right) * AnchorEvaluator.EvaluateMultiplierOf(load) * constants.JackMultiplier;
         }
 
         private static double handDifficulty(RowLoad load, ManiaHand hand, ManiaRow row)
