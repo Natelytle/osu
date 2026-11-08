@@ -10,21 +10,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 {
     public class Speed : ManiaSkill
     {
-        public const double ACCURACY_SCALE_FACTOR = 1.45;
+        private readonly ManiaDifficultyConstants constants;
 
         private readonly IDifficultyProcessor speedProcessor;
 
-        public Speed(Mod[] mods, IDifficultyProcessor speedProcessor, double overallDifficulty)
-            : base(mods, overallDifficulty, ACCURACY_SCALE_FACTOR, ACCURACY_SCALE_FACTOR)
+        public Speed(Mod[] mods, ManiaDifficultyConstants constants, IDifficultyProcessor speedProcessor, double overallDifficulty)
+            : base(mods, overallDifficulty, constants.SpeedAccuracyScaleFactor, constants.SpeedAccuracyScaleFactor)
         {
+            this.constants = constants;
             this.speedProcessor = speedProcessor;
         }
 
         protected override NoteAccuracyCurve AccuracyCurveAt(DifficultyHitObject current)
         {
-            speedProcessor.ProcessStrainFor(current);
+            speedProcessor.ProcessStrainFor(current, constants);
 
-            return new NoteAccuracyCurve { Difficulty = speedProcessor.CurrentStrain, ScaleFactor = ACCURACY_SCALE_FACTOR };
+            return new NoteAccuracyCurve { Difficulty = speedProcessor.CurrentStrain, ScaleFactor = this.constants.SpeedAccuracyScaleFactor };
         }
     }
 }

@@ -4,7 +4,6 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
@@ -22,8 +21,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how many long notes are being held when it is hit.</description></item>
         /// </list>
         /// </summary>
-
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             double coordinationDifficulty = calculateBoundaryPressure(current);
 
@@ -36,29 +34,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             coordinationDifficulty *= current.ManipulationFactor * current.EnduranceFactor;
 
-            return coordinationDifficulty * coordination_multiplier;
+            return coordinationDifficulty * constants.CoordinationMultiplier;
         }
-
-        /// <summary>
-        /// Two hands only have so many fingers, so past a point more columns being live at once stops adding
-        /// difficulty as fast. Bends the top of the range over without ever capping it outright.
-        /// </summary>
-        /// 
-        /// May not be needed anymore, higher SR is already kinda compressed.
-        /// 
-        /* private static double saturate(double strain)
-        {
-            const double threshold = 20.0;
-            const double strength = 0.5;
-            const double width = 1.5;
-
-            // A softplus of the excess above the threshold.
-            // See https://www.desmos.com/calculator/jgnbehwngr
-            double z = (strain - threshold) / width;
-            double softExcess = width * (Math.Max(z, 0.0) + Math.Log(1.0 + Math.Exp(-Math.Abs(z))));
-
-            return strain - strength * softExcess;
-        } */
 
         /// <summary>
         /// Calculates the difficulty of both column boundaries for this column, with a boundary being the hypothetical "middle" of two columns.
@@ -198,8 +175,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// the hand has to fight against bouncing the finger up from the jack.
         /// </summary>
         ///         Hard shield  -->  O O===========|
-        /// 
-        ///         Easy shields -->  O   O=======| 
+        ///
+        ///         Easy shields -->  O   O=======|
         ///                           O O===|
         private static double calculateShieldDifficulty(ManiaDifficultyHitObject current)
         {

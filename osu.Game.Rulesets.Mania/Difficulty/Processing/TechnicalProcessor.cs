@@ -34,9 +34,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
         private double previousDeltaTime = -1.0;
 
-        public void ProcessStrainFor(DifficultyHitObject current)
+        public void ProcessStrainFor(DifficultyHitObject current, ManiaDifficultyConstants constants)
         {
-            CurrentStrain *= DiffUtils.Pow(strain_decay_base, current.DeltaTime / 1000);
+            CurrentStrain *= DiffUtils.Pow(constants.TechnicalStrainDecayBase, current.DeltaTime / 1000);
 
             var hitObject = (ManiaDifficultyHitObject)current;
 
@@ -47,7 +47,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
             double rhythmIrregularity = TechnicalEvaluator.EvaluateRhythmIrregularityOf(hitObject, previousDeltaTime);
             previousDeltaTime = hitObject.DeltaTime;
 
-            CurrentStrain += TechnicalEvaluator.EvaluateDifficultyOf(hitObject, rhythmIrregularity, patternVariety(hitObject), windowedIrregularity(rhythmIrregularity));
+            CurrentStrain += TechnicalEvaluator.EvaluateDifficultyOf(hitObject, rhythmIrregularity, patternVariety(hitObject), windowedIrregularity(rhythmIrregularity), constants);
         }
 
         /// <summary>

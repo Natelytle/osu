@@ -42,18 +42,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         private double meanManipulation = 1.0;
 
+        private readonly ManiaDifficultyConstants tuning;
         public override int Version => 20241007;
 
-        public ManiaDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
+        public ManiaDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap, ManiaDifficultyConstants? tuning = null)
             : base(ruleset, beatmap)
         {
             isForCurrentRuleset = beatmap.BeatmapInfo.Ruleset.MatchesOnlineID(ruleset);
+            this.tuning = tuning ?? ManiaDifficultyConstants.Default;
         }
 
         protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills)
         {
             if (beatmap.HitObjects.Count == 0)
-                return new ManiaDifficultyAttributes { Mods = mods };
+                return new ManiaDifficultyAttributes { Mods = mods, Constants = tuning };
 
             var totalSkill = skills.OfType<Total>().Single();
             var speedSkill = skills.OfType<Speed>().Single();
@@ -111,7 +113,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 MeanManipulation = meanManipulation,
                 NoteCount = totalNotes,
                 HoldNoteCount = holdNotes,
-                OverallDifficulty = beatmap.Difficulty.OverallDifficulty
+                OverallDifficulty = beatmap.Difficulty.OverallDifficulty,
+                Constants = tuning
             };
         }
 
@@ -230,12 +233,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             // Total has to come last so that every other skill has processed the current note before it reads them.
             return new Skill[]
             {
-                new Speed(mods, speedProcessor, beatmap.Difficulty.OverallDifficulty),
-                new Technical(mods, technicalProcessor, beatmap.Difficulty.OverallDifficulty),
-                new Jack(mods, jackProcessor, beatmap.Difficulty.OverallDifficulty),
-                new Coordination(mods, coordinationProcessor, beatmap.Difficulty.OverallDifficulty),
-                new Release(mods, releaseProcessor, beatmap.Difficulty.OverallDifficulty),
-                new Total(mods, coordinationProcessor, jackProcessor, releaseProcessor, speedProcessor, technicalProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Speed(mods, tuning, speedProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Technical(mods, tuning, technicalProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Jack(mods, tuning, jackProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Coordination(mods, tuning, coordinationProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Release(mods, tuning, releaseProcessor, beatmap.Difficulty.OverallDifficulty),
+                new Total(mods, tuning, coordinationProcessor, jackProcessor, releaseProcessor, speedProcessor, technicalProcessor, beatmap.Difficulty.OverallDifficulty),
             };
         }
 

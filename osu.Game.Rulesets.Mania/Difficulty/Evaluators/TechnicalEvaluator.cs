@@ -40,7 +40,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how sharply a column repeats itself mid-flow.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject, double rhythmIrregularity, double patternVariety, double windowedIrregularity)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject, double rhythmIrregularity, double patternVariety, double windowedIrregularity, ManiaDifficultyConstants constants)
         {
             double columnComplexity = evaluateColumnComplexityOf(hitObject);
             double speedFactor = 1.0 / (hitObject.DeltaTime / 1000.0 + 0.060);
@@ -63,7 +63,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double difficulty = complexity * speedFactor * rhythmAmplifier * chordWidth(hitObject) * minijackPressure(hitObject);
 
-            return difficulty * hitObject.ManipulationFactor * technical_weight;
+            return difficulty * hitObject.ManipulationFactor * constants.TechnicalMultiplier;
         }
 
         /// <summary>

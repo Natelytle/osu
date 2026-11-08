@@ -13,6 +13,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
         /// <summary>
         /// Advances the strain onto <paramref name="current"/>.
         /// </summary>
-        void ProcessStrainFor(DifficultyHitObject current);
+        void ProcessStrainFor(DifficultyHitObject current, ManiaDifficultyConstants constants);
     }
 }

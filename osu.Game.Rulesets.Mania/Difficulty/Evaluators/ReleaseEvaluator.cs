@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 using System;
 using System.Linq;
-using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
@@ -28,10 +27,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how many other long notes are held during its release.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             double releaseDifficulty = 0.0;
-            
+
             if (current.BaseObject is not HoldNote)
                 return releaseDifficulty;
 
@@ -43,7 +42,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             releaseDifficulty *= current.HeldNoteMultiplier;
 
-            return releaseDifficulty * release_weight * 0.8;
+            return releaseDifficulty * constants.ReleaseMultiplier;
         }
 
         /// <summary>

@@ -53,6 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("overall_difficulty")]
         public double OverallDifficulty { get; set; }
 
+        public ManiaDifficultyConstants Constants { get; set; } = ManiaDifficultyConstants.Default;
 
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {

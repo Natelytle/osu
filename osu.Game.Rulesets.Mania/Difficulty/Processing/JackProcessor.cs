@@ -14,11 +14,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
         public double CurrentStrain { get; private set; }
 
-        public void ProcessStrainFor(DifficultyHitObject current)
+        public void ProcessStrainFor(DifficultyHitObject current, ManiaDifficultyConstants constants)
         {
-            CurrentStrain *= Math.Pow(strain_decay_base, current.DeltaTime / 1000);
+            CurrentStrain *= Math.Pow(constants.JackStrainDecayBase, current.DeltaTime / 1000);
 
-            CurrentStrain += JackEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current);
+            CurrentStrain += JackEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current, constants);
         }
     }
 }

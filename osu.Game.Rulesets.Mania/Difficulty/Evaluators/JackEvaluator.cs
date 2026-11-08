@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how much of the repeat the map lets you hit some other way.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current, ManiaDifficultyConstants constants)
         {
             const double tap_rate_offset_ms = 60;
             const double strain_exponent = 1.29407;
@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // Repeats the map lets you hit with something other than a jack motion.
             jackDifficulty *= JackSpacingEvaluator.EvaluateMultiplierOf(current, chordDepth, columnDelta, tapRate);
 
-            return jackDifficulty * jack_multiplier;
+            return jackDifficulty * constants.JackMultiplier;
         }
 
         /// <summary>

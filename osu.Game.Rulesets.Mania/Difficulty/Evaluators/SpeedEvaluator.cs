@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how easily the pattern around it can be cheesed.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject)
+        public static double EvaluateDifficultyOf(ManiaDifficultyHitObject hitObject, ManiaDifficultyConstants constants)
         {
             // Every note of a chord is pressed at once, so only the first of them costs a tap.
             if (hitObject.DeltaTime < ChordUtils.CHORD_TOLERANCE_MS)
@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             double patternMultiplier = isJack ? jack_speed_nerf : TrillUtils.TrillFactor(hitObject);
 
-            return tapRate * patternMultiplier * previousRowMultiplier(hitObject) * hitObject.ManipulationFactor * hitObject.EnduranceFactor * speed_weight;
+            return tapRate * patternMultiplier * previousRowMultiplier(hitObject) * hitObject.ManipulationFactor * hitObject.EnduranceFactor * constants.SpeedMultiplier;
         }
 
         /// <summary>
