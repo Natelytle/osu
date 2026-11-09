@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -9,175 +9,176 @@ using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
-    /// <summary>
-    /// The beatmap grouped into <see cref="ManiaRow"/>s, along with the readings around each row that would be
-    /// too expensive to work out again for every note.
-    /// </summary>
-    public class ManiaMapData
+    public static class ManiaMapData
     {
-        public const int DEFAULT_DENSITY_RADIUS = 14;
+        private const double rate_smoothing = 0.32481;
+        private const double max_column_rate = 30.0;
 
-        public readonly int TotalColumns;
-
-        public IReadOnlyList<ManiaRow> Rows => rows;
-
-        private readonly List<ManiaRow> rows = new List<ManiaRow>();
-
-        private readonly double[] localPulses;
-
-        /// <summary>
-        /// Running totals of how many rows of each <see cref="RowKind"/> came before each index, so that the
-        /// density over any window can be read as one subtraction.
-        /// </summary>
-        private readonly int[][] rowKindCounts;
-
-        public ManiaMapData(IReadOnlyList<ManiaDifficultyHitObject> objects, int totalColumns)
+        public static void ProcessAndAssign(IReadOnlyList<ManiaDifficultyHitObject> objects, int totalColumns, double clockRate)
         {
-            TotalColumns = totalColumns;
+            double chordTolerance = ChordUtils.ToleranceAt(clockRate);
+            List<ManiaRow> rows = groupIntoRows(objects, totalColumns, chordTolerance);
 
-            groupIntoRows(objects);
+            trackLoad(rows, totalColumns, chordTolerance);
 
-            localPulses = calculateLocalPulses();
-            rowKindCounts = new[]
-            {
-                countRows(RowKind.Chord),
-                countRows(RowKind.CrossHand),
-                countRows(RowKind.SingleHandChord),
-                countRows(RowKind.LargeChord),
-            };
+            ManiaRepetitionPreprocessor.ProcessAndAssign(rows);
+
+            HeldNoteMultiplier.ProcessAndAssign(rows);
         }
-
-        public ManiaRow? RowAt(int index) => index >= 0 && index < rows.Count ? rows[index] : null;
-
-        /// <summary>
-        /// The typical gap between rows around <paramref name="index"/>, as a median so that one break in the
-        /// middle of a stream does not move it.
-        /// </summary>
-        public double LocalPulseAt(int index) => localPulses[index];
-
-        public double ChordDensity(int index, int radius = DEFAULT_DENSITY_RADIUS) => density(RowKind.Chord, index, radius);
-        public double CrossHandDensity(int index, int radius = DEFAULT_DENSITY_RADIUS) => density(RowKind.CrossHand, index, radius);
-        public double SingleHandChordDensity(int index, int radius = DEFAULT_DENSITY_RADIUS) => density(RowKind.SingleHandChord, index, radius);
-        public double LargeChordDensity(int index, int radius = DEFAULT_DENSITY_RADIUS) => density(RowKind.LargeChord, index, radius);
 
         /// <summary>
         /// Groups consecutive hit objects that start within chord tolerance of each other into <see cref="ManiaRow"/>s.
         /// </summary>
-        private void groupIntoRows(IReadOnlyList<ManiaDifficultyHitObject> objects)
+        private static List<ManiaRow> groupIntoRows(IReadOnlyList<ManiaDifficultyHitObject> objects, int totalColumns, double chordTolerance)
         {
+            var rows = new List<ManiaRow>();
+
             int i = 0;
+
+            bool[] taken = new bool[totalColumns];
 
             while (i < objects.Count)
             {
                 double rowStart = objects[i].StartTime;
                 var members = new List<ManiaDifficultyHitObject>();
 
-                while (i < objects.Count && Math.Abs(objects[i].StartTime - rowStart) <= ChordUtils.CHORD_TOLERANCE_MS)
+                Array.Clear(taken);
+
+                while (i < objects.Count && Math.Abs(objects[i].StartTime - rowStart) <= chordTolerance && !taken[objects[i].Column])
                 {
+                    taken[objects[i].Column] = true;
                     members.Add(objects[i]);
                     i++;
                 }
 
                 int[] columns = members.Select(m => m.Column).Order().ToArray();
 
-                ManiaRow row = new ManiaRow(columns, rowStart, members, rows.Count, this);
+                ManiaRow row = new ManiaRow(columns, rowStart, members, rows.Count, totalColumns, rows);
 
                 foreach (var rowMember in members)
                     rowMember.Row = row;
 
                 rows.Add(row);
             }
+
+            return rows;
         }
 
-        /// <summary>
-        /// The median row gap around each row. Taken as a median rather than a mean so that a single long gap in
-        /// the middle of a stream reads as one break rather than as a slower stream.
-        /// </summary>
-        private double[] calculateLocalPulses()
+        private static void trackLoad(List<ManiaRow> rows, int totalColumns, double chordTolerance)
         {
-            const int pulse_radius = 16;
+            double[] columnGap = new double[totalColumns];
+            double[] lastStart = new double[totalColumns];
+            double[] lastEnd = new double[totalColumns];
 
-            double[] pulses = new double[rows.Count];
-            double[] window = new double[2 * pulse_radius + 1];
+            Array.Fill(lastStart, double.NegativeInfinity);
+            Array.Fill(lastEnd, double.NegativeInfinity);
 
-            for (int i = 0; i < rows.Count; i++)
+            double[] handGap = new double[2];
+            double[] handLastStart = { double.NegativeInfinity, double.NegativeInfinity };
+
+            double rowGap = 0.0;
+            double lastRowStart = double.NegativeInfinity;
+
+            double fingers = HandLayout.FingerCount(totalColumns);
+
+            foreach (var row in rows)
             {
-                // The first row has no gap before it, so the window can never start earlier than the second.
-                int lo = Math.Max(1, i - pulse_radius);
-                int hi = Math.Min(rows.Count - 1, i + pulse_radius);
-                int length = hi - lo + 1;
+                double time = row.StartTime;
 
-                if (length <= 0)
+                // Held state is read before this row's presses overwrite lastStart / lastEnd.
+                double heldLeft = heldFingersOf(lastStart, lastEnd, time, chordTolerance, ManiaHand.Left, totalColumns);
+                double heldRight = heldFingersOf(lastStart, lastEnd, time, chordTolerance, ManiaHand.Right, totalColumns);
+
+                foreach (var note in row.Objects)
                 {
-                    pulses[i] = double.PositiveInfinity;
-                    continue;
+                    int column = note.Column;
+
+                    columnGap[column] = legacyGap(columnGap[column], time - lastStart[column]);
+                    lastStart[column] = time;
+                    lastEnd[column] = Math.Max(lastEnd[column], note.EndTime);
                 }
 
-                for (int k = 0; k < length; k++)
-                    window[k] = rows[lo + k].StartTime - rows[lo + k - 1].StartTime;
+                for (int hand = 0; hand < 2; hand++)
+                {
+                    if (row.ChordSizeOn((ManiaHand)hand) <= 0)
+                        continue;
 
-                Array.Sort(window, 0, length);
-                pulses[i] = window[(length - 1) / 2];
+                    handGap[hand] = legacyGap(handGap[hand], time - handLastStart[hand]);
+                    handLastStart[hand] = time;
+                }
+
+                rowGap = legacyGap(rowGap, time - lastRowStart);
+                lastRowStart = time;
+
+                double[] rates = new double[totalColumns];
+
+                for (int column = 0; column < totalColumns; column++)
+                    rates[column] = rateAt(columnGap[column], time - lastStart[column]);
+
+                row.Load = new RowLoad(rates,
+                    handLoadOf(rates, ManiaHand.Left, rateAt(handGap[0], time - handLastStart[0]), heldLeft, fingers, totalColumns),
+                    handLoadOf(rates, ManiaHand.Right, rateAt(handGap[1], time - handLastStart[1]), heldRight, fingers, totalColumns),
+                    rateAt(rowGap, 0.0));
             }
-
-            return pulses;
         }
 
-        private int[] countRows(RowKind kind)
+        private static double legacyGap(double meanGap, double gap)
         {
-            int[] counts = new int[rows.Count + 1];
+            if (double.IsInfinity(gap))
+                return meanGap;
 
-            for (int i = 0; i < rows.Count; i++)
-                counts[i + 1] = counts[i] + (isKind(rows[i], kind) ? 1 : 0);
+            double rate = meanGap > 0 ? 1000.0 / meanGap : 0.0;
+            double instantRate = Math.Min(1000.0 / Math.Max(gap, 1.0), max_column_rate);
+            double advanced = rate > 0 ? rate + rate_smoothing * (instantRate - rate) : instantRate;
 
-            return counts;
+            return advanced > 0 ? 1000.0 / advanced : 0.0;
         }
 
-        private static bool isKind(ManiaRow row, RowKind kind)
+        private static double rateAt(double meanGap, double sinceLast)
         {
-            switch (kind)
+            if (double.IsInfinity(sinceLast))
+                return 0.0;
+
+            return meanGap > 0 ? 1000.0 / Math.Max(meanGap, sinceLast) : 0.0;
+        }
+
+        private static double heldFingersOf(double[] lastStart, double[] lastEnd, double time, double chordTolerance, ManiaHand hand, int totalColumns)
+        {
+            double held = 0.0;
+
+            for (int column = 0; column < totalColumns; column++)
             {
-                case RowKind.Chord:
-                    return row.IsChord;
+                double share = HandLayout.ShareOf(column, totalColumns, hand);
 
-                case RowKind.CrossHand:
-                    return row.Hand == ManiaHand.Both;
+                if (share <= 0)
+                    continue;
 
-                case RowKind.SingleHandChord:
-                    return row.Hand != ManiaHand.Both && row.Size >= 2;
+                bool mid = lastEnd[column] > time + chordTolerance && lastStart[column] < time - chordTolerance;
 
-                case RowKind.LargeChord:
-                    return row.Size >= 3;
-
-                default:
-                    return false;
+                if (mid)
+                    held += share * HoldUtils.HoldGateOf(lastEnd[column] - lastStart[column]);
             }
+
+            return held;
         }
 
-        /// <summary>
-        /// The share of the rows within <paramref name="radius"/> of <paramref name="index"/> that are of
-        /// <paramref name="kind"/>.
-        /// </summary>
-        private double density(RowKind kind, int index, int radius)
+        private static HandLoad handLoadOf(double[] rates, ManiaHand hand, double rowRate, double heldFingers, double fingerCapacity, int totalColumns)
         {
-            int[] counts = rowKindCounts[(int)kind];
+            double throughput = 0.0;
+            double secondMoment = 0.0;
 
-            int lo = Math.Max(0, index - radius);
-            int hi = Math.Min(rows.Count - 1, index + radius);
+            for (int column = 0; column < totalColumns; column++)
+            {
+                double share = HandLayout.ShareOf(column, totalColumns, hand);
 
-            return (double)(counts[hi + 1] - counts[lo]) / (hi - lo + 1);
-        }
+                if (share <= 0)
+                    continue;
 
-        /// <summary>
-        /// The kinds of row whose density the pattern detectors read. The order here indexes
-        /// <see cref="rowKindCounts"/>.
-        /// </summary>
-        private enum RowKind
-        {
-            Chord,
-            CrossHand,
-            SingleHandChord,
-            LargeChord,
+                throughput += share * rates[column];
+                secondMoment += share * rates[column] * rates[column];
+            }
+
+            return new HandLoad(throughput, secondMoment, rowRate, heldFingers, fingerCapacity);
         }
     }
 }

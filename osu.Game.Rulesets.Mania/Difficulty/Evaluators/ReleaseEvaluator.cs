@@ -1,8 +1,8 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
+
 using System;
 using System.Linq;
-using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 {
     public static class ReleaseEvaluator
     {
-        private const double release_weight = 3.8165;
+        private const double release_weight = 3.82;
 
         /// <summary>
         /// Holds longer than this are all the same amount of work to keep held, so the duration is capped here
@@ -31,7 +31,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
             double releaseDifficulty = 0.0;
-            
+
             if (current.BaseObject is not HoldNote)
                 return releaseDifficulty;
 

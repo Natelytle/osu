@@ -54,16 +54,21 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             // distinct shapes purely by visiting its columns in a different order while its spacing never changes
             // which is what an ordinary stream does. The floor exists for a passage whose spacings genuinely differ,
             // so it is paid in proportion to how much they actually do.
-            double varietyFloor = 1.45 * patternVariety * readingPressure * DiffUtils.Smoothstep(windowedIrregularity, 0.04, 0.12);
+            double varietyFloor = 1.45 * patternVariety * readingPressure * DiffUtils.ReverseLerp(windowedIrregularity, 0.04, 0.5);
 
             // A gap too short to read leaves nothing for a change of rhythm to register against, so irregularity counts for less the tighter the note is.
             double rhythmShare = DiffUtils.Smoothstep(hitObject.DeltaTime, 10.0, 40.0);
 
-            double complexity = Math.Max(rhythmIrregularity * rhythmShare + columnComplexity, varietyFloor);
+            double spacingComplexity = rhythmIrregularity * rhythmShare + columnComplexity;
+
+            if (varietyFloor > spacingComplexity)
+                rhythmAmplifier = 1.0;
+
+            double complexity = Math.Max(spacingComplexity, varietyFloor);
 
             double difficulty = complexity * speedFactor * rhythmAmplifier * chordWidth(hitObject) * minijackPressure(hitObject);
 
-            return difficulty * hitObject.ManipulationFactor * technical_weight;
+            return difficulty * technical_weight;
         }
 
         /// <summary>
@@ -345,6 +350,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (hitObject.PrevInColumn(0) is not { } previousNote)
                 return 1.0;
 
+            if (isHandAlternation(hitObject, previousNote))
+                return 1.0;
+
             double jackDelta = hitObject.StartTime - previousNote.StartTime;
 
             double multiplier = DiffUtils.Smoothstep(jackDelta, minijack_ms_slow, minijack_ms_fast);
@@ -399,6 +407,26 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             multiplier *= Math.Max(otherJackMultiplier, minijack_mult_floor);
 
             return 1 + minijack_weight * multiplier * acceleration * isolation;
+        }
+
+        private static bool isHandAlternation(ManiaDifficultyHitObject hitObject, ManiaDifficultyHitObject previousNote)
+        {
+            int totalColumns = hitObject.Row.TotalColumns;
+            var hand = HandLayout.HandOf(hitObject.Column, totalColumns);
+            bool anyBetween = false;
+
+            for (var row = hitObject.Row.Previous(); row != null && row.RowIndex > previousNote.Row.RowIndex; row = row.Previous())
+            {
+                foreach (int column in row.Columns)
+                {
+                    if (HandLayout.HandOf(column, totalColumns) == hand)
+                        return false;
+                }
+
+                anyBetween = true;
+            }
+
+            return anyBetween;
         }
     }
 }

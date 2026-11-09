@@ -35,9 +35,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
 
             bool isJack = hitObject.Previous() is ManiaDifficultyHitObject previous && previous.Column == hitObject.Column;
 
-            double patternMultiplier = isJack ? jack_speed_nerf : TrillUtils.TrillFactor(hitObject);
+            double patternMultiplier = isJack ? jack_speed_nerf : 1.0;
 
-            return tapRate * patternMultiplier * previousRowMultiplier(hitObject) * hitObject.ManipulationFactor * hitObject.EnduranceFactor * speed_weight;
+            return tapRate * patternMultiplier * previousRowMultiplier(hitObject) * speed_weight;
         }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (longRows >= 20)
             {
                 double longEven = 1.0 - (double)longShared / longRows;
-                sustainReward = 1.2 * DiffUtils.Smoothstep(longRows, 20.0, 30.0) * DiffUtils.Smoothstep(longEven, 0.6, 0.8) * hitObject.ManipulationFactor;
+                sustainReward = 0.6 * DiffUtils.Smoothstep(longRows, 20.0, 30.0) * DiffUtils.Smoothstep(longEven, 0.6, 0.8);
             }
 
             return spikeNerf * (1.0 + sustainReward);

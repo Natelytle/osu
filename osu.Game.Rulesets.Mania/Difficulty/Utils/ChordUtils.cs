@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -10,10 +10,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
 {
     public static class ChordUtils
     {
-        public const double CHORD_TOLERANCE_MS = 8.0;
-        public const double CHORDJACK_NERF = 0.45397;
+        public const double CHORD_TOLERANCE_MS = 12.30;
 
-        public const int DEFAULT_LOCAL_SIZE_RADIUS = 4;
+        public static double ToleranceAt(double clockRate) => CHORD_TOLERANCE_MS / clockRate;
 
         /// <summary>
         /// A 16th note at 160 BPM, where chord presses stop being fast enough to earn full credit.
@@ -24,23 +23,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Utils
         /// Where this note sits within its chord, counting from 1.
         /// </summary>
         public static int DepthInChord(ManiaDifficultyHitObject current) => current.Index - current.Row.Objects[0].Index + 1;
-
-        /// <summary>
-        /// The average notes per row over the rows surrounding <paramref name="current"/>.
-        /// </summary>
-        public static double LocalChordSize(ManiaDifficultyHitObject current, int radius = DEFAULT_LOCAL_SIZE_RADIUS)
-        {
-            double notes = 0.0;
-            int rows = 0;
-
-            foreach (var row in current.Row.RowsAround(radius))
-            {
-                notes += row.Size;
-                rows++;
-            }
-
-            return rows > 0 ? notes / rows : 0.0;
-        }
 
         /// <summary>
         /// How much a chord press is worth for the speed it is played at.

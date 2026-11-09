@@ -4,7 +4,6 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 using osu.Game.Rulesets.Mania.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
@@ -22,7 +21,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// <item><description>and how many long notes are being held when it is hit.</description></item>
         /// </list>
         /// </summary>
-
         public static double EvaluateDifficultyOf(ManiaDifficultyHitObject current)
         {
             double coordinationDifficulty = calculateBoundaryPressure(current);
@@ -34,8 +32,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             coordinationDifficulty += calculateShieldDifficulty(current);
             coordinationDifficulty += calculateNoteWhileHolds(current);
 
-            coordinationDifficulty *= current.ManipulationFactor * current.EnduranceFactor;
-
             return coordinationDifficulty * coordination_multiplier;
         }
 
@@ -43,9 +39,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         /// Two hands only have so many fingers, so past a point more columns being live at once stops adding
         /// difficulty as fast. Bends the top of the range over without ever capping it outright.
         /// </summary>
-        /// 
+        ///
         /// May not be needed anymore, higher SR is already kinda compressed.
-        /// 
+        ///
         /* private static double saturate(double strain)
         {
             const double threshold = 20.0;
@@ -77,7 +73,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
             if (column < totalColumns - 1)
                 total += columnBoundaryPressure(current, column, left: false, totalColumns);
 
-            return total * TrillUtils.TrillFactor(current) * boundary_pressure_weight;
+            return total * boundary_pressure_weight;
         }
 
         /// <summary>
@@ -155,9 +151,15 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
                 ? (double)Math.Min(previous.Size, current.Row.Size) / Math.Max(previous.Size, current.Row.Size)
                 : 1.0;
 
-            double difficulty = load_per_extra_column * (depthInChord - 1) * balanceRatio * ChordUtils.ChordRepeatNerf(current, columnDelta) * ChordUtils.ChordSpeedFactor(columnDelta);
+            bool isJackNote = current.Row.Previous() is { } previousRow && Array.IndexOf(previousRow.Columns, current.Column) >= 0;
+            double speedFactor = ChordUtils.ChordSpeedFactor(columnDelta);
 
-            return difficulty * chordjackMultiplier(chordjackValue);
+            if (isJackNote)
+                speedFactor = Math.Min(speedFactor, 1.0);
+
+            double difficulty = load_per_extra_column * (depthInChord - 1) * balanceRatio * ChordUtils.ChordRepeatNerf(current, columnDelta) * speedFactor;
+
+            return isJackNote ? difficulty * (1.0 - chordjackValue) : difficulty;
         }
 
         /// <summary>
@@ -176,30 +178,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Evaluators
         }
 
         /// <summary>
-        /// What a chord's repeat value does to its coordination. A chord that barely touches the one before it
-        /// is a new shape the hand has to place and is worth more.
-        /// </summary>
-        private static double chordjackMultiplier(double chordjackValue)
-        {
-            if (chordjackValue <= 0.0)
-                return 1.0;
-
-            const double centre = 0.5;
-            const double buff = 0.48;
-            const double nerf = 0.6;
-
-            return chordjackValue < centre
-                ? 1.0 + buff * (centre - chordjackValue) / centre
-                : 1.0 - nerf * (chordjackValue - centre) / (1.0 - centre);
-        }
-
-        /// <summary>
         /// A long note with a jack previously is a shield. If the long note needs to be held for an extended period of time,
         /// the hand has to fight against bouncing the finger up from the jack.
         /// </summary>
         ///         Hard shield  -->  O O===========|
-        /// 
-        ///         Easy shields -->  O   O=======| 
+        ///
+        ///         Easy shields -->  O   O=======|
         ///                           O O===|
         private static double calculateShieldDifficulty(ManiaDifficultyHitObject current)
         {

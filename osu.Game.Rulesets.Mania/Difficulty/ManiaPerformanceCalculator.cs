@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         public const double MAX_JUDGEMENT_WEIGHT = 320;
 
         private const double base_coefficient = 4.243 * 0.8;
-        private const double base_exponent = 2.470;
+        private const double base_exponent = 2.47;
 
         private int countPerfect;
         private int countGreat;

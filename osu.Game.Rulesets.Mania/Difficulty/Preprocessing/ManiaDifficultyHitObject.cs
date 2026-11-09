@@ -1,12 +1,10 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
-using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning.Detectors;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
 
@@ -21,6 +19,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public readonly double ColumnDelta;
 
         public readonly ManiaDifficultyHitObject?[] PreviousHitObjects;
+
+        public ManiaRow Row = null!;
 
         // Chords centered around presses and releases respectively.
         public readonly ManiaDifficultyHitObject?[] ChordHitObjects;
@@ -38,60 +38,51 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         // We select the LN of the third release, as it is the latest release that overlaps this LN body.
         public readonly ManiaDifficultyHitObject?[] LastConcurrentlyReleasedHolds;
 
-        public ManiaRow Row = null!;
-
-        /// <summary>
-        /// How much of this note's difficulty is left once the surrounding pattern turns out to be playable with an
-        /// easier motion than the one it was written as. 1 means it has to be played exactly as written.
-        /// This is populated via <see cref="ManiaPatternContextPreprocessor"/>.
-        /// </summary>
-        public double ManipulationFactor = 1.0;
-
-        /// <summary>
-        /// How much this note is worth for the sustained density around it. Above 1 for a section that holds a
-        /// high rate, below 1 for one that only reaches that rate in bursts.
-        /// This is populated via <see cref="EnduranceDetector"/>.
-        /// </summary>
-        public double EnduranceFactor = 1.0;
-
-        /// <summary>
-        /// The long notes being held when this note is hit, as a multiplier (at least 1). A hold that has been
-        /// down a while and still has time to run is worth the most, one that has only just been pressed or is
-        /// about to be let go is worth a little, and the holds add up.
-        /// This is populated via <see cref="HeldNoteMultiplier"/>.
-        /// </summary>
         public double HeldNoteMultiplier = 1.0;
+
+        private readonly ManiaDifficultyHitObject?[] chordPreviousHitObjects;
 
         private readonly List<DifficultyHitObject>[] perColumnObjects;
 
         private readonly int columnIndex;
 
-        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index)
+        public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, List<DifficultyHitObject>[] perColumnObjects, int index, IReadOnlyList<int> columnLayout)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
             int totalColumns = perColumnObjects.Length;
             this.perColumnObjects = perColumnObjects;
-            Column = BaseObject.Column;
+            Column = columnLayout[BaseObject.Column];
             columnIndex = perColumnObjects[Column].Count;
-            ColumnDelta = StartTime - PrevInColumn(0)?.StartTime ?? StartTime;
+            PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
+            ColumnDelta = (StartTime - PrevInColumn(0)?.StartTime) ?? StartTime;
+
+            if (index > 0)
+            {
+                ManiaDifficultyHitObject prevNote = (ManiaDifficultyHitObject)objects[index - 1];
+
+                for (int i = 0; i < prevNote.PreviousHitObjects.Length; i++)
+                    PreviousHitObjects[i] = prevNote.PreviousHitObjects[i];
+
+                PreviousHitObjects[prevNote.Column] = prevNote;
+            }
 
             TailOverlappedHolds = new ManiaDifficultyHitObject[totalColumns];
             TailChordHolds = new ManiaDifficultyHitObject[totalColumns];
 
             if (index == 0)
             {
-                PreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
+                chordPreviousHitObjects = new ManiaDifficultyHitObject[totalColumns];
                 ChordHitObjects = new ManiaDifficultyHitObject[totalColumns];
                 HeadOverlappedHolds = new ManiaDifficultyHitObject[totalColumns];
             }
             else
             {
-                var prevNote = (ManiaDifficultyHitObject)Previous();
+                var prevNote = (ManiaDifficultyHitObject)objects[index - 1];
 
                 bool sameChord = prevNote.StartTime == StartTime;
 
                 // Pass by reference if we're in the same chord, so that this note will update previously processed notes in the chord.
-                PreviousHitObjects = sameChord ? prevNote.PreviousHitObjects : prevNote.PreviousHitObjects.ToArray();
+                chordPreviousHitObjects = sameChord ? prevNote.chordPreviousHitObjects : prevNote.chordPreviousHitObjects.ToArray();
                 ChordHitObjects = sameChord ? prevNote.ChordHitObjects : new ManiaDifficultyHitObject[totalColumns];
                 HeadOverlappedHolds = sameChord ? prevNote.HeadOverlappedHolds : new ManiaDifficultyHitObject[totalColumns];
 
@@ -104,7 +95,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             LastConcurrentlyReleasedHolds = HeadOverlappedHolds.Select(o => o?.EndTime > EndTime ? null : o).ToArray();
 
             // Need to do a lil something extra to ensure completely overlapped notes register the tail overlap.
-            foreach (var prevHitObj in PreviousHitObjects)
+            foreach (var prevHitObj in chordPreviousHitObjects)
             {
                 if (prevHitObj is null || prevHitObj.EndTime <= EndTime)
                     continue;
@@ -123,11 +114,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             for (int i = 0; i < prevNote.ChordHitObjects.Length; i++)
             {
                 if (prevNote.ChordHitObjects[i] is not null)
-                    PreviousHitObjects[i] = prevNote.ChordHitObjects[i];
+                    chordPreviousHitObjects[i] = prevNote.ChordHitObjects[i];
             }
 
             // These arrays are shared between all chord notes by reference, so updating them updates every note in the chord.
-            foreach (var prevObj in PreviousHitObjects)
+            foreach (var prevObj in chordPreviousHitObjects)
             {
                 if (prevObj is null)
                     continue;
@@ -147,28 +138,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
                     prevObj.TailOverlappedHolds[Column] = this;
                 }
             }
-        }
-
-        /// <summary>
-        /// The latest object in <paramref name="column"/> that comes before <paramref name="afterIndex"/>,
-        /// or null when the column has nothing before that point.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <see cref="LastStartTimeInColumn"/>, which reads the shared previous-note array and so only
-        /// ever describes the row before this one, this walks the column's own history. A walk that steps outward
-        /// from a note needs that, or it would read the same row over and over instead of moving back in time.
-        /// </remarks>
-        public ManiaDifficultyHitObject? PrevInColumnBefore(int column, int afterIndex)
-        {
-            var columnObjects = perColumnObjects[column];
-
-            for (int i = columnObjects.Count - 1; i >= 0; i--)
-            {
-                if (columnObjects[i].Index < afterIndex)
-                    return (ManiaDifficultyHitObject)columnObjects[i];
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -193,38 +162,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             return index >= 0 && index < perColumnObjects[Column].Count ? (ManiaDifficultyHitObject)perColumnObjects[Column][index] : null;
         }
 
-        /// <summary>
-        /// The start time of the most recent <see cref="ManiaDifficultyHitObject"/> in <paramref name="column"/> prior to this one, relative to the HEAD of the current note.
-        /// </summary>
         public double LastStartTimeInColumn(int column) => PreviousHitObjects[column]?.StartTime ?? double.NegativeInfinity;
-
-        /// <summary>
-        /// The end time of the most recent <see cref="ManiaDifficultyHitObject"/> in <paramref name="column"/> prior to this one, relative to the HEAD of the current note.
-        /// </summary>
-        public double LastEndTimeInColumn(int column) => PreviousHitObjects[column]?.EndTime ?? double.NegativeInfinity;
-
-        /// <summary>
-        /// The number of columns, other than this object's own, that are currently held.
-        /// </summary>
-        /// <param name="chordTolerance">The time window within which two notes are considered to start simultaneously.</param>
-        public int ConcurrentlyHeldColumns(double chordTolerance)
-        {
-            int heldColumns = 0;
-
-            for (int otherColumn = 0; otherColumn < PreviousHitObjects.Length; otherColumn++)
-            {
-                if (otherColumn == Column)
-                    continue;
-
-                // A hold that started in this same chord is part of one press, not a finger already committed.
-                if (Math.Abs(LastStartTimeInColumn(otherColumn) - StartTime) <= chordTolerance)
-                    continue;
-
-                if (LastEndTimeInColumn(otherColumn) > StartTime + chordTolerance)
-                    heldColumns++;
-            }
-
-            return heldColumns;
-        }
     }
 }

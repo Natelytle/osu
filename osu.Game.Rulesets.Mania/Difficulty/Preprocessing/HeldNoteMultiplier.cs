@@ -1,8 +1,10 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Utils;
+using osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning;
 using osu.Game.Rulesets.Mania.Objects;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
@@ -19,17 +21,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         private const double hold_end_ramp_ms = 110.0;
         private const double hold_edge_factor = 0.4;
 
-        /// A lenght shroter than this costs much less.
+        /// A length shorter than this costs much less.
         private const double short_hold_ms = 110.0;
+
         private const double short_hold_steepness = 0.07;
 
         // Long notes placed farther from current get a reduction. A held note far from the tap \
-        // interfers way less than neighbouring holds.
+        // interferes way less than neighbouring holds.
         private const double hold_column_falloff = 0.12;
 
-        public static void ProcessAndAssign(ManiaMapData mapData)
+        public static void ProcessAndAssign(IReadOnlyList<ManiaRow> rows)
         {
-            foreach (var row in mapData.Rows)
+            foreach (var row in rows)
             {
                 foreach (var note in row.Objects)
                     note.HeldNoteMultiplier = evaluate(note);

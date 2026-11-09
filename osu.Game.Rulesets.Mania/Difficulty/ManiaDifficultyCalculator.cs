@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double overall_multiplier = 0.36;
+        private const double overall_multiplier = 0.37;
         public const double STAR_RATING_EXPONENT = 0.52899;
 
         /*private const double strain_length_base_nerf = 0.195;
@@ -39,8 +39,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private const double od_weight = 0.188;
 
         private readonly bool isForCurrentRuleset;
-
-        private double meanManipulation = 1.0;
 
         public override int Version => 20241007;
 
@@ -108,7 +106,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 Variety = participationRatio(speedStarRating, technicalStarRating, jackStarRating, coordinationStarRating, releaseStarRating),
                 LnRatio = totalNotes > 0 ? (double)holdNotes / totalNotes : 0.0,
                 GreatHitWindow = greatHitWindow,
-                MeanManipulation = meanManipulation,
                 NoteCount = totalNotes,
                 HoldNoteCount = holdNotes,
                 OverallDifficulty = beatmap.Difficulty.OverallDifficulty
@@ -186,10 +183,32 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return 1;
         }
 
+        private static (int[] Map, int PlayedColumns) playedColumnsOf(List<HitObject> hitObjects, int totalColumns)
+        {
+            bool[] played = new bool[totalColumns];
+
+            foreach (var hitObject in hitObjects)
+                played[((ManiaHitObject)hitObject).Column] = true;
+
+            int[] map = new int[totalColumns];
+            int playedColumns = 0;
+
+            for (int column = 0; column < totalColumns; column++)
+            {
+                map[column] = playedColumns;
+
+                if (played[column])
+                    playedColumns++;
+            }
+
+            return (map, Math.Max(playedColumns, 1));
+        }
+
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, Mod[] mods)
         {
             var sortedObjects = beatmap.HitObjects.ToList();
-            int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
+            var columnLayout = playedColumnsOf(sortedObjects, ((ManiaBeatmap)beatmap).TotalColumns);
+            int totalColumns = columnLayout.PlayedColumns;
 
             double clockRate = ModUtils.CalculateRateWithMods(mods);
 
@@ -203,16 +222,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             for (int i = 1; i < sortedObjects.Count; i++)
             {
-                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count);
+                var currentObject = new ManiaDifficultyHitObject(sortedObjects[i], sortedObjects[i - 1], clockRate, objects, perColumnObjects, objects.Count, columnLayout.Map);
                 objects.Add(currentObject);
                 perColumnObjects[currentObject.Column].Add(currentObject);
             }
 
             // Patterns are made of many rows, so they have to be found before any single note can be evaluated.
             var maniaObjects = objects.Cast<ManiaDifficultyHitObject>().ToList();
-            ManiaPatternContextPreprocessor.ProcessAndAssign(new ManiaMapData(maniaObjects, totalColumns));
-
-            meanManipulation = maniaObjects.Count > 0 ? maniaObjects.Average(o => o.ManipulationFactor) : 1.0;
+            ManiaMapData.ProcessAndAssign(maniaObjects, totalColumns, clockRate);
 
             return objects;
         }

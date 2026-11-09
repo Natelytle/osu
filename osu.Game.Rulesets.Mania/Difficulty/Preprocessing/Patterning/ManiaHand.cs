@@ -9,7 +9,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing.Patterning
     public enum ManiaHand
     {
         Left,
-        Right,
-        Both,
+        Right
     }
 }

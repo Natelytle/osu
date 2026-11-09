@@ -9,7 +9,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 {
     public class CoordinationProcessor : IDifficultyProcessor
     {
-        private const double strain_decay_base = 0.52909;
+        private const double strain_decay_base = 0.53;
 
         public double CurrentStrain { get; private set; }
 

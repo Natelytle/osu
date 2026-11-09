@@ -71,7 +71,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             double rawDifficulty = RootFinding.FindRootExpand(skill => AccuracyAtSkill(skill) - accuracy, 0, 100);
 
-            const double note_count_offset = 34.64147;
+            const double note_count_offset = 34.64;
 
             return rawDifficulty; // * (totalNoteWeight / (totalNoteWeight + note_count_offset));
         }

@@ -41,9 +41,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("great_hit_window")]
         public double GreatHitWindow { get; set; }
 
-        [JsonProperty("mean_manip")]
-        public double MeanManipulation { get; set; }
-
         [JsonProperty("note_count")]
         public int NoteCount { get; set; }
 
