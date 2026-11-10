@@ -90,6 +90,57 @@ namespace osu.Game.Rulesets.Difficulty
             return CreateDifficultyAttributes(Beatmap, playableMods, skills);
         }
 
+        private sealed class PreprocessedEntry
+        {
+            public Mod[] Mods;
+            public IBeatmap Beatmap;
+            public DifficultyHitObject[] Objects;
+        }
+
+        // Per-calculator cache. See the note below if you create a new calculator per iteration.
+        private readonly Dictionary<string, PreprocessedEntry> preprocessCache = new Dictionary<string, PreprocessedEntry>();
+
+        private DifficultyHitObject[] cachedDifficultyObjects;
+
+        private void preProcess([NotNull] IEnumerable<Mod> mods, CancellationToken cancellationToken)
+        {
+            var modArray = mods.ToArray();
+            string key = getCacheKey(modArray);
+
+            PreprocessedEntry entry;
+
+            lock (preprocessCache)
+            {
+                if (!preprocessCache.TryGetValue(key, out entry))
+                {
+                    var clonedMods = modArray.Select(m => m.DeepClone()).ToArray();
+                    var beatmap = WorkingBeatmap.GetPlayableBeatmap(ruleset, clonedMods, cancellationToken);
+
+                    // Only stored if nothing threw/cancelled above, so partial results are never cached.
+                    var objects = beatmap.HitObjects.Any()
+                        ? SortObjects(CreateDifficultyHitObjects(beatmap, clonedMods)).ToArray()
+                        : Array.Empty<DifficultyHitObject>();
+
+                    entry = new PreprocessedEntry { Mods = clonedMods, Beatmap = beatmap, Objects = objects };
+                    preprocessCache[key] = entry;
+                }
+            }
+
+            playableMods = entry.Mods;
+            Beatmap = entry.Beatmap;
+            cachedDifficultyObjects = entry.Objects;
+        }
+
+        private static string getCacheKey(Mod[] mods)
+        {
+            // Value-based key: order-independent, includes settings (e.g. custom DT rate, AR overrides).
+            return string.Join("|", mods
+                                    .Select(m => m.Acronym + "(" + string.Join(",", m.SettingsBindables.Select(b => b.ToString())) + ")")
+                                    .OrderBy(s => s, StringComparer.Ordinal));
+        }
+
+        private IEnumerable<DifficultyHitObject> getDifficultyHitObjects() => cachedDifficultyObjects;
+
         /// <summary>
         /// Calculates the difficulty of the beatmap with no mods applied and returns a set of <see cref="TimedDifficultyAttributes"/> representing the difficulty at every relevant time value in the beatmap.
         /// </summary>
@@ -168,22 +219,6 @@ namespace osu.Game.Rulesets.Difficulty
 
                 yield return Calculate(finalCombination.ToArray(), cancellationToken);
             }
-        }
-
-        /// <summary>
-        /// Retrieves the <see cref="DifficultyHitObject"/>s to calculate against.
-        /// </summary>
-        private IEnumerable<DifficultyHitObject> getDifficultyHitObjects() => SortObjects(CreateDifficultyHitObjects(Beatmap, playableMods));
-
-        /// <summary>
-        /// Performs required tasks before every calculation.
-        /// </summary>
-        /// <param name="mods">The original list of <see cref="Mod"/>s.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        private void preProcess([NotNull] IEnumerable<Mod> mods, CancellationToken cancellationToken)
-        {
-            playableMods = mods.Select(m => m.DeepClone()).ToArray();
-            Beatmap = WorkingBeatmap.GetPlayableBeatmap(ruleset, playableMods, cancellationToken);
         }
 
         /// <summary>

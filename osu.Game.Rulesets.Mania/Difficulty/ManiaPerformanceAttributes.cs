@@ -12,6 +12,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("difficulty")]
         public double Difficulty { get; set; }
 
+        [JsonProperty("star_rating")]
+        public double StarRating { get; set; }
+
         [JsonProperty("star_rating_pp")]
         public double StarRatingPP { get; set; }
 

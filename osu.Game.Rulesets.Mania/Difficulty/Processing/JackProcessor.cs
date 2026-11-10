@@ -14,7 +14,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Processing
 
         public void ProcessStrainFor(DifficultyHitObject current, ManiaDifficultyConstants constants)
         {
-            CurrentStrain *= Math.Pow(constants.JackStrainDecayBase, current.DeltaTime / 1000);
+            CurrentStrain *= constants.JackStrainDecayBase == 0 ? 0 : Math.Pow(constants.JackStrainDecayBase, current.DeltaTime / 1000);
 
             CurrentStrain += JackEvaluator.EvaluateDifficultyOf((ManiaDifficultyHitObject)current, constants);
         }

@@ -66,6 +66,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return new ManiaPerformanceAttributes
             {
                 Difficulty = difficultyValue * accuracyScale,
+                StarRating = maniaAttributes.StarRating,
                 Total = totalValue,
                 StarRatingPP = computeDifficultyValue(maniaAttributes.StarRating, maniaAttributes.Constants),
                 StarRatingAccValue = estimatedStarRatingPP,

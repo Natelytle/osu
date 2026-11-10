@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
         // Skill multipliers
         public double CoordinationMultiplier { get; init; } = 2.22;
-        public double JackMultiplier { get; init; } = 208.95;
+        public double JackMultiplier { get; init; } = 111.44;
         public double ReleaseMultiplier { get; init; } = 3.0532;
         public double SpeedMultiplier { get; init; } = 2.4;
         public double TechnicalMultiplier { get; init; } = 4.88;
@@ -28,10 +28,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         public double TechnicalAccuracyScaleFactor { get; init; } = 1.3;
 
         // Strain decay parameters
-        public double CoordinationStrainDecayBase { get; init; } = 0.52909;
-        public double JackStrainDecayBase { get; init; } = 0.50497;
-        public double ReleaseStrainDecayBase { get; init; } = 0.89647;
-        public double SpeedStrainDecayBase { get; init; } = 0.05007;
+        public double CoordinationStrainDecayBase { get; init; } = 0.53;
+        public double JackStrainDecayBase { get; init; } = 0.0;
+        public double ReleaseStrainDecayBase { get; init; } = 0.90;
+        public double SpeedStrainDecayBase { get; init; } = 0.05;
         public double TechnicalStrainDecayBase { get; init; } = 0.06696;
     }
 }
